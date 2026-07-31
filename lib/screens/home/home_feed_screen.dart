@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../data/mock_calendar.dart';
 import '../../data/mock_requests.dart';
 import '../../data/mock_trips.dart';
+import '../../models/feed_filters.dart';
+import '../../models/trip_card_item.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
@@ -30,12 +32,35 @@ class HomeFeedScreen extends ConsumerStatefulWidget {
 class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   String _from = '';
   String _to = '';
-  String _date = ''; // '' = today
+  FeedFilters _filters = const FeedFilters();
 
   static const _monthsShort = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
   String get _today => ymd(DateTime.now());
-  String get _current => _date.isEmpty ? _today : _date;
+  String get _current => (_filters.date.isEmpty || _filters.date == 'any') ? _today : _filters.date;
+
+  /// Applies the active filters + sort to the sample trips.
+  List<TripCardItem> _visibleTrips() {
+    var list = mockTrips();
+    if (_filters.date != 'any') {
+      final eff = _filters.date.isEmpty ? _today : _filters.date;
+      list = list.where((t) => ymd(t.departureAt) == eff).toList();
+    }
+    if (_filters.onlyVerified) list = list.where((t) => t.driver.verified).toList();
+    if (_filters.luggage.isNotEmpty) list = list.where((t) => t.luggage == _filters.luggage).toList();
+    if (_filters.minRating > 0) list = list.where((t) => (t.driver.rating ?? 0) >= _filters.minRating).toList();
+    if (_filters.minPrice != null) list = list.where((t) => t.pricePerSeat >= _filters.minPrice!).toList();
+    if (_filters.maxPrice != null) list = list.where((t) => t.pricePerSeat <= _filters.maxPrice!).toList();
+    switch (_filters.sort) {
+      case 'price_asc':
+        list.sort((a, b) => a.pricePerSeat.compareTo(b.pricePerSeat));
+      case 'rating_desc':
+        list.sort((a, b) => (b.driver.rating ?? 0).compareTo(a.driver.rating ?? 0));
+      default:
+        list.sort((a, b) => a.departureAt.compareTo(b.departureAt));
+    }
+    return list;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,8 +84,29 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     );
   }
 
-  SliverList _tripList(bool dark) {
-    final trips = mockTrips();
+  Widget _tripList(bool dark) {
+    final trips = _visibleTrips();
+    if (trips.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 48),
+          child: Column(
+            children: [
+              const Icon(Icons.event_busy, size: 40, color: InkColors.c400),
+              const SizedBox(height: 12),
+              Text('empty.passenger_trips.title'.tr(),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: dark ? Colors.white : InkColors.c900)),
+              const SizedBox(height: 4),
+              Text('empty.passenger_trips.description'.tr(),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)),
+            ],
+          ),
+        ),
+      );
+    }
     return SliverList.separated(
       itemCount: trips.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -202,11 +248,18 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
         child: Row(
           children: [
             AppChip(
-              label: 'feed.filters'.tr(),
+              label: _filters.activeCount > 0
+                  ? '${'feed.filters'.tr()} · ${_filters.activeCount}'
+                  : 'feed.filters'.tr(),
               icon: Icons.tune,
               selected: true,
               accent: accent,
-              onTap: () => showFiltersSheet(context, accent: accent),
+              onTap: () => showFiltersSheet(
+                context,
+                initial: _filters,
+                accent: accent,
+                onChanged: (f) => setState(() => _filters = f),
+              ),
             ),
             const SizedBox(width: 8),
             _dateStepper(context, dark, driver),
@@ -243,7 +296,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     }
 
     Widget arrow(IconData icon, String? target) => GestureDetector(
-          onTap: target == null ? null : () => setState(() => _date = target),
+          onTap: target == null ? null : () => setState(() => _filters = _filters.copyWith(date: target)),
           child: Opacity(
             opacity: target == null ? 0.25 : 1,
             child: Container(
@@ -301,10 +354,10 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
           GestureDetector(
             onTap: () => showDatePickerModal(
               context,
-              value: _date == _today ? '' : _date,
+              value: (_filters.date.isEmpty || _filters.date == 'any' || _filters.date == _today) ? '' : _filters.date,
               min: _today,
               dayCounts: counts,
-              onChange: (v) => setState(() => _date = v),
+              onChange: (v) => setState(() => _filters = _filters.copyWith(date: v)),
             ),
             child: Container(
               width: 36,

@@ -10,8 +10,74 @@ const Map<String, ({double lat, double lng})> kCityCoords = {
   'Нарын': (lat: 41.4287, lng: 75.9911),
 };
 
-/// Look up a sample trip by id (falls back to the first). Enriched with
-/// comment/luggage/preferences so the detail screen has content.
+const _drivers = [
+  TripDriver(id: 'd1', name: 'Азамат Кыдыров', rating: 4.9, ratingCount: 128, verified: true, car: TripCar(make: 'Toyota', model: 'Camry', plate: '01KG777')),
+  TripDriver(id: 'd2', name: 'Нургуль С.', rating: 4.7, ratingCount: 41, car: TripCar(make: 'Honda', model: 'Fit')),
+  TripDriver(id: 'd3', name: 'Тимур', ratingCount: 0, car: TripCar(make: 'Hyundai', model: 'Starex')),
+  TripDriver(id: 'd4', name: 'Бек Осмонов', rating: 5.0, ratingCount: 12, verified: true, car: TripCar(make: 'Toyota', model: 'Prius')),
+  TripDriver(id: 'd5', name: 'Эркин', rating: 4.5, ratingCount: 7, car: TripCar(make: 'Mercedes', model: 'Sprinter')),
+  TripDriver(id: 'd6', name: 'Айбек', rating: 4.8, ratingCount: 63, verified: true, car: TripCar(make: 'Lexus', model: 'RX')),
+];
+
+const _routes = [
+  ('Бишкек', 'Ош'),
+  ('Ош', 'Джалал-Абад'),
+  ('Бишкек', 'Каракол'),
+  ('Талас', 'Бишкек'),
+  ('Бишкек', 'Нарын'),
+];
+
+const _luggage = ['small', 'yes', 'no', 'small', 'yes'];
+
+/// ~18 trips spread across today..+8 so the calendar counts and date filter
+/// are meaningful. Deterministic (no RNG). Replaced by /trips in ТЗ step 2.
+List<TripCardItem> mockTrips() {
+  final now = DateTime.now();
+  final base = DateTime(now.year, now.month, now.day);
+  final trips = <TripCardItem>[];
+  var i = 0;
+  // Distribution: how many trips on each day offset from today.
+  const perDay = [3, 2, 3, 1, 2, 0, 2, 1, 3];
+  for (var dayOffset = 0; dayOffset < perDay.length; dayOffset++) {
+    for (var k = 0; k < perDay[dayOffset]; k++) {
+      final route = _routes[(i + k) % _routes.length];
+      final driver = _drivers[i % _drivers.length];
+      final hour = 6 + ((i * 3 + k * 2) % 14);
+      final dep = DateTime(base.year, base.month, base.day + dayOffset, hour, (k % 2) * 30);
+      const seatsTotal = 4;
+      final seatsAvail = ((i + k) % 5); // 0..4, sometimes sold out
+      trips.add(TripCardItem(
+        id: 't${i + 1}',
+        originCity: route.$1,
+        destinationCity: route.$2,
+        departureAt: dep,
+        seatsTotal: seatsTotal,
+        seatsAvailable: seatsAvail > seatsTotal ? seatsTotal : seatsAvail,
+        pricePerSeat: 300 + ((i % 6) * 180),
+        driver: driver,
+        pickupCities: i.isEven ? const ['Кара-Балта'] : const [],
+        instant: i % 3 == 0,
+        wholeCabin: i % 5 == 0,
+        liked: i % 4 == 0,
+        luggage: _luggage[i % _luggage.length],
+      ));
+      i++;
+    }
+  }
+  return trips;
+}
+
+/// Per-day trip counts derived from the sample data (for the calendar / stepper).
+Map<String, int> tripCalendarCounts() {
+  final counts = <String, int>{};
+  for (final t in mockTrips()) {
+    final d = t.departureAt;
+    final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
 TripCardItem mockTripById(String id) {
   final list = mockTrips();
   final base = list.firstWhere((t) => t.id == id, orElse: () => list.first);
@@ -30,110 +96,9 @@ TripCardItem mockTripById(String id) {
     liked: base.liked,
     instant: base.instant,
     wholeCabin: base.wholeCabin,
+    luggage: base.luggage,
     comment: 'Выезжаю утром от автовокзала. Есть место для небольшого багажа. '
         'Можно с ручной кладью, помогу загрузить.',
-    luggage: 'small',
-    preferences: const {
-      'no_smoking': true,
-      'clean': true,
-      'music': true,
-    },
+    preferences: const {'no_smoking': true, 'clean': true, 'music': true},
   );
-}
-
-/// Temporary in-memory sample data so the feed renders without a backend.
-/// Removed once trips_api + providers land (ТЗ step 2).
-List<TripCardItem> mockTrips() {
-  final now = DateTime.now();
-  DateTime at(int addDays, int h, int m) =>
-      DateTime(now.year, now.month, now.day + addDays, h, m);
-
-  return [
-    TripCardItem(
-      id: 't1',
-      originCity: 'Бишкек',
-      destinationCity: 'Ош',
-      departureAt: at(0, 6, 0),
-      seatsAvailable: 3,
-      seatsTotal: 4,
-      pricePerSeat: 1200,
-      pickupCities: const ['Кара-Балта', 'Токтогул'],
-      instant: true,
-      driver: const TripDriver(
-        id: 'd1',
-        name: 'Азамат Кыдыров',
-        rating: 4.9,
-        ratingCount: 128,
-        verified: true,
-        car: TripCar(make: 'Toyota', model: 'Camry', plate: '01KG777'),
-      ),
-    ),
-    TripCardItem(
-      id: 't2',
-      originCity: 'Ош',
-      destinationCity: 'Джалал-Абад',
-      departureAt: at(0, 9, 30),
-      seatsAvailable: 1,
-      seatsTotal: 4,
-      pricePerSeat: 350,
-      driver: const TripDriver(
-        id: 'd2',
-        name: 'Нургуль С.',
-        rating: 4.7,
-        ratingCount: 41,
-        car: TripCar(make: 'Honda', model: 'Fit'),
-      ),
-    ),
-    TripCardItem(
-      id: 't3',
-      originCity: 'Бишкек',
-      destinationCity: 'Каракол',
-      departureAt: at(1, 7, 15),
-      departureWindowEnd: DateTime(now.year, now.month, now.day + 1, 8, 30),
-      seatsAvailable: 4,
-      seatsTotal: 4,
-      pricePerSeat: 800,
-      wholeCabin: true,
-      liked: true,
-      driver: const TripDriver(
-        id: 'd3',
-        name: 'Тимур',
-        ratingCount: 0,
-        car: TripCar(make: 'Hyundai', model: 'Starex'),
-      ),
-    ),
-    TripCardItem(
-      id: 't4',
-      originCity: 'Талас',
-      destinationCity: 'Бишкек',
-      departureAt: at(1, 14, 0),
-      seatsAvailable: 0,
-      seatsTotal: 3,
-      pricePerSeat: 700,
-      driver: const TripDriver(
-        id: 'd4',
-        name: 'Бек Осмонов',
-        rating: 5.0,
-        ratingCount: 12,
-        verified: true,
-        car: TripCar(make: 'Toyota', model: 'Prius'),
-      ),
-    ),
-    TripCardItem(
-      id: 't5',
-      originCity: 'Бишкек',
-      destinationCity: 'Нарын',
-      departureAt: at(2, 8, 0),
-      seatsAvailable: 2,
-      seatsTotal: 4,
-      pricePerSeat: 900,
-      driver: const TripDriver(
-        id: 'd5',
-        name: 'Эркин',
-        rating: 4.5,
-        ratingCount: 7,
-        car: TripCar(make: 'Mercedes', model: 'Sprinter'),
-      ),
-    ),
-  ];
 }
