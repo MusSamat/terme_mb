@@ -4,11 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/mock_app_data.dart';
 import '../../theme/colors.dart';
+import '../../theme/dimens.dart';
 import '../../widgets/driver_avatar.dart';
 
-/// Full-screen chat thread — port of tappjet_ft chat-panel. Message bubbles
-/// (mine = brand right, other = gray left), composer at the bottom. Socket
-/// wiring lands in ТЗ step 5; for now messages append locally.
+/// Chat thread — 1:1 port of chat-panel / message-bubble / message-composer.
+/// Bubbles (mine = brand right, other = white left with avatar), status ticks,
+/// rounded composer with a circular send button.
 class ChatThreadScreen extends StatefulWidget {
   const ChatThreadScreen({super.key, required this.bookingId});
   final String bookingId;
@@ -20,12 +21,10 @@ class ChatThreadScreen extends StatefulWidget {
 class _ChatThreadScreenState extends State<ChatThreadScreen> {
   final _messages = mockThread().reversed.toList();
   final _input = TextEditingController();
-  final _scroll = ScrollController();
 
   @override
   void dispose() {
     _input.dispose();
-    _scroll.dispose();
     super.dispose();
   }
 
@@ -33,7 +32,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final text = _input.text.trim();
     if (text.isEmpty) return;
     setState(() {
-      _messages.insert(0, MockMessage(text: text, mine: true, timeLabel: 'сейчас'));
+      _messages.insert(0, MockMessage(text: text, mine: true, timeLabel: 'сейчас', read: false));
       _input.clear();
     });
   }
@@ -41,8 +40,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final chat = mockChats().firstWhere((c) => c.bookingId == widget.bookingId,
-        orElse: () => mockChats().first);
+    final chat = mockChats().firstWhere((c) => c.bookingId == widget.bookingId, orElse: () => mockChats().first);
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
@@ -54,40 +52,29 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.canPop() ? context.pop() : context.go('/chat'),
         ),
-        title: Row(
-          children: [
-            DriverAvatar(name: chat.otherName, size: AvatarSize.sm),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(chat.otherName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: dark ? Colors.white : InkColors.c900)),
-                  Text('chat.online'.tr(),
-                      style: const TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w600, color: BrandColors.c500)),
-                ],
-              ),
+        title: Row(children: [
+          DriverAvatar(name: chat.otherName, size: AvatarSize.sm),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(chat.otherName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+                Text('chat.online'.tr(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: BrandColors.c500)),
+              ],
             ),
-          ],
-        ),
+          ),
+        ]),
       ),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
-              controller: _scroll,
               reverse: true,
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
               itemCount: _messages.length,
-              itemBuilder: (_, i) => _Bubble(msg: _messages[i]),
+              itemBuilder: (_, i) => _Bubble(msg: _messages[i], otherName: chat.otherName),
             ),
           ),
           _Composer(controller: _input, onSend: _send),
@@ -98,55 +85,63 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.msg});
+  const _Bubble({required this.msg, required this.otherName});
   final MockMessage msg;
+  final String otherName;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final mine = msg.mine;
     final bg = mine ? BrandColors.c600 : (dark ? InkColors.c800 : Colors.white);
-    final fg = mine ? Colors.white : (dark ? InkColors.c100 : InkColors.c900);
+    final fg = mine ? Colors.white : (dark ? InkColors.c100 : InkColors.c800);
 
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(mine ? 16 : 4),
-            bottomRight: Radius.circular(mine ? 4 : 16),
-          ),
-          border: mine ? null : Border.all(color: dark ? InkColors.c700 : InkColors.c100),
+    final bubble = Container(
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(mine ? 16 : 6),
+          bottomRight: Radius.circular(mine ? 6 : 16),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(msg.text,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, height: 1.35, color: fg)),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(msg.timeLabel,
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: mine ? Colors.white70 : InkColors.c400)),
-                if (mine) ...[
-                  const SizedBox(width: 3),
-                  Icon(msg.read ? Icons.done_all : Icons.done,
-                      size: 13, color: msg.read ? Colors.white : Colors.white70),
-                ],
+        boxShadow: mine ? null : AppShadows.xs,
+        border: mine ? null : Border.all(color: dark ? InkColors.c700 : InkColors.c100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(msg.text, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.35, color: fg)),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(msg.timeLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mine ? Colors.white.withValues(alpha: 0.8) : InkColors.c500)),
+              if (mine) ...[
+                const SizedBox(width: 3),
+                Icon(msg.read ? Icons.done_all : Icons.done, size: 14, color: msg.read ? Colors.white : Colors.white.withValues(alpha: 0.6)),
               ],
-            ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!mine) ...[
+            DriverAvatar(name: otherName, size: AvatarSize.sm),
+            const SizedBox(width: 8),
           ],
-        ),
+          Flexible(child: bubble),
+        ],
       ),
     );
   }
@@ -167,29 +162,25 @@ class _Composer extends StatelessWidget {
         border: Border(top: BorderSide(color: dark ? InkColors.c800 : InkColors.c100)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: dark ? InkColors.c800 : InkColors.c100,
-                borderRadius: BorderRadius.circular(999),
-              ),
+              constraints: const BoxConstraints(minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(color: dark ? InkColors.c800 : InkColors.c100, borderRadius: BorderRadius.circular(16)),
               child: TextField(
                 controller: controller,
                 minLines: 1,
                 maxLines: 4,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSend(),
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: dark ? Colors.white : InkColors.c900),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: dark ? Colors.white : InkColors.c900),
                 decoration: InputDecoration(
-                  hintText: 'chat.title'.tr(),
+                  hintText: 'chat.placeholder'.tr(),
                   hintStyle: const TextStyle(color: InkColors.c400),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 11),
                 ),
               ),
             ),

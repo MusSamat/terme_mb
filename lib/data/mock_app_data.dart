@@ -5,22 +5,28 @@ class MockBooking {
   const MockBooking({
     required this.id,
     required this.otherName,
-    required this.route,
+    required this.origin,
+    required this.destination,
     required this.dateLabel,
     required this.seats,
     required this.status,
     required this.sum,
     this.verified = false,
+    this.phone,
+    this.comment,
     this.avatarUrl,
   });
   final String id;
   final String otherName;
-  final String route;
+  final String origin;
+  final String destination;
   final String dateLabel;
   final int seats;
-  final String status; // key under bookings.status_*
+  final String status; // key under status.*
   final int sum;
   final bool verified;
+  final String? phone;
+  final String? comment;
   final String? avatarUrl;
 }
 
@@ -28,16 +34,20 @@ List<MockBooking> mockBookings() => const [
       MockBooking(
           id: 'b1',
           otherName: 'Азамат Кыдыров',
-          route: 'Бишкек → Ош',
+          origin: 'Бишкек',
+          destination: 'Ош',
           dateLabel: 'Сегодня, 06:00',
           seats: 2,
           status: 'accepted',
           sum: 2400,
-          verified: true),
+          verified: true,
+          phone: '+996 700 123 456',
+          comment: 'Буду у автовокзала к 5:45, небольшой чемодан.'),
       MockBooking(
           id: 'b2',
           otherName: 'Нургуль С.',
-          route: 'Ош → Джалал-Абад',
+          origin: 'Ош',
+          destination: 'Джалал-Абад',
           dateLabel: 'Сегодня, 09:30',
           seats: 1,
           status: 'pending',
@@ -45,12 +55,14 @@ List<MockBooking> mockBookings() => const [
       MockBooking(
           id: 'b3',
           otherName: 'Бек Осмонов',
-          route: 'Талас → Бишкек',
+          origin: 'Талас',
+          destination: 'Бишкек',
           dateLabel: 'Вчера, 14:00',
           seats: 1,
           status: 'completed',
           sum: 700,
-          verified: true),
+          verified: true,
+          phone: '+996 555 987 654'),
     ];
 
 class MockChat {
