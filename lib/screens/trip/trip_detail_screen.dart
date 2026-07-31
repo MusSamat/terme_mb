@@ -94,9 +94,10 @@ class TripDetailScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               const _HeaderSpine(),
               const SizedBox(width: 12),
               Expanded(
@@ -128,7 +129,8 @@ class TripDetailScreen extends ConsumerWidget {
                   Text('detail.per_seat'.tr(), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.7))),
                 ],
               ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
