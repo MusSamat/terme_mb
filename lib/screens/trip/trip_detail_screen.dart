@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../data/mock_trips.dart';
 import '../../models/trip_card_item.dart';
+import '../../providers/auth_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../theme/role_theme.dart';

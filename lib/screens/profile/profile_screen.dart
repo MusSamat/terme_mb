@@ -199,11 +199,11 @@ class ProfileScreen extends ConsumerWidget {
               context.go('/');
             },
             behavior: HitTestBehavior.opaque,
-            child: Row(children: [
-              const Icon(Icons.logout, size: 18, color: CoralColors.c500),
-              const SizedBox(width: 10),
+            child: const Row(children: [
+              Icon(Icons.logout, size: 18, color: CoralColors.c500),
+              SizedBox(width: 10),
               Text('Выйти',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w800, color: CoralColors.c500)),
             ]),
           ),

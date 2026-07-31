@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
-import '../theme/dimens.dart';
 import 'app_button.dart';
 
 /// Empty state — port of tappjet_ft empty-state. Icon medallion + title +

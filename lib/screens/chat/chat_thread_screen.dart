@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/mock_app_data.dart';
 import '../../theme/colors.dart';
-import '../../theme/dimens.dart';
 import '../../widgets/driver_avatar.dart';
 
 /// Full-screen chat thread — port of tappjet_ft chat-panel. Message bubbles

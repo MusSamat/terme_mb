@@ -1,5 +1,5 @@
-/// Sample data for bookings / chats / notifications / loyalty so those screens
-/// render without a backend. Removed once the API + providers land (ТЗ step 2).
+// Sample data for bookings / chats / notifications / loyalty so those screens
+// render without a backend. Removed once the API + providers land (ТЗ step 2).
 
 class MockBooking {
   const MockBooking({

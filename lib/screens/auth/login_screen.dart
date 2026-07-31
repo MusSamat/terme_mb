@@ -82,9 +82,9 @@ class LoginScreen extends ConsumerWidget {
                   Expanded(
                     child: TextField(
                       keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: '700 123 456',
-                        hintStyle: const TextStyle(color: InkColors.c400),
+                        hintStyle: TextStyle(color: InkColors.c400),
                         border: InputBorder.none,
                       ),
                       style: TextStyle(

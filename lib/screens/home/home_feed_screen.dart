@@ -116,7 +116,7 @@ class _RoutePickers extends StatelessWidget {
           child: Container(
             width: 34,
             height: 34,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: AppShadows.card,

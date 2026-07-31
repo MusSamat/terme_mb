@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/mock_app_data.dart';
 import '../../theme/colors.dart';
-import '../../theme/dimens.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
