@@ -7,255 +7,559 @@ import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
-import '../../theme/role_theme.dart';
 import '../../utils/config.dart';
 import '../../widgets/driver_avatar.dart';
 
-class ProfileScreen extends ConsumerWidget {
+/// Profile — 1:1 port of tappjet_ft profile mobile layout: add-phone banner →
+/// hero card (trust chips + stat strip) → quick settings → pill tabs →
+/// about / cars / reviews / history / settings.
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  int _tab = 0;
+  static const _tabs = ['about', 'cars', 'reviews', 'history', 'settings'];
+
+  @override
+  Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final role = ref.watch(roleThemeProvider);
     final auth = ref.watch(authProvider);
     final user = auth.user;
+    final isDriver = user?.isDriver ?? false;
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _hero(context, role, user?.name ?? 'roles.guest'.tr(), user?.rating, user?.ratingCount ?? 0,
-              user?.phoneVerified ?? false, user?.isDriver ?? false, user?.telegramLinked ?? false),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-                16, 16, 16, AppLayout.pillNavClearance + MediaQuery.of(context).padding.bottom),
-            child: Column(
-              children: [
-                if (user != null) _statsRow(dark, user.loyaltyPoints, user.loyaltyTier),
-                const SizedBox(height: 12),
-                _linkTile(context, dark, Icons.card_giftcard, 'profile.loyalty_link'.tr(),
-                    () => context.push('/loyalty')),
-                if (user != null && !user.isDriver)
-                  _linkTile(context, dark, Icons.directions_car_outlined, 'profile.badge_driver'.tr(),
-                      () => context.push('/profile/driver')),
-                _linkTile(context, dark, Icons.notifications_outlined, 'notif.default_label'.tr(),
-                    () => context.push('/notifications')),
-                const SizedBox(height: 16),
-                _settings(context, ref, dark),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _hero(BuildContext context, RoleTheme role, String name, double? rating, int ratingCount,
-      bool phone, bool driver, bool tg) {
-    final badges = <String>[
-      if (phone) 'profile.badge_phone'.tr(),
-      if (driver) 'profile.badge_driver'.tr(),
-      if (tg) 'profile.badge_telegram'.tr(),
-    ];
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: role.headerGradient,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadii.xl4)),
-      ),
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 20, 16, 20),
-      child: Column(
-        children: [
-          DriverAvatar(name: name, size: AvatarSize.xl, verified: driver),
-          const SizedBox(height: 10),
-          Text(name,
-              style: const TextStyle(
-                  fontFamily: 'Fredoka', fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
-          if (rating != null) ...[
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.star, size: 15, color: Colors.white),
-                const SizedBox(width: 4),
-                Text('${rating.toStringAsFixed(1)} · ${'profile.rating_count'.tr(namedArgs: {'n': '$ratingCount'})}',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white.withValues(alpha: 0.9))),
-              ],
-            ),
-          ],
-          if (badges.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final b in badges)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(999)),
-                    child: Text(b,
-                        style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _statsRow(bool dark, int points, String tier) {
-    Widget stat(String value, String label) => Expanded(
-          child: Column(
-            children: [
-              Text(value,
-                  style: TextStyle(
-                      fontFamily: 'Fredoka',
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: dark ? Colors.white : InkColors.c900)),
-              Text(label,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: InkColors.c400)),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+              14, 12, 14, AppLayout.pillNavClearance + MediaQuery.of(context).padding.bottom),
+          children: [
+            if (user != null && !user.phoneVerified) ...[
+              _addPhoneBanner(dark),
+              const SizedBox(height: 14),
             ],
-          ),
-        );
-    return _card(
-      dark,
-      Row(children: [
-        stat('$points', 'profile.stat_points'.tr()),
-        stat('loyalty.tiers.$tier'.tr(), 'profile.stat_tier'.tr()),
-      ]),
-    );
-  }
-
-  Widget _linkTile(BuildContext context, bool dark, IconData icon, String label, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: _card(
-          dark,
-          Row(children: [
-            Icon(icon, size: 20, color: dark ? BrandColors.c300 : BrandColors.c600),
-            const SizedBox(width: 12),
-            Expanded(
-                child: Text(label,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: dark ? Colors.white : InkColors.c900))),
-            const Icon(Icons.chevron_right, size: 18, color: InkColors.c400),
-          ]),
+            _heroCard(dark, user, isDriver),
+            const SizedBox(height: 14),
+            _SettingsCard(),
+            const SizedBox(height: 14),
+            _pillTabs(dark),
+            const SizedBox(height: 14),
+            _tabContent(dark, isDriver, user?.loyaltyPoints ?? 0),
+          ],
         ),
       ),
     );
   }
 
-  Widget _settings(BuildContext context, WidgetRef ref, bool dark) {
-    final mode = ref.watch(themeModeProvider);
-    final locale = context.locale.languageCode;
+  // ── Add-phone banner ───────────────────────────────────────────────────────
+  Widget _addPhoneBanner(bool dark) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: dark ? AccentColors.c500.withValues(alpha: 0.1) : AccentColors.c50,
+          borderRadius: BorderRadius.circular(AppRadii.xl2),
+          border: Border.all(color: dark ? AccentColors.c500.withValues(alpha: 0.2) : AccentColors.c200),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('profile.add_phone_title'.tr(),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AccentColors.c700)),
+                  Text('profile.add_phone_sub'.tr(),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AccentColors.c700.withValues(alpha: 0.8))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: AccentColors.c500, borderRadius: BorderRadius.circular(999), boxShadow: AppShadows.cta),
+              child: Text('profile.add_phone_cta'.tr(),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AccentColors.ink)),
+            ),
+          ],
+        ),
+      );
 
-    return _card(
-      dark,
-      Column(
+  // ── Hero card ──────────────────────────────────────────────────────────────
+  Widget _heroCard(bool dark, dynamic user, bool isDriver) {
+    final rating = user?.rating as double?;
+    final ratingCount = (user?.ratingCount as int?) ?? 0;
+    final points = (user?.loyaltyPoints as int?) ?? 0;
+    final name = (user?.name as String?) ?? 'roles.guest'.tr();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: dark ? InkColors.c900 : Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xl4),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('profile.tab_settings'.tr(),
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: dark ? Colors.white : InkColors.c900)),
-          const SizedBox(height: 12),
-          // Theme
-          _rowLabel('Тема', dark),
-          const SizedBox(height: 6),
-          _pillGroup([
-            ('theme.light'.tr(), mode == ThemeMode.light, () => ref.read(themeModeProvider.notifier).set(ThemeMode.light)),
-            ('theme.dark'.tr(), mode == ThemeMode.dark, () => ref.read(themeModeProvider.notifier).set(ThemeMode.dark)),
-            ('Авто', mode == ThemeMode.system, () => ref.read(themeModeProvider.notifier).set(ThemeMode.system)),
-          ], dark),
-          const SizedBox(height: 12),
-          // Language
-          _rowLabel('Язык', dark),
-          const SizedBox(height: 6),
-          _pillGroup([
-            ('locale.ru'.tr(), locale == 'ru', () => _setLocale(context, ref, 'ru')),
-            ('locale.kg'.tr(), locale == 'kg', () => _setLocale(context, ref, 'kg')),
-          ], dark),
-          const SizedBox(height: 14),
-          GestureDetector(
-            onTap: () {
-              ref.read(authProvider.notifier).clearSession();
-              context.go('/');
-            },
-            behavior: HitTestBehavior.opaque,
-            child: const Row(children: [
-              Icon(Icons.logout, size: 18, color: CoralColors.c500),
-              SizedBox(width: 10),
-              Text('Выйти',
-                  style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w800, color: CoralColors.c500)),
-            ]),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DriverAvatar(name: name, size: AvatarSize.xl, square: true),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Flexible(
+                        child: Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+                      ),
+                      if (isDriver) ...[const SizedBox(width: 4), const Icon(Icons.verified, size: 18, color: BrandColors.c600)],
+                    ]),
+                    const SizedBox(height: 2),
+                    Text.rich(TextSpan(children: [
+                      TextSpan(
+                          text: '★ ${rating != null ? rating.toStringAsFixed(1) : '—'}',
+                          style: const TextStyle(color: AccentColors.c600, fontWeight: FontWeight.w700)),
+                      TextSpan(text: ' · ${'profile.rating_count'.tr(namedArgs: {'n': '$ratingCount'})}'),
+                    ]), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)),
+                  ],
+                ),
+              ),
+            ],
           ),
+          _trustChips(dark, user, isDriver),
+          const SizedBox(height: 12),
+          _statStrip(dark, ratingCount, rating, points),
         ],
       ),
     );
   }
 
-  void _setLocale(BuildContext context, WidgetRef ref, String code) {
-    context.setLocale(Locale(code));
-    ref.read(hiveBoxProvider).put(StorageKeys.locale, code);
-  }
-
-  Widget _rowLabel(String text, bool dark) => Text(text.toUpperCase(),
-      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: InkColors.c400));
-
-  Widget _pillGroup(List<(String, bool, VoidCallback)> items, bool dark) {
-    return Row(
-      children: [
-        for (final (label, active, onTap) in items) ...[
-          GestureDetector(
-            onTap: onTap,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+  Widget _trustChips(bool dark, dynamic user, bool isDriver) {
+    final chips = <String>[
+      if ((user?.phoneVerified as bool?) ?? false) 'profile.chip_phone',
+      if (isDriver) 'profile.chip_docs',
+      if (isDriver) 'profile.chip_car',
+      if ((user?.telegramLinked as bool?) ?? false) 'profile.chip_telegram',
+    ];
+    if (chips.isEmpty) return const SizedBox(height: 12);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final c in chips)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: active ? BrandColors.c600 : (dark ? InkColors.c800 : InkColors.c100),
+                color: dark ? BrandColors.c500.withValues(alpha: 0.15) : BrandColors.c50,
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Text(label,
+              child: Text(c.tr(),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: dark ? BrandColors.c300 : BrandColors.c700)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statStrip(bool dark, int ratingCount, double? rating, int points) {
+    Widget stat(String value, String label, Color valueColor) => Expanded(
+          child: Column(children: [
+            Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, height: 1, color: valueColor)),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c400)),
+          ]),
+        );
+    final divider = Container(width: 1, color: dark ? InkColors.c700 : InkColors.c200);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: dark ? InkColors.c800.withValues(alpha: 0.6) : InkColors.c50,
+        borderRadius: BorderRadius.circular(AppRadii.xl2),
+      ),
+      child: IntrinsicHeight(
+        child: Row(children: [
+          stat('$ratingCount', 'profile.stat_reviews'.tr(), dark ? Colors.white : InkColors.c900),
+          divider,
+          stat(rating != null ? rating.toStringAsFixed(1) : '—', 'profile.stat_rating'.tr(), AccentColors.c600),
+          divider,
+          stat('$points', 'profile.stat_points'.tr(), CoralColors.c500),
+        ]),
+      ),
+    );
+  }
+
+  // ── Pill tabs ────────────────────────────────────────────────────────────
+  Widget _pillTabs(bool dark) {
+    String label(String k) => switch (k) {
+          'about' => 'profile.tab_about'.tr(),
+          'cars' => 'profile.tab_cars'.tr(),
+          'reviews' => 'profile.tab_reviews'.tr(),
+          'history' => 'profile.tab_history'.tr(),
+          _ => 'profile.tab_settings'.tr(),
+        };
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _tabs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final active = i == _tab;
+          return GestureDetector(
+            onTap: () => setState(() => _tab = i),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: active ? BrandColors.c600 : (dark ? InkColors.c900 : Colors.white),
+                borderRadius: BorderRadius.circular(999),
+                border: active ? null : Border.all(color: dark ? InkColors.c700 : InkColors.c200),
+              ),
+              child: Text(label(_tabs[i]),
                   style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: active ? Colors.white : (dark ? InkColors.c200 : InkColors.c700))),
+                      fontSize: 14,
+                      fontWeight: active ? FontWeight.w900 : FontWeight.w700,
+                      color: active ? Colors.white : (dark ? InkColors.c300 : InkColors.c600))),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _tabContent(bool dark, bool isDriver, int points) => switch (_tabs[_tab]) {
+        'about' => _about(dark, isDriver, points),
+        'cars' => _cars(dark, isDriver),
+        'reviews' => _reviews(dark),
+        'history' => _hintCard(dark, 'profile.history_hint'.tr()),
+        _ => _settings(dark, isDriver),
+      };
+
+  // ── About tab ──────────────────────────────────────────────────────────────
+  Widget _about(bool dark, bool isDriver, int points) {
+    return Column(
+      children: [
+        if (!isDriver) ...[
+          GestureDetector(
+            onTap: () => context.push('/profile/driver'),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: GrapeColors.c600, borderRadius: BorderRadius.circular(AppRadii.xl3), boxShadow: AppShadows.indigoCta),
+              child: Row(children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
+                  child: const Icon(Icons.directions_car_filled, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('profile.become_driver_title'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white)),
+                    Text('profile.become_driver_sub'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.8))),
+                  ]),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.white),
+              ]),
             ),
           ),
+          const SizedBox(height: 14),
         ],
+        _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.format_quote, size: 16, color: BrandColors.c600),
+            const SizedBox(width: 8),
+            Text('profile.bio_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+          ]),
+          const SizedBox(height: 8),
+          Text('profile.bio_placeholder'.tr(), style: const TextStyle(fontSize: 15, height: 1.5, fontWeight: FontWeight.w600, color: InkColors.c400)),
+        ])),
+        const SizedBox(height: 14),
+        GestureDetector(
+          onTap: () => context.push('/loyalty'),
+          behavior: HitTestBehavior.opaque,
+          child: _card(dark, Row(children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: dark ? AccentColors.c500.withValues(alpha: 0.15) : AccentColors.c100, borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.card_giftcard, size: 18, color: AccentColors.c600),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text('profile.quick_bonuses'.tr(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? InkColors.c100 : InkColors.c800))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: dark ? AccentColors.c500.withValues(alpha: 0.15) : AccentColors.c100, borderRadius: BorderRadius.circular(999)),
+              child: Text('$points', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AccentColors.c700)),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, size: 18, color: InkColors.c300),
+          ])),
+        ),
       ],
     );
   }
 
-  Widget _card(bool dark, Widget child) {
+  Widget _cars(bool dark, bool isDriver) {
+    if (!isDriver) {
+      return _hintCard(dark, 'empty.driver_trips.description'.tr());
+    }
+    return _card(dark, Row(children: [
+      Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: dark ? GrapeColors.c500.withValues(alpha: 0.15) : GrapeColors.c50, borderRadius: BorderRadius.circular(12)),
+        child: const Icon(Icons.directions_car, color: GrapeColors.c600),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Toyota Camry', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+          const Text('01KG 777 · Белый · 4 места', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c400)),
+        ]),
+      ),
+    ]));
+  }
+
+  Widget _reviews(bool dark) {
+    final reviews = [
+      ('Нургуль', 5, 'Отличный водитель, доехали быстро и комфортно.'),
+      ('Данияр', 5, 'Пунктуальный, аккуратная езда. Рекомендую!'),
+    ];
+    return Column(
+      children: [
+        for (final r in reviews)
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: dark ? InkColors.c900 : Colors.white,
+              borderRadius: BorderRadius.circular(AppRadii.xl3),
+              boxShadow: AppShadows.card,
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Text(r.$1, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+                const Spacer(),
+                Row(children: [for (var i = 0; i < r.$2; i++) const Icon(Icons.star, size: 13, color: AccentColors.c400)]),
+              ]),
+              const SizedBox(height: 4),
+              Text(r.$3, style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: InkColors.c500)),
+            ]),
+          ),
+      ],
+    );
+  }
+
+  // ── Settings tab ─────────────────────────────────────────────────────────
+  Widget _settings(bool dark, bool isDriver) {
+    return Column(
+      children: [
+        _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _cardHead(dark, 'profile.personal_section'.tr()),
+          _formField(dark, 'Имя', ref.watch(authProvider).user?.name ?? ''),
+          const SizedBox(height: 10),
+          _formField(dark, 'profile.bio_title'.tr(), '', lines: 3),
+        ])),
+        const SizedBox(height: 14),
+        _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _cardHead(dark, 'profile.phone_section'.tr()),
+          _formField(dark, 'profile.chip_phone'.tr(), ref.watch(authProvider).user?.phone ?? ''),
+        ])),
+        const SizedBox(height: 14),
+        _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('profile.session_section'.tr().toUpperCase(),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: InkColors.c400)),
+          const SizedBox(height: 12),
+          _sessionBtn(dark, Icons.devices, 'profile.logout_all'.tr(), InkColors.c700, () {
+            ref.read(authProvider.notifier).clearSession();
+            context.go('/');
+          }),
+          const SizedBox(height: 8),
+          _sessionBtn(dark, Icons.logout, 'profile.logout_btn'.tr(), CoralColors.c600, () {
+            ref.read(authProvider.notifier).clearSession();
+            context.go('/');
+          }),
+          const SizedBox(height: 8),
+          _sessionBtn(dark, Icons.download, 'profile.export_btn'.tr(), InkColors.c500, () {}),
+          const SizedBox(height: 8),
+          _sessionBtn(dark, Icons.delete_outline, 'profile.delete_btn'.tr(), CoralColors.c600, () => context.push('/profile/delete')),
+        ])),
+      ],
+    );
+  }
+
+  Widget _cardHead(bool dark, String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(text, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+      );
+
+  Widget _formField(bool dark, String label, String value, {int lines = 1}) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: InkColors.c400)),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: dark ? InkColors.c800 : InkColors.c50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: dark ? InkColors.c700 : InkColors.c200),
+            ),
+            child: TextField(
+              controller: TextEditingController(text: value),
+              maxLines: lines,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900),
+              decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 12)),
+            ),
+          ),
+        ],
+      );
+
+  Widget _sessionBtn(bool dark, IconData icon, String label, Color color, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: dark ? InkColors.c800 : InkColors.c50,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
+          ]),
+        ),
+      );
+
+  Widget _hintCard(bool dark, String text) => _card(
+        dark,
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: InkColors.c500)),
+          ),
+        ),
+      );
+
+  Widget _card(bool dark, Widget child) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: dark ? InkColors.c900 : Colors.white,
+          borderRadius: BorderRadius.circular(AppRadii.xl3),
+          boxShadow: AppShadows.card,
+        ),
+        child: child,
+      );
+}
+
+/// Quick settings — [RU|KG] + [☀|🌙], 1:1 with tappjet_ft SettingsCard.
+class _SettingsCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final mode = ref.watch(themeModeProvider);
+    final locale = context.locale.languageCode;
+    final isDark = mode == ThemeMode.dark || (mode == ThemeMode.system && dark);
+
+    void setLocale(String code) {
+      context.setLocale(Locale(code));
+      ref.read(hiveBoxProvider).put(StorageKeys.locale, code);
+    }
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: dark ? InkColors.c900 : Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.xl3),
-        border: Border.all(color: dark ? InkColors.c800 : InkColors.c100),
+        borderRadius: BorderRadius.circular(AppRadii.xl4),
         boxShadow: AppShadows.card,
       ),
-      child: child,
+      child: Row(
+        children: [
+          Expanded(
+            child: _Segmented(
+              options: const [('ru', 'RU', null), ('kg', 'KG', null)],
+              selected: locale == 'kg' ? 'kg' : 'ru',
+              onSelect: setLocale,
+              dark: dark,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _Segmented(
+              options: const [('light', '', Icons.light_mode), ('dark', '', Icons.dark_mode)],
+              selected: isDark ? 'dark' : 'light',
+              onSelect: (v) => ref.read(themeModeProvider.notifier).set(v == 'dark' ? ThemeMode.dark : ThemeMode.light),
+              dark: dark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Segmented extends StatelessWidget {
+  const _Segmented({required this.options, required this.selected, required this.onSelect, required this.dark});
+  final List<(String, String, IconData?)> options;
+  final String selected;
+  final ValueChanged<String> onSelect;
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: dark ? InkColors.c800 : InkColors.c100,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          for (final (value, label, icon) in options)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onSelect(value),
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: value == selected ? (dark ? InkColors.c950 : Colors.white) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: value == selected ? AppShadows.xs : null,
+                  ),
+                  child: icon != null
+                      ? Icon(icon, size: 16, color: value == selected ? (dark ? Colors.white : InkColors.c900) : InkColors.c400)
+                      : Text(label,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: value == selected ? (dark ? Colors.white : InkColors.c900) : InkColors.c400)),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
