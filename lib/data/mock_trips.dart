@@ -1,5 +1,46 @@
 import '../models/trip_card_item.dart';
 
+/// Approximate coordinates for the sample KG cities (for the detail map).
+const Map<String, ({double lat, double lng})> kCityCoords = {
+  'Бишкек': (lat: 42.8746, lng: 74.5698),
+  'Ош': (lat: 40.5283, lng: 72.7985),
+  'Джалал-Абад': (lat: 40.9333, lng: 73.0000),
+  'Каракол': (lat: 42.4907, lng: 78.3936),
+  'Талас': (lat: 42.5228, lng: 72.2427),
+  'Нарын': (lat: 41.4287, lng: 75.9911),
+};
+
+/// Look up a sample trip by id (falls back to the first). Enriched with
+/// comment/luggage/preferences so the detail screen has content.
+TripCardItem mockTripById(String id) {
+  final list = mockTrips();
+  final base = list.firstWhere((t) => t.id == id, orElse: () => list.first);
+  return TripCardItem(
+    id: base.id,
+    originCity: base.originCity,
+    destinationCity: base.destinationCity,
+    departureAt: base.departureAt,
+    departureWindowEnd: base.departureWindowEnd,
+    seatsAvailable: base.seatsAvailable,
+    seatsTotal: base.seatsTotal,
+    pricePerSeat: base.pricePerSeat,
+    driver: base.driver,
+    pickupCities: base.pickupCities,
+    status: base.status,
+    liked: base.liked,
+    instant: base.instant,
+    wholeCabin: base.wholeCabin,
+    comment: 'Выезжаю утром от автовокзала. Есть место для небольшого багажа. '
+        'Можно с ручной кладью, помогу загрузить.',
+    luggage: 'small',
+    preferences: const {
+      'no_smoking': true,
+      'clean': true,
+      'music': true,
+    },
+  );
+}
+
 /// Temporary in-memory sample data so the feed renders without a backend.
 /// Removed once trips_api + providers land (ТЗ step 2).
 List<TripCardItem> mockTrips() {

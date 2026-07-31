@@ -4,6 +4,8 @@ import '../widgets/placeholder_screen.dart';
 
 // Real screens (built out from placeholders as we go).
 export 'home/home_feed_screen.dart';
+export 'trip/trip_detail_screen.dart';
+export 'create/create_screen.dart';
 
 /// Skeleton screens. Each maps to a ТЗ §6.3 spec — replace with the real
 /// implementation. Kept in one file to keep the skeleton compact; split into
@@ -23,28 +25,12 @@ class RequestsFeedScreen extends StatelessWidget {
       const PlaceholderScreen(title: 'Заявки пассажиров', subtitle: 'requests-feed');
 }
 
-class TripDetailScreen extends StatelessWidget {
-  const TripDetailScreen({super.key, required this.id, this.autoBook = false});
-  final String id;
-  final bool autoBook;
-  @override
-  Widget build(BuildContext context) =>
-      PlaceholderScreen(title: 'Поездка $id', subtitle: 'trip-detail${autoBook ? ' (book)' : ''}');
-}
-
 class RequestDetailScreen extends StatelessWidget {
   const RequestDetailScreen({super.key, required this.id});
   final String id;
   @override
   Widget build(BuildContext context) =>
       PlaceholderScreen(title: 'Заявка $id', subtitle: 'request-detail');
-}
-
-class CreateScreen extends StatelessWidget {
-  const CreateScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const PlaceholderScreen(title: 'Создать', subtitle: 'create-screen', showAppBar: true);
 }
 
 class MyBookingsScreen extends StatelessWidget {

@@ -17,6 +17,9 @@ class TripCardItem {
     this.instant = false,
     this.wholeCabin = false,
     this.booked = false,
+    this.comment,
+    this.luggage = 'small',
+    this.preferences = const {},
   });
 
   final String id;
@@ -34,6 +37,9 @@ class TripCardItem {
   final bool instant;
   final bool wholeCabin;
   final bool booked;
+  final String? comment;
+  final String luggage; // yes | small | no
+  final Map<String, bool> preferences;
 
   bool get soldOut => seatsAvailable == 0;
   bool get inactive => status != 'active';
