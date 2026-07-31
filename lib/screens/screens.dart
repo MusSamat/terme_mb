@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../widgets/placeholder_screen.dart';
 
+// Real screens (built out from placeholders as we go).
+export 'home/home_feed_screen.dart';
+
 /// Skeleton screens. Each maps to a ТЗ §6.3 spec — replace with the real
 /// implementation. Kept in one file to keep the skeleton compact; split into
 /// per-feature folders as they get built out.
-
-class HomeFeedScreen extends StatelessWidget {
-  const HomeFeedScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const PlaceholderScreen(title: 'Поиск / Лента', subtitle: 'home-feed');
-}
 
 class TripsFeedScreen extends StatelessWidget {
   const TripsFeedScreen({super.key});

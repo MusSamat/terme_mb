@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
@@ -35,16 +34,18 @@ class PillNav extends ConsumerWidget {
     final authed = ref.watch(authProvider).isAuthenticated;
     final safeBottom = MediaQuery.of(context).padding.bottom;
 
+    // NOTE: Material icons stand in for the web's lucide-react set. Swap to
+    // lucide_icons_flutter when building out the final visual pass (ТЗ §7).
     final items = authed
         ? const [
-            _NavSpec(LucideIcons.search, 'nav.search'),
-            _NavSpec(LucideIcons.clipboardList, 'nav.bookings'),
-            _NavSpec(LucideIcons.messageCircle, 'nav.chats'),
-            _NavSpec(LucideIcons.user, 'nav.profile'),
+            _NavSpec(Icons.search, 'nav.search'),
+            _NavSpec(Icons.receipt_long_outlined, 'nav.bookings'),
+            _NavSpec(Icons.chat_bubble_outline, 'nav.chats'),
+            _NavSpec(Icons.person_outline, 'nav.profile'),
           ]
         : const [
-            _NavSpec(LucideIcons.search, 'nav.search'),
-            _NavSpec(LucideIcons.logIn, 'nav.login'),
+            _NavSpec(Icons.search, 'nav.search'),
+            _NavSpec(Icons.login, 'nav.login'),
           ];
 
     return Padding(
@@ -67,7 +68,7 @@ class PillNav extends ConsumerWidget {
                 pillOn: role.navPill(brightness),
                 textOn: role.navText(brightness),
                 idle: c.textMuted,
-                badge: authed && items[i].icon == LucideIcons.messageCircle ? chatUnread : 0,
+                badge: authed && items[i].icon == Icons.chat_bubble_outline ? chatUnread : 0,
                 onTap: () => onSelect(i),
               ),
               // Insert the raised create-FAB in the middle for authed users.
@@ -174,7 +175,7 @@ class _CreateFab extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: AppShadows.cta,
           ),
-          child: const Icon(LucideIcons.plus, color: AppTextOnAmber.color, size: 26),
+          child: const Icon(Icons.add, color: AppTextOnAmber.color, size: 26),
         ),
       ),
     );
