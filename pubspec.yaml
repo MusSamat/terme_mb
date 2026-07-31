@@ -1,0 +1,81 @@
+name: tappjet_mb
+description: Tappjet — native mobile client (iOS + Android). Port of tappjet_ft.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^14.2.0
+
+  # HTTP
+  dio: ^5.5.0
+  retrofit: ^4.1.0
+  cookie_jar: ^4.0.8
+  dio_cookie_manager: ^3.1.1
+
+  # Realtime
+  socket_io_client: ^2.0.3+1
+
+  # Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.2
+
+  # i18n
+  easy_localization: ^3.0.7
+  intl: ^0.19.0
+
+  # Maps
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Media
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+
+  # Icons (lucide set, matches lucide-react in web)
+  lucide_icons: ^0.257.0
+
+  # Models
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Misc
+  uuid: ^4.4.0
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  retrofit_generator: ^9.1.2
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/l10n/
+    - assets/images/
+
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito.ttf
+    - family: Fredoka
+      fonts:
+        - asset: assets/fonts/Fredoka.ttf
