@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../utils/date_format.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/verified_badge.dart';
 
@@ -87,7 +88,7 @@ class TripDetailScreen extends ConsumerWidget {
             children: [
               circleBtn(Icons.arrow_back, () => context.canPop() ? context.pop() : context.go('/')),
               Row(children: [
-                circleBtn(Icons.ios_share, () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('detail.share_copied'.tr())))),
+                circleBtn(Icons.ios_share, () => Toasts.info('detail.share_copied'.tr())),
                 const SizedBox(width: 8),
                 _LikeCircle(liked: trip.liked),
               ]),

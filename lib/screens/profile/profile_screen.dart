@@ -8,6 +8,7 @@ import '../../providers/core_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../utils/config.dart';
+import '../../widgets/action_modal.dart';
 import '../../widgets/driver_avatar.dart';
 
 /// Profile — 1:1 port of tappjet_ft profile mobile layout: add-phone banner →
@@ -392,8 +393,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             context.go('/');
           }),
           const SizedBox(height: 8),
-          _sessionBtn(dark, Icons.logout, 'profile.logout_btn'.tr(), CoralColors.c600, () {
-            ref.read(authProvider.notifier).clearSession();
+          _sessionBtn(dark, Icons.logout, 'profile.logout_btn'.tr(), CoralColors.c600, () async {
+            final notifier = ref.read(authProvider.notifier);
+            final ok = await showConfirmModal(
+              context,
+              icon: Icons.logout,
+              title: 'profile.logout_btn'.tr(),
+              confirmLabel: 'profile.logout_btn'.tr(),
+              cancelLabel: 'book_form.cancel'.tr(),
+              danger: true,
+            );
+            if (!ok || !mounted) return;
+            notifier.clearSession();
             context.go('/');
           }),
           const SizedBox(height: 8),

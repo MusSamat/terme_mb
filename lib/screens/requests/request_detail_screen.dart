@@ -7,6 +7,7 @@ import '../../data/mock_requests.dart';
 import '../../models/passenger_request.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/seat_meter.dart';
 
@@ -267,7 +268,7 @@ void _showRespondSheet(BuildContext context, PassengerRequestItem r) {
               GestureDetector(
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('toasts.offer_sent'.tr())));
+                  Toasts.success('toasts.offer_sent'.tr());
                 },
                 behavior: HitTestBehavior.opaque,
                 child: Container(

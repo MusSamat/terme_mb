@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../widgets/action_modal.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/seats_stepper.dart';
 
@@ -114,10 +115,13 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   }
 
   void _submit() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('create.published_title'.tr())),
+    showSuccessModal(
+      context,
+      title: 'create.published_title'.tr(),
+      body: _asDriver ? 'create.published_body_driver'.tr() : 'create.published_body_passenger'.tr(),
+      primaryLabel: _asDriver ? 'create.published_cta_driver'.tr() : 'create.published_cta_passenger'.tr(),
+      onPrimary: () => context.canPop() ? context.pop() : context.go('/'),
     );
-    context.canPop() ? context.pop() : context.go('/');
   }
 
   Widget _intentToggle(bool dark) {

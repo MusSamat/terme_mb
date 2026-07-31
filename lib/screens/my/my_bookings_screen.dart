@@ -8,6 +8,8 @@ import '../../data/mock_trips.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../widgets/action_modal.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
@@ -268,7 +270,17 @@ class _BookingCard extends StatelessWidget {
               ],
               if (canCancel) ...[
                 if (canChat) const SizedBox(width: 8),
-                _btn(context, 'booking_card.cancel'.tr(), null, false, dark, () {}, danger: true),
+                _btn(context, 'booking_card.cancel'.tr(), null, false, dark, () async {
+                  final ok = await showConfirmModal(
+                    context,
+                    title: 'bookings.cancel_btn'.tr(),
+                    body: '${b.origin} → ${b.destination}',
+                    confirmLabel: 'bookings.cancel_btn'.tr(),
+                    cancelLabel: 'book_form.cancel'.tr(),
+                    danger: true,
+                  );
+                  if (ok && context.mounted) Toasts.success('toasts.booking_cancelled'.tr());
+                }, danger: true),
               ],
             ],
           ),

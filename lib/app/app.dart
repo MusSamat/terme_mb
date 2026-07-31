@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/core_providers.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_toast.dart';
 import 'router.dart';
 
 class TappjetApp extends ConsumerWidget {
@@ -24,6 +25,12 @@ class TappjetApp extends ConsumerWidget {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       locale: context.locale,
+      builder: (context, child) => Stack(
+        children: [
+          if (child != null) child,
+          const ToastOverlay(),
+        ],
+      ),
     );
   }
 }
