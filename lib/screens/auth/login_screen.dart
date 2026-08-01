@@ -42,6 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ratingCount: 24,
       loyaltyTier: 'traveler',
       loyaltyPoints: 180,
+      createdAt: DateTime(2024, 3, 15),
     );
     ref.read(authProvider.notifier).setActiveMode(mode);
     ref.read(authProvider.notifier).setSession(user, accessToken: 'dev-token');

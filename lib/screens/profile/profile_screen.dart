@@ -130,6 +130,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           text: '★ ${rating != null ? rating.toStringAsFixed(1) : '—'}',
                           style: const TextStyle(color: AccentColors.c600, fontWeight: FontWeight.w700)),
                       TextSpan(text: ' · ${'profile.rating_count'.tr(namedArgs: {'n': '$ratingCount'})}'),
+                      if ((user?.joinYear as int?) != null)
+                        TextSpan(text: ' · ${'profile.badge_since'.tr(namedArgs: {'year': '${user!.joinYear}'})}'),
                     ]), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)),
                   ],
                 ),
@@ -378,6 +380,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 10),
           _formField(dark, 'profile.bio_title'.tr(), '', lines: 3),
         ])),
+        if (isDriver) ...[
+          const SizedBox(height: 14),
+          _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _cardHead(dark, 'profile.car_photo_section'.tr()),
+            Container(
+              height: 110,
+              decoration: BoxDecoration(
+                color: dark ? InkColors.c800 : InkColors.c50,
+                borderRadius: BorderRadius.circular(AppRadii.lg),
+                border: Border.all(color: dark ? InkColors.c700 : InkColors.c200),
+              ),
+              child: const Center(child: Icon(Icons.add_a_photo_outlined, color: InkColors.c400)),
+            ),
+          ])),
+        ],
+        const SizedBox(height: 14),
+        _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _cardHead(dark, 'profile.password_section'.tr()),
+          _formField(dark, 'password_form.current_label'.tr(), '', obscure: true),
+          const SizedBox(height: 10),
+          _formField(dark, 'password_form.new_label'.tr(), '', obscure: true),
+        ])),
         const SizedBox(height: 14),
         _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _cardHead(dark, 'profile.phone_section'.tr()),
@@ -421,7 +445,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Text(text, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
       );
 
-  Widget _formField(bool dark, String label, String value, {int lines = 1}) => Column(
+  Widget _formField(bool dark, String label, String value, {int lines = 1, bool obscure = false}) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: InkColors.c400)),
@@ -435,7 +459,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             child: TextField(
               controller: TextEditingController(text: value),
-              maxLines: lines,
+              maxLines: obscure ? 1 : lines,
+              obscureText: obscure,
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900),
               decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 12)),
             ),

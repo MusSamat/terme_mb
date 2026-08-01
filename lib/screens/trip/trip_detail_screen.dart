@@ -241,7 +241,12 @@ Widget tripBody(BuildContext context, TripCardItem trip) {
         ),
         const SizedBox(height: 12),
         Row(children: [
-          tile(Icons.calendar_today, '${label.date}, ${label.time}', 'detail.tile_departure'.tr()),
+          tile(
+              Icons.calendar_today,
+              trip.departureWindowEnd != null
+                  ? '${label.date}, ${label.time}–${hhmm(trip.departureWindowEnd!)}'
+                  : '${label.date}, ${label.time}',
+              'detail.tile_departure'.tr()),
           const SizedBox(width: 10),
           tile(Icons.group, 'detail.tile_seats_value'.tr(namedArgs: {'n': '${trip.seatsAvailable}'}), 'detail.tile_seats_sub'.tr()),
           const SizedBox(width: 10),
@@ -495,9 +500,9 @@ class _BookingSheetState extends State<_BookingSheet> {
                   const SizedBox(width: 8),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('book_form.pay_to_driver'.tr(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900)),
-                    Text('${widget.trip.pricePerSeat} с × $_seats · Наличными', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c400)),
+                    Text('${widget.trip.pricePerSeat} ${'detail.som_short'.tr()} × $_seats', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c400)),
                   ])),
-                  Text('${_price(total)} с', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: BrandColors.c700)),
+                  Text('${_price(total)} ${'detail.som_short'.tr()}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: BrandColors.c700)),
                 ]),
               ),
             ]),

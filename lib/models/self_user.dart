@@ -15,6 +15,7 @@ class SelfUser {
     this.loyaltyTier = 'novice',
     this.loyaltyPoints = 0,
     this.notificationsEnabled = true,
+    this.createdAt,
   });
 
   final String id;
@@ -30,6 +31,9 @@ class SelfUser {
   final String loyaltyTier;
   final int loyaltyPoints;
   final bool notificationsEnabled;
+  final DateTime? createdAt;
+
+  int? get joinYear => createdAt?.year;
 
   bool get isDriver => roles.contains('driver');
   bool get isPassenger => roles.contains('passenger');
@@ -48,5 +52,6 @@ class SelfUser {
         loyaltyTier: (j['loyaltyTier'] ?? 'novice') as String,
         loyaltyPoints: (j['loyaltyPoints'] ?? 0) as int,
         notificationsEnabled: (j['notificationsEnabled'] ?? true) as bool,
+        createdAt: j['createdAt'] != null ? DateTime.tryParse(j['createdAt'] as String) : null,
       );
 }
