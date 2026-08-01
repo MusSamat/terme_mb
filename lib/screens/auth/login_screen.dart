@@ -91,8 +91,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 12),
             Text('Tappjet', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Fredoka', fontSize: 30, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
             const SizedBox(height: 24),
-            // Telegram primary
-            AppButton(label: 'auth.login.login_telegram'.tr(), variant: AppButtonVariant.brand, icon: Icons.send, onPressed: () {}),
+            // Telegram primary (Telegram blue #0088cc)
+            GestureDetector(
+              onTap: () {},
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                height: 52,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: const Color(0xFF0088CC), borderRadius: BorderRadius.circular(AppRadii.lg)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.send, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text('auth.login.login_telegram'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+                ]),
+              ),
+            ),
             // Divider
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),

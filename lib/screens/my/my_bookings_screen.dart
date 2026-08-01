@@ -265,10 +265,6 @@ class _BookingCard extends StatelessWidget {
             children: [
               if (canChat)
                 _btn(context, 'booking_card.chat'.tr(), Icons.chat_bubble_outline, false, dark, () => context.push('/my/bookings/${b.id}/chat')),
-              if (b.status == 'completed') ...[
-                const SizedBox(width: 8),
-                _btn(context, 'bookings.rate_btn'.tr(), Icons.star_border, true, dark, () => context.push('/trips/t1/rate/d1')),
-              ],
               if (canCancel) ...[
                 if (canChat) const SizedBox(width: 8),
                 _btn(context, 'booking_card.cancel'.tr(), null, false, dark, () async {

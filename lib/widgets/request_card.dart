@@ -5,10 +5,10 @@ import '../models/passenger_request.dart';
 import '../theme/colors.dart';
 import '../theme/dimens.dart';
 import 'driver_avatar.dart';
-import 'verified_badge.dart';
 
-/// Passenger request card — grape-accented port of tappjet_ft request-card.
-/// «ищет» pill · date · route · seats-needed · passenger strip · budget.
+/// Passenger request card — 1:1 port of request-card.tsx.
+/// Type pill · date hero (grape CalendarClock) · thin route · seats-needed +
+/// heart · passenger strip + chevron. No budget row (matches ref).
 class RequestCard extends StatelessWidget {
   const RequestCard({super.key, required this.request, this.onTap});
 
@@ -20,6 +20,7 @@ class RequestCard extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final r = request;
     final showRating = r.passengerRating != null && r.passengerRatingCount >= 3;
+    final firstName = r.passengerName.split(' ').first;
 
     return GestureDetector(
       onTap: onTap,
@@ -35,108 +36,113 @@ class RequestCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
+            // Type pill
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: dark ? GrapeColors.c500.withValues(alpha: 0.2) : GrapeColors.c100,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.back_hand, size: 12, color: dark ? GrapeColors.c300 : GrapeColors.c600),
+                  const SizedBox(width: 4),
+                  Text('card.type_passenger'.tr().toUpperCase(),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.3, color: dark ? GrapeColors.c300 : GrapeColors.c600)),
+                ]),
+              ),
+              if (r.responded) ...[
+                const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: dark ? GrapeColors.c500.withValues(alpha: 0.18) : GrapeColors.c50,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text('card.seeking'.tr(),
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: dark ? GrapeColors.c300 : GrapeColors.c600)),
+                  decoration: BoxDecoration(color: BrandColors.c100, borderRadius: BorderRadius.circular(999)),
+                  child: Text('card.responded'.tr(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: BrandColors.c700)),
                 ),
-                const Spacer(),
-                if (r.responded)
-                  Text('card.responded'.tr(),
-                      style: const TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w800, color: BrandColors.c600)),
               ],
-            ),
+            ]),
             const SizedBox(height: 8),
-            Text(r.dateLabel,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700, color: InkColors.c400)),
-            const SizedBox(height: 2),
-            Text('${r.originCity} → ${r.destinationCity}',
-                style: TextStyle(
-                    fontFamily: 'Fredoka',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: dark ? Colors.white : InkColors.c900)),
-            const SizedBox(height: 12),
+            // Row 1 — date hero + route (left), seats-needed + heart (right)
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DriverAvatar(name: r.passengerName, size: AvatarSize.sm, square: true, verified: r.passengerVerified),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(r.passengerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: dark ? InkColors.c100 : InkColors.c800)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(Icons.event, size: 16, color: dark ? GrapeColors.c400 : GrapeColors.c500),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(r.dateLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 17, height: 1.1, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+                        ),
+                      ]),
+                      const SizedBox(height: 4),
+                      Text('${r.originCity} → ${r.destinationCity}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c500)),
+                    ],
+                  ),
                 ),
-                if (r.passengerVerified) ...[const SizedBox(width: 4), const VerifiedBadge()],
-                const SizedBox(width: 6),
-                if (showRating)
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star, size: 12, color: AccentColors.c400),
-                    const SizedBox(width: 2),
-                    Text(r.passengerRating!.toStringAsFixed(1),
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w700, color: InkColors.c400)),
-                  ])
-                else
-                  Text('requests.new_passenger'.tr(),
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: dark ? GrapeColors.c300 : GrapeColors.c600)),
-                const Spacer(),
-                Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.group, size: 14, color: InkColors.c400),
-                  const SizedBox(width: 4),
-                  Text('${r.seatsNeeded}',
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c500)),
-                ]),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('card.needs'.tr(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: InkColors.c400)),
+                    Text('${r.seatsNeeded}', style: TextStyle(fontSize: 18, height: 1, fontWeight: FontWeight.w900, color: dark ? GrapeColors.c300 : GrapeColors.c600)),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                _LikeHeart(liked: r.liked),
               ],
             ),
             const SizedBox(height: 10),
             Divider(height: 1, color: dark ? InkColors.c800 : InkColors.c100),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text('card.needs'.tr(),
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w700, color: InkColors.c400)),
-                const Spacer(),
-                Text('${_price(r.budget)} ${'card.som'.tr()}',
-                    style: TextStyle(
-                        fontFamily: 'Fredoka',
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: dark ? GrapeColors.c300 : GrapeColors.c600)),
-              ],
-            ),
+            const SizedBox(height: 10),
+            // Row 2 — passenger strip
+            Row(children: [
+              DriverAvatar(name: r.passengerName, size: AvatarSize.md, square: true, verified: r.passengerVerified),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(firstName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+              ),
+              const SizedBox(width: 6),
+              if (showRating)
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.star, size: 12, color: AccentColors.c400),
+                  const SizedBox(width: 2),
+                  Text(r.passengerRating!.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: InkColors.c500)),
+                ])
+              else
+                Text('card.new'.tr(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: dark ? GrapeColors.c300 : GrapeColors.c600)),
+              const Spacer(),
+              const Icon(Icons.chevron_right, size: 18, color: GrapeColors.c400),
+            ]),
           ],
         ),
       ),
     );
   }
+}
 
-  static String _price(int v) {
-    final s = v.toString();
-    final b = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
-      b.write(s[i]);
-    }
-    return b.toString();
+class _LikeHeart extends StatefulWidget {
+  const _LikeHeart({required this.liked});
+  final bool liked;
+  @override
+  State<_LikeHeart> createState() => _LikeHeartState();
+}
+
+class _LikeHeartState extends State<_LikeHeart> {
+  late bool _liked = widget.liked;
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _liked = !_liked),
+      behavior: HitTestBehavior.opaque,
+      child: Icon(_liked ? Icons.favorite : Icons.favorite_border, size: 20, color: _liked ? CoralColors.c500 : CoralColors.c400),
+    );
   }
 }

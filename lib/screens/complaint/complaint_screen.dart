@@ -17,7 +17,7 @@ class ComplaintScreen extends StatefulWidget {
 
 class _ComplaintScreenState extends State<ComplaintScreen> {
   static const _categories = ['safety', 'fraud', 'behavior', 'payment', 'other'];
-  String _category = 'safety';
+  String _category = 'behavior';
   final _desc = TextEditingController();
   bool _sent = false;
 
