@@ -1,0 +1,60 @@
+# Облачная сборка iOS/Android для tappjet_mb (Codemagic — macOS в облаке).
+# iOS НЕЛЬЗЯ собрать на Linux, поэтому сборка идёт на маке Codemagic.
+#
+# Что нужно один раз в Codemagic UI:
+#   1) Подключить этот git-репозиторий.
+#   2) iOS code signing → App Store Connect API key + Bundle ID kg.tappjet.tappjetMb
+#      (нужен Apple Developer аккаунт, $99/год).
+#   3) Указать группу тестировщиков TestFlight (или ad-hoc профиль).
+# После сборки приложение прилетает в TestFlight → ставится на iPhone.
+
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: kg.tappjet.tappjetMb
+      vars:
+        APP_STORE_APPLE_ID: "REPLACE_WITH_APP_ID" # из App Store Connect
+    scripts:
+      - name: Flutter packages
+        script: flutter pub get
+      - name: Install pods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Build IPA (real API)
+        script: |
+          flutter build ipa --release \
+            --dart-define=USE_MOCK=false \
+            --dart-define=API_URL=https://api.tappjet.kg/v1 \
+            --dart-define=WS_URL=wss://api.tappjet.kg \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  android-apk:
+    name: Android APK (real API)
+    max_build_duration: 45
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Flutter packages
+        script: flutter pub get
+      - name: Build APK (real API)
+        script: |
+          flutter build apk --release \
+            --dart-define=USE_MOCK=false \
+            --dart-define=API_URL=https://api.tappjet.kg/v1 \
+            --dart-define=WS_URL=wss://api.tappjet.kg
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
