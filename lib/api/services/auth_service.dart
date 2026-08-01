@@ -15,9 +15,10 @@ class AuthService {
     return res.data!;
   }
 
-  /// POST /auth/phone/send-otp → {expiresInSec, debug_code?}.
+  /// POST /auth/telegram/otp/send → sends the login code to the user's Telegram
+  /// DM. Returns {expiresInSec}. (The code is delivered by the backend's bot.)
   Future<Map<String, dynamic>> sendOtp(String phone) async {
-    final res = await _dio.post<Map<String, dynamic>>('/auth/phone/send-otp', data: {'phone': phone});
+    final res = await _dio.post<Map<String, dynamic>>('/auth/telegram/otp/send', data: {'phone': phone});
     return res.data!;
   }
 
