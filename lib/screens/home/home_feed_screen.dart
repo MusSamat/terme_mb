@@ -18,6 +18,7 @@ import '../../widgets/filters_sheet.dart';
 import '../../widgets/intent_toggle.dart';
 import '../../widgets/request_card.dart';
 import '../../widgets/trip_card.dart';
+import '../trip/trip_detail_screen.dart' show showTripDetailSheet;
 
 /// Home feed — 1:1 port of tappjet_ft feed-header + search-layout / requests-feed.
 /// Map band → intent toggle → search card → sticky (filters chip + date stepper)
@@ -110,7 +111,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     return SliverList.separated(
       itemCount: trips.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => TripCard(trip: trips[i], onTap: () => context.push('/trips/${trips[i].id}')),
+      itemBuilder: (_, i) => TripCard(trip: trips[i], onTap: () => showTripDetailSheet(context, trips[i].id)),
     );
   }
 

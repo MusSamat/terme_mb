@@ -14,6 +14,7 @@ import '../../widgets/driver_avatar.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/trip_card.dart';
+import '../trip/trip_detail_screen.dart' show showTripDetailSheet;
 
 /// «Мои» hub — 1:1 port of tappjet_ft my/bookings page. Title + publish button,
 /// segmented tabs (passenger: Брони/Заявки/Избранное · driver: Поездки/Избранное).
@@ -90,7 +91,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
         padding: pad,
         itemCount: liked.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => TripCard(trip: liked[i], onTap: () => context.push('/trips/${liked[i].id}')),
+        itemBuilder: (_, i) => TripCard(trip: liked[i], onTap: () => showTripDetailSheet(context, liked[i].id)),
       );
     }
 
@@ -100,7 +101,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
         padding: pad,
         itemCount: trips.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => TripCard(trip: trips[i], onTap: () => context.push('/trips/${trips[i].id}')),
+        itemBuilder: (_, i) => TripCard(trip: trips[i], onTap: () => showTripDetailSheet(context, trips[i].id)),
       );
     }
 
