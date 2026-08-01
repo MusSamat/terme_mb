@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/logo_mark.dart';
 
 /// Login — 1:1 port of auth/login (login step): logo + wordmark, Telegram
 /// primary, «или по телефону» divider, phone + password, «Войти», forgot /
@@ -80,17 +81,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            // Logo medallion + wordmark
+            // Brand mark + wordmark
             Center(
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(color: BrandColors.c600, borderRadius: BorderRadius.circular(AppRadii.xl3), boxShadow: AppShadows.brandCta),
-                child: const Icon(Icons.send, color: Colors.white, size: 30),
+              child: DecoratedBox(
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), boxShadow: AppShadows.brandCta),
+                child: const LogoMark(size: 64),
               ),
             ),
             const SizedBox(height: 12),
-            Text('Tappjet', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Fredoka', fontSize: 30, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+            const Center(child: Wordmark(fontSize: 30)),
             const SizedBox(height: 24),
             // Telegram primary (Telegram blue #0088cc)
             GestureDetector(

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../theme/role_theme.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/logo_mark.dart';
 
 /// Welcome / onboarding — port of tappjet_ft welcome-screen.
 class OnboardingScreen extends StatelessWidget {
@@ -30,7 +31,7 @@ class OnboardingScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Spacer(),
-                const Icon(Icons.directions_car_filled, size: 72, color: Colors.white),
+                const LogoMark(plain: true, size: 88),
                 const SizedBox(height: 20),
                 Text('welcome.title'.tr(),
                     textAlign: TextAlign.center,
