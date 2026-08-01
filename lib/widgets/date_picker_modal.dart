@@ -14,6 +14,7 @@ Future<void> showDatePickerModal(
   Map<String, int>? dayCounts,
 }) {
   return showDialog<void>(
+    useRootNavigator: true,
     context: context,
     builder: (ctx) => _CalendarDialog(value: value, onChange: onChange, min: min, dayCounts: dayCounts),
   );

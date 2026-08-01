@@ -24,6 +24,7 @@ String _roleOf(WidgetRef ref) {
 /// (tappjet_ft `TripDetailView variant="rail"`). CTA sits at the end of scroll.
 void showTripDetailSheet(BuildContext context, String id) {
   showModalBottomSheet<void>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -412,6 +413,7 @@ class _ContactRevealState extends State<_ContactReveal> {
 
 void showBookingSheet(BuildContext context, TripCardItem trip) {
   showModalBottomSheet<void>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

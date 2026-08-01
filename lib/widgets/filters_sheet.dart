@@ -20,6 +20,7 @@ Future<void> showFiltersSheet(
   ChipAccent accent = ChipAccent.brand,
 }) {
   return showModalBottomSheet<void>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

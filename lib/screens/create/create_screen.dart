@@ -9,6 +9,7 @@ import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/action_modal.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/intent_toggle.dart';
 import '../../widgets/seats_stepper.dart';
 
 /// Unified create screen — port of tappjet_ft create-screen. Drivers publish a
@@ -86,7 +87,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       body: ListView(
         padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + MediaQuery.of(context).padding.bottom),
         children: [
-          _intentToggle(dark),
+          IntentToggle(driver: _asDriver, onChanged: (d) => setState(() => _asDriver = d)),
           const SizedBox(height: 16),
           _routeCard(dark),
           const SizedBox(height: 16),
@@ -121,48 +122,6 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       body: _asDriver ? 'create.published_body_driver'.tr() : 'create.published_body_passenger'.tr(),
       primaryLabel: _asDriver ? 'create.published_cta_driver'.tr() : 'create.published_cta_passenger'.tr(),
       onPrimary: () => context.canPop() ? context.pop() : context.go('/'),
-    );
-  }
-
-  Widget _intentToggle(bool dark) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: dark ? InkColors.c900 : Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: dark ? InkColors.c800 : InkColors.c200),
-      ),
-      child: Row(
-        children: [
-          _intentTab('create.title_driver'.tr().replaceAll(' 🚗', ''), 'roles.driver'.tr(), _asDriver,
-              GrapeColors.c600, () => setState(() => _asDriver = true), dark),
-          _intentTab('create.title_passenger'.tr().replaceAll(' 🙌', ''), 'roles.passenger'.tr(), !_asDriver,
-              BrandColors.c600, () => setState(() => _asDriver = false), dark),
-        ],
-      ),
-    );
-  }
-
-  Widget _intentTab(String title, String sub, bool active, Color color, VoidCallback onTap, bool dark) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? color : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
-          child: Text(sub,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: active ? Colors.white : (dark ? InkColors.c400 : InkColors.c500))),
-        ),
-      ),
     );
   }
 

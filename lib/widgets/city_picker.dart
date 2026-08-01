@@ -9,6 +9,7 @@ import '../theme/dimens.dart';
 /// lands (ТЗ step 2). Returns the chosen city name or null.
 Future<String?> showCityPicker(BuildContext context, {String? title}) {
   return showModalBottomSheet<String>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

@@ -239,6 +239,7 @@ void _showRespondSheet(BuildContext context, PassengerRequestItem r) {
   final price = TextEditingController(text: '${r.budget}');
   final message = TextEditingController();
   showModalBottomSheet<void>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

@@ -38,6 +38,7 @@ Future<T?> showActionModal<T>(
   bool barrierDismissible = true,
 }) {
   return showDialog<T>(
+    useRootNavigator: true,
     context: context,
     barrierDismissible: barrierDismissible,
     builder: (ctx) {
