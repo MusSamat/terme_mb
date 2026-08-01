@@ -43,4 +43,26 @@ flutter run \
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+## Подключение к бэкенду (ТЗ step 2)
+
+Слой API готов (`lib/api/`): dio-клиент с refresh-интерцептором, `PagedResult`,
+модели с `fromJson`, сервисы по доменам (`api/services/`), провайдеры
+(`providers/data_providers.dart`). Экраны сейчас читают mock через провайдеры.
+
+**Чтобы подключить реальный бэкенд:**
+```bash
+flutter run \
+  --dart-define=USE_MOCK=false \
+  --dart-define=API_URL=https://api.tappjet.kg/api/v1 \
+  --dart-define=WS_URL=wss://api.tappjet.kg
+```
+Флаг `AppConfig.useMock` (env `USE_MOCK`) переключает провайдеры между mock и
+`GET /trips` и т.д. Готовый шаблон — `TripsService` + `tripsFeedProvider`;
+остальные домены (bookings/requests/chat/notifications/loyalty/cities) добавляются
+по тому же образцу. `apiBootstrapProvider` привязывает refresh к `AuthService`.
+
+Следующие шаги: досоздать сервисы остальных доменов, перевести экраны с
+`mock*()` на `ref.watch(...Provider)`, вписать реальный auth-flow вместо DEV-входа,
+подключить сокет (`SocketClient`) к чату/уведомлениям.
+
 ## Структура — см. ТЗ §4.

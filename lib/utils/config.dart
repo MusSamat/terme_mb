@@ -18,6 +18,10 @@ class AppConfig {
   static const authProviders = <String>{'phone_otp', 'telegram_bot'};
 
   static const requestTimeout = Duration(seconds: 15);
+
+  /// While true, data providers serve the bundled mock data. Flip to false
+  /// (or pass --dart-define=USE_MOCK=false) to hit the real backend at API_URL.
+  static const useMock = bool.fromEnvironment('USE_MOCK', defaultValue: true);
 }
 
 /// Hive box + key names, and non-secret client flags.

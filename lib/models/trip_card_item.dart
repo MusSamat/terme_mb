@@ -43,6 +43,25 @@ class TripCardItem {
 
   bool get soldOut => seatsAvailable == 0;
   bool get inactive => status != 'active';
+
+  factory TripCardItem.fromJson(Map<String, dynamic> j) => TripCardItem(
+        id: j['id'] as String,
+        originCity: (j['originCity'] ?? '') as String,
+        destinationCity: (j['destinationCity'] ?? '') as String,
+        departureAt: DateTime.parse(j['departureAt'] as String),
+        departureWindowEnd:
+            j['departureWindowEnd'] != null ? DateTime.tryParse(j['departureWindowEnd'] as String) : null,
+        seatsAvailable: (j['seatsAvailable'] ?? 0) as int,
+        seatsTotal: (j['seatsTotal'] ?? 0) as int,
+        pricePerSeat: ((j['pricePerSeat'] ?? 0) as num).toInt(),
+        driver: TripDriver.fromJson((j['driver'] as Map?)?.cast<String, dynamic>() ?? const {}),
+        pickupCities: (j['pickupCities'] as List?)?.cast<String>() ?? const [],
+        status: (j['status'] ?? 'active') as String,
+        liked: (j['liked'] ?? false) as bool,
+        luggage: (j['luggage'] ?? 'small') as String,
+        comment: j['comment'] as String?,
+        preferences: (j['preferences'] as Map?)?.map((k, v) => MapEntry(k as String, v as bool)) ?? const {},
+      );
 }
 
 class TripDriver {
@@ -63,6 +82,16 @@ class TripDriver {
   final int ratingCount;
   final bool verified;
   final TripCar? car;
+
+  factory TripDriver.fromJson(Map<String, dynamic> j) => TripDriver(
+        id: (j['id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        avatarUrl: j['avatarUrl'] as String?,
+        rating: (j['rating'] as num?)?.toDouble(),
+        ratingCount: (j['ratingCount'] ?? 0) as int,
+        verified: (j['verified'] ?? false) as bool,
+        car: j['car'] != null ? TripCar.fromJson((j['car'] as Map).cast<String, dynamic>()) : null,
+      );
 }
 
 class TripCar {
@@ -71,4 +100,11 @@ class TripCar {
   final String model;
   final String? color;
   final String? plate;
+
+  factory TripCar.fromJson(Map<String, dynamic> j) => TripCar(
+        make: (j['make'] ?? '') as String,
+        model: (j['model'] ?? '') as String,
+        color: j['color'] as String?,
+        plate: j['plate'] as String?,
+      );
 }
