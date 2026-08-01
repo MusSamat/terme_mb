@@ -6,6 +6,7 @@ import '../providers/core_providers.dart';
 import '../providers/data_providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/offline_banner.dart';
 import 'router.dart';
 
 class TappjetApp extends ConsumerWidget {
@@ -30,6 +31,7 @@ class TappjetApp extends ConsumerWidget {
       builder: (context, child) => Stack(
         children: [
           if (child != null) child,
+          const OfflineBanner(),
           const ToastOverlay(),
         ],
       ),

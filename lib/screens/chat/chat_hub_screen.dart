@@ -1,22 +1,25 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/mock_app_data.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/driver_avatar.dart';
+import '../../widgets/query_error.dart';
 
 /// Chat hub — 1:1 port of chat-hub.tsx (mobile): header with active count,
 /// a notifications inbox row, then the conversation list (active + archive).
-class ChatHubScreen extends StatelessWidget {
+class ChatHubScreen extends ConsumerWidget {
   const ChatHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final chats = mockChats();
-    final activeCount = chats.length;
+    final chatsAsync = ref.watch(chatSummariesProvider);
+    final activeCount = chatsAsync.asData?.value.length ?? 0;
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
@@ -83,12 +86,16 @@ class ChatHubScreen extends StatelessWidget {
             Expanded(
               child: Container(
                 color: dark ? InkColors.c900 : Colors.white,
-                child: chats.isEmpty
-                    ? _empty(dark)
-                    : ListView(
-                        padding: EdgeInsets.only(bottom: AppLayout.pillNavClearance + MediaQuery.of(context).padding.bottom),
-                        children: [for (final c in chats) _ChatRow(chat: c)],
-                      ),
+                child: chatsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500)),
+                  error: (e, _) => QueryError(error: e, onRetry: () => ref.invalidate(chatSummariesProvider)),
+                  data: (chats) => chats.isEmpty
+                      ? _empty(dark)
+                      : ListView(
+                          padding: EdgeInsets.only(bottom: AppLayout.pillNavClearance + MediaQuery.of(context).padding.bottom),
+                          children: [for (final c in chats) _ChatRow(chat: c)],
+                        ),
+                ),
               ),
             ),
           ],

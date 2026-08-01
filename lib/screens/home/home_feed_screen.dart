@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/mock_calendar.dart';
-import '../../data/mock_requests.dart';
-import '../../data/mock_trips.dart';
 import '../../models/feed_filters.dart';
 import '../../models/trip_card_item.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/data_providers.dart';
+import '../../widgets/query_error.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_chip.dart';
@@ -40,9 +40,9 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   String get _today => ymd(DateTime.now());
   String get _current => (_filters.date.isEmpty || _filters.date == 'any') ? _today : _filters.date;
 
-  /// Applies the active filters + sort to the sample trips.
-  List<TripCardItem> _visibleTrips() {
-    var list = mockTrips();
+  /// Applies the active filters + sort to a trip list (from the provider).
+  List<TripCardItem> _applyFilters(List<TripCardItem> all) {
+    var list = List<TripCardItem>.from(all);
     if (_filters.date != 'any') {
       final eff = _filters.date.isEmpty ? _today : _filters.date;
       list = list.where((t) => ymd(t.departureAt) == eff).toList();
@@ -86,42 +86,47 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   }
 
   Widget _tripList(bool dark) {
-    final trips = _visibleTrips();
-    if (trips.isEmpty) {
-      return SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 48),
-          child: Column(
-            children: [
-              const Icon(Icons.event_busy, size: 40, color: InkColors.c400),
-              const SizedBox(height: 12),
-              Text('empty.passenger_trips.title'.tr(),
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: dark ? Colors.white : InkColors.c900)),
-              const SizedBox(height: 4),
-              Text('empty.passenger_trips.description'.tr(),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)),
-            ],
-          ),
-        ),
-      );
-    }
-    return SliverList.separated(
-      itemCount: trips.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => TripCard(trip: trips[i], onTap: () => showTripDetailSheet(context, trips[i].id)),
-    );
+    return ref.watch(tripsFeedProvider(_filters)).when(
+          loading: () => const SliverToBoxAdapter(child: _LoadingBlock()),
+          error: (e, _) => SliverToBoxAdapter(
+              child: QueryError(error: e, onRetry: () => ref.invalidate(tripsFeedProvider(_filters)))),
+          data: (all) {
+            final trips = _applyFilters(all);
+            if (trips.isEmpty) {
+              return SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 48),
+                  child: Column(children: [
+                    const Icon(Icons.event_busy, size: 40, color: InkColors.c400),
+                    const SizedBox(height: 12),
+                    Text('empty.passenger_trips.title'.tr(),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+                    const SizedBox(height: 4),
+                    Text('empty.passenger_trips.description'.tr(),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)),
+                  ]),
+                ),
+              );
+            }
+            return SliverList.separated(
+              itemCount: trips.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) => TripCard(trip: trips[i], onTap: () => showTripDetailSheet(context, trips[i].id)),
+            );
+          },
+        );
   }
 
-  SliverList _requestList(bool dark) {
-    final reqs = mockRequests();
-    return SliverList.separated(
-      itemCount: reqs.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => RequestCard(request: reqs[i], onTap: () => context.push('/requests/${reqs[i].id}')),
-    );
+  Widget _requestList(bool dark) {
+    return ref.watch(requestsFeedProvider).when(
+          loading: () => const SliverToBoxAdapter(child: _LoadingBlock()),
+          error: (e, _) => SliverToBoxAdapter(child: QueryError(error: e, onRetry: () => ref.invalidate(requestsFeedProvider))),
+          data: (reqs) => SliverList.separated(
+            itemCount: reqs.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) => RequestCard(request: reqs[i], onTap: () => context.push('/requests/${reqs[i].id}')),
+          ),
+        );
   }
 
   // ── Header: map band + intent toggle + search card ─────────────────────────
@@ -376,6 +381,16 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
       ),
     );
   }
+}
+
+/// Centered loading block for a sliver list while data resolves.
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock();
+  @override
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.only(top: 60),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500)),
+      );
 }
 
 /// Dashed curved route over the map band (teal start → amber end dots).

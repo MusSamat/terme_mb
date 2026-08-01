@@ -1,10 +1,13 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/mock_app_data.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../widgets/query_error.dart';
 
 /// Loyalty — 1:1 port of loyalty page: tier-colored status card, tier roadmap,
 /// how-to-earn, history. Tier palette: novice ink · traveler sky · expert
@@ -30,10 +33,6 @@ class LoyaltyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final l = mockLoyalty();
-    final c = _tierColors(l.tier, dark);
-    final progress = l.pointsToNext > 0 ? l.points / (l.points + l.pointsToNext) : 1.0;
-    final tierIndex = _tiers.indexOf(l.tier);
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
@@ -43,7 +42,14 @@ class LoyaltyScreen extends StatelessWidget {
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.canPop() ? context.pop() : context.go('/')),
         title: Text('loyalty.title'.tr(), style: TextStyle(fontFamily: 'Fredoka', fontWeight: FontWeight.w800, fontSize: 20, color: dark ? Colors.white : InkColors.c900)),
       ),
-      body: ListView(
+      body: Consumer(builder: (context, ref, _) => ref.watch(loyaltyStatusProvider).when(
+            loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500)),
+            error: (e, st) => QueryError(error: e, onRetry: () => ref.invalidate(loyaltyStatusProvider)),
+            data: (l) {
+              final c = _tierColors(l.tier, dark);
+              final progress = l.pointsToNext > 0 ? l.points / (l.points + l.pointsToNext) : 1.0;
+              final tierIndex = _tiers.indexOf(l.tier);
+              return ListView(
         padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + MediaQuery.of(context).padding.bottom),
         children: [
           // Status card (tier-colored)
@@ -130,7 +136,9 @@ class LoyaltyScreen extends StatelessWidget {
           const SizedBox(height: 10),
           for (final tx in l.transactions) _tx(dark, tx),
         ],
-      ),
+              );
+            },
+          )),
     );
   }
 

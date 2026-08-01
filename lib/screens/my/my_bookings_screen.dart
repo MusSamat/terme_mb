@@ -6,12 +6,14 @@ import 'package:go_router/go_router.dart';
 import '../../data/mock_app_data.dart';
 import '../../data/mock_trips.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/action_modal.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/query_error.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/trip_card.dart';
 import '../trip/trip_detail_screen.dart' show showTripDetailSheet;
@@ -113,12 +115,15 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       );
     }
 
-    final bookings = mockBookings();
-    return ListView.separated(
-      padding: pad,
-      itemCount: bookings.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _BookingCard(booking: bookings[i]),
+    return ref.watch(myBookingsProvider).when(
+      loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500)),
+      error: (e, _) => QueryError(error: e, onRetry: () => ref.invalidate(myBookingsProvider)),
+      data: (bookings) => ListView.separated(
+        padding: pad,
+        itemCount: bookings.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, i) => _BookingCard(booking: bookings[i]),
+      ),
     );
   }
 }

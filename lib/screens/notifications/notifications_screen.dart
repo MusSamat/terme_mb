@@ -1,20 +1,22 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/mock_app_data.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../widgets/query_error.dart';
 
 /// Notifications — 1:1 port of notification-item.tsx: tinted icon-medallion
 /// cards, unread cards get a colored bg+ring, medallion filled when unread.
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final items = mockNotifs();
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
@@ -30,12 +32,16 @@ class NotificationsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(14),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => _NotifCard(notif: items[i]),
-      ),
+      body: ref.watch(notificationsListProvider).when(
+            loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500)),
+            error: (e, _) => QueryError(error: e, onRetry: () => ref.invalidate(notificationsListProvider)),
+            data: (items) => ListView.separated(
+              padding: const EdgeInsets.all(14),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) => _NotifCard(notif: items[i]),
+            ),
+          ),
     );
   }
 }

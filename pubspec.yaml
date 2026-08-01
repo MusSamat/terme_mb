@@ -59,6 +59,7 @@ dependencies:
   # Misc
   uuid: ^4.4.0
   url_launcher: ^6.3.0
+  connectivity_plus: ^6.0.5 # offline banner (online/offline events)
 
 # easy_localization 3.0.7 caps intl below 0.20.0, but the Flutter SDK pins
 # intl 0.20.2. The APIs used are compatible, so force the SDK version.

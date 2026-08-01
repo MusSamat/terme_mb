@@ -28,6 +28,25 @@ class MockBooking {
   final String? phone;
   final String? comment;
   final String? avatarUrl;
+
+  factory MockBooking.fromJson(Map<String, dynamic> j) {
+    final trip = (j['trip'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final other = ((j['passenger'] ?? trip['driver']) as Map?)?.cast<String, dynamic>() ?? const {};
+    final dep = trip['departureAt'] != null ? DateTime.tryParse(trip['departureAt'] as String) : null;
+    return MockBooking(
+      id: j['id'] as String,
+      otherName: (other['name'] ?? '') as String,
+      origin: (trip['originCity'] ?? '') as String,
+      destination: (trip['destinationCity'] ?? '') as String,
+      dateLabel: dep != null ? '${dep.day.toString().padLeft(2, '0')}.${dep.month.toString().padLeft(2, '0')}' : '',
+      seats: (j['seatsCount'] ?? 1) as int,
+      status: (j['status'] ?? 'pending') as String,
+      sum: ((j['totalPrice'] ?? trip['pricePerSeat'] ?? 0) as num).toInt(),
+      verified: (other['verified'] ?? false) as bool,
+      phone: other['phone'] as String?,
+      comment: j['comment'] as String?,
+    );
+  }
 }
 
 List<MockBooking> mockBookings() => const [
@@ -82,6 +101,16 @@ class MockChat {
   final String timeLabel;
   final int unread;
   final String? avatarUrl;
+
+  factory MockChat.fromJson(Map<String, dynamic> j) => MockChat(
+        bookingId: j['bookingId'] as String,
+        otherName: (j['otherName'] ?? '') as String,
+        route: (j['route'] ?? '') as String,
+        lastMessage: (j['lastMessage'] ?? '') as String,
+        timeLabel: (j['lastMessageAt'] ?? '') as String,
+        unread: (j['unreadCount'] ?? 0) as int,
+        avatarUrl: j['otherAvatarUrl'] as String?,
+      );
 }
 
 List<MockChat> mockChats() => const [
@@ -130,6 +159,25 @@ class MockNotif {
   final String timeLabel;
   final bool unread;
   final String kind; // booking | message | rating | system
+
+  factory MockNotif.fromJson(Map<String, dynamic> j) {
+    final type = (j['type'] ?? '') as String;
+    String kind = 'system';
+    if (type.contains('message')) {
+      kind = 'message';
+    } else if (type.contains('booking') || type.contains('request')) {
+      kind = 'booking';
+    } else if (type.contains('rating') || type.contains('rate')) {
+      kind = 'rating';
+    }
+    return MockNotif(
+      typeKey: 'notif.type_$type',
+      body: ((j['payload'] as Map?)?['body'] ?? '') as String,
+      timeLabel: (j['createdAt'] ?? '') as String,
+      unread: j['readAt'] == null,
+      kind: kind,
+    );
+  }
 }
 
 List<MockNotif> mockNotifs() => const [
@@ -164,6 +212,12 @@ class MockLoyaltyTx {
   final int points;
   final String sourceKey; // key under loyalty.sources.*
   final String dateLabel;
+
+  factory MockLoyaltyTx.fromJson(Map<String, dynamic> j) => MockLoyaltyTx(
+        points: (j['points'] ?? 0) as int,
+        sourceKey: (j['source'] ?? 'bonus') as String,
+        dateLabel: (j['createdAt'] ?? '') as String,
+      );
 }
 
 class MockLoyalty {
@@ -179,6 +233,14 @@ class MockLoyalty {
   final String? nextTier;
   final int pointsToNext;
   final List<MockLoyaltyTx> transactions;
+
+  factory MockLoyalty.fromJson(Map<String, dynamic> status, List<dynamic> txs) => MockLoyalty(
+        tier: (status['tier'] ?? 'novice') as String,
+        points: (status['points'] ?? 0) as int,
+        nextTier: status['nextTier'] as String?,
+        pointsToNext: (status['pointsToNextTier'] ?? 0) as int,
+        transactions: txs.map((e) => MockLoyaltyTx.fromJson((e as Map).cast<String, dynamic>())).toList(),
+      );
 }
 
 MockLoyalty mockLoyalty() => const MockLoyalty(

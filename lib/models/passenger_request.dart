@@ -32,4 +32,28 @@ class PassengerRequestItem {
   final String status; // open | closed
   final bool liked;
   final bool responded;
+
+  factory PassengerRequestItem.fromJson(Map<String, dynamic> j) {
+    final p = (j['passenger'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final date = j['departureDate'] != null ? DateTime.tryParse(j['departureDate'] as String) : null;
+    final dateLabel = date != null
+        ? '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}'
+        : (j['dateLabel'] ?? '') as String;
+    return PassengerRequestItem(
+      id: j['id'] as String,
+      originCity: (j['originCity'] ?? '') as String,
+      destinationCity: (j['destinationCity'] ?? '') as String,
+      seatsNeeded: (j['seatsNeeded'] ?? 1) as int,
+      dateLabel: dateLabel,
+      budget: ((j['budget'] ?? 0) as num).toInt(),
+      passengerName: (p['name'] ?? '') as String,
+      passengerRating: (p['rating'] as num?)?.toDouble(),
+      passengerRatingCount: (p['ratingCount'] ?? 0) as int,
+      passengerVerified: (p['verified'] ?? false) as bool,
+      comment: j['comment'] as String?,
+      status: (j['status'] ?? 'open') as String,
+      liked: (j['liked'] ?? false) as bool,
+      responded: j['myResponse'] != null,
+    );
+  }
 }

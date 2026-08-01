@@ -1,20 +1,21 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_requests.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../theme/role_theme.dart';
+import '../../widgets/query_error.dart';
 import '../../widgets/request_card.dart';
 
-class RequestsFeedScreen extends StatelessWidget {
+class RequestsFeedScreen extends ConsumerWidget {
   const RequestsFeedScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final requests = mockRequests();
     final driverTheme = roleThemeFor(UiRole.driver);
 
     return Scaffold(
@@ -39,14 +40,18 @@ class RequestsFeedScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.fromLTRB(
-                  16, 14, 16, AppLayout.pillNavClearance + MediaQuery.of(context).padding.bottom),
-              itemCount: requests.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => RequestCard(
-                request: requests[i],
-                onTap: () => context.push('/requests/${requests[i].id}'),
+            child: ref.watch(requestsFeedProvider).when(
+              loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: GrapeColors.c500)),
+              error: (e, _) => QueryError(error: e, onRetry: () => ref.invalidate(requestsFeedProvider)),
+              data: (requests) => ListView.separated(
+                padding: EdgeInsets.fromLTRB(
+                    16, 14, 16, AppLayout.pillNavClearance + MediaQuery.of(context).padding.bottom),
+                itemCount: requests.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, i) => RequestCard(
+                  request: requests[i],
+                  onTap: () => context.push('/requests/${requests[i].id}'),
+                ),
               ),
             ),
           ),
