@@ -125,12 +125,14 @@ class _CalendarDialogState extends State<_CalendarDialog> {
             const SizedBox(height: 6),
             Row(
               children: [
-                for (final w in _weekdays)
+                for (var wi = 0; wi < _weekdays.length; wi++)
                   Expanded(
                     child: Center(
-                      child: Text(w,
-                          style: const TextStyle(
-                              fontSize: 11, fontWeight: FontWeight.w800, color: InkColors.c400)),
+                      child: Text(_weekdays[wi],
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: wi >= 5 ? CoralColors.c400 : InkColors.c400)),
                     ),
                   ),
               ],

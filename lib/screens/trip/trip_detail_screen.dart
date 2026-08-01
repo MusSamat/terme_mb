@@ -270,13 +270,7 @@ Widget tripCta(BuildContext context, TripCardItem trip, String role) {
   late final VoidCallback onTap;
   List<BoxShadow> shadow = const [];
 
-  if (trip.soldOut && role == 'passenger') {
-    bg = InkColors.c300;
-    fg = Colors.white;
-    icon = Icons.block;
-    label = 'card.no_seats'.tr();
-    onTap = () {};
-  } else if (role == 'driver') {
+  if (role == 'driver') {
     bg = BrandColors.c600;
     fg = Colors.white;
     icon = Icons.directions_car_filled;

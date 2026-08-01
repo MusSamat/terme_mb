@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,13 +39,13 @@ class PillNav extends ConsumerWidget {
     // lucide_icons_flutter when building out the final visual pass (ТЗ §7).
     final items = authed
         ? const [
-            _NavSpec(Icons.search, 'nav.search'),
+            _NavSpec(Icons.search, 'nav.feed'),
             _NavSpec(Icons.receipt_long_outlined, 'nav.bookings'),
             _NavSpec(Icons.chat_bubble_outline, 'nav.chats'),
             _NavSpec(Icons.person_outline, 'nav.profile'),
           ]
         : const [
-            _NavSpec(Icons.search, 'nav.search'),
+            _NavSpec(Icons.search, 'nav.feed'),
             _NavSpec(Icons.login, 'nav.login'),
           ];
 
@@ -113,21 +114,24 @@ class _NavButton extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: active ? pillOn : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(18),
         ),
-        child: Stack(
-          clipBehavior: Clip.none,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(spec.icon, size: 22, color: active ? textOn : idle),
-            if (badge > 0)
-              Positioned(
-                right: -6,
-                top: -4,
-                child: _Badge(count: badge),
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(spec.icon, size: 20, color: active ? textOn : idle),
+                if (badge > 0) Positioned(right: -6, top: -4, child: _Badge(count: badge)),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(spec.labelKey.tr(),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: active ? textOn : idle)),
           ],
         ),
       ),
@@ -150,7 +154,7 @@ class _Badge extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        count > 99 ? '99+' : '$count',
+        count > 9 ? '9+' : '$count',
         style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
       ),
     );

@@ -48,13 +48,18 @@ class LoyaltyScreen extends StatelessWidget {
         children: [
           // Status card (tier-colored)
           Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(color: c.bg, borderRadius: BorderRadius.circular(AppRadii.xl3), boxShadow: AppShadows.card),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: c.bg,
+              borderRadius: BorderRadius.circular(AppRadii.xl3),
+              border: Border.all(color: c.progress.withValues(alpha: 0.35)),
+              boxShadow: AppShadows.card,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Icon(Icons.workspace_premium, size: 20, color: c.text),
+                  Icon(Icons.military_tech, size: 20, color: c.text),
                   const SizedBox(width: 8),
                   Text('loyalty.tiers.${l.tier}'.tr().toUpperCase(), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 2, color: c.text)),
                 ]),
@@ -87,18 +92,18 @@ class LoyaltyScreen extends StatelessWidget {
               children: [
                 for (var i = 0; i < _tiers.length; i++) ...[
                   if (i > 0)
-                    Expanded(child: Container(height: 2, color: i <= tierIndex ? BrandColors.c400 : (dark ? InkColors.c700 : InkColors.c200))),
+                    Expanded(child: Container(height: 2, color: i <= tierIndex ? c.progress : (dark ? InkColors.c700 : InkColors.c200))),
                   Column(mainAxisSize: MainAxisSize.min, children: [
                     Container(
                       width: 36,
                       height: 36,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: i <= tierIndex ? BrandColors.c600 : (dark ? InkColors.c800 : InkColors.c100),
+                        color: i <= tierIndex ? c.progress : (dark ? InkColors.c800 : InkColors.c100),
                         shape: BoxShape.circle,
-                        border: i == tierIndex ? Border.all(color: BrandColors.c300, width: 3) : null,
+                        border: i == tierIndex ? Border.all(color: c.text, width: 3) : null,
                       ),
-                      child: Icon(Icons.star, size: 16, color: i <= tierIndex ? Colors.white : InkColors.c400),
+                      child: Icon(Icons.military_tech, size: 16, color: i <= tierIndex ? Colors.white : InkColors.c400),
                     ),
                     const SizedBox(height: 4),
                     SizedBox(

@@ -20,6 +20,10 @@ class _RateScreenState extends State<RateScreen> {
   int _score = 0;
   bool _sent = false;
   final _comment = TextEditingController();
+  final Set<String> _tags = {};
+
+  static const _positiveTags = ['on_time', 'safe_driving', 'pleasant_chat', 'clean_car', 'comfortable_ride'];
+  static const _negativeTags = ['late', 'dirty_car', 'dangerous_driving', 'rudeness'];
 
   @override
   void dispose() {
@@ -83,6 +87,37 @@ class _RateScreenState extends State<RateScreen> {
                     fontSize: 15, fontWeight: FontWeight.w800, color: InkColors.c500)),
             const SizedBox(height: 24),
             if (_score > 0) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(_score >= 4 ? 'rate.liked'.tr() : 'rate.disliked'.tr(),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: InkColors.c400)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final tag in (_score >= 4 ? _positiveTags : _negativeTags))
+                    GestureDetector(
+                      onTap: () => setState(() => _tags.contains(tag) ? _tags.remove(tag) : _tags.add(tag)),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: _tags.contains(tag) ? (dark ? BrandColors.c500.withValues(alpha: 0.15) : BrandColors.c50) : (dark ? InkColors.c900 : Colors.white),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: _tags.contains(tag) ? BrandColors.c500 : (dark ? InkColors.c700 : InkColors.c200)),
+                        ),
+                        child: Text('ratings.tags.$tag'.tr(),
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _tags.contains(tag) ? (dark ? BrandColors.c300 : BrandColors.c700) : (dark ? InkColors.c200 : InkColors.c700))),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
               Text('rate.comment_label'.tr(),
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),
               const SizedBox(height: 8),
@@ -106,7 +141,7 @@ class _RateScreenState extends State<RateScreen> {
             ],
             const Spacer(),
             AppButton(
-              label: 'book_form.submit'.tr(),
+              label: 'rate.submit'.tr(),
               onPressed: _score > 0 ? () => setState(() => _sent = true) : null,
             ),
           ],

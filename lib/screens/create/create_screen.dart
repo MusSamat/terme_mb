@@ -33,7 +33,6 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   final Set<String> _prefs = {};
 
   static const _dateKeys = [
-    'feed.today',
     'create.date_tomorrow',
     'create.date_dayafter',
     'create.date_flexible',
@@ -89,6 +88,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + MediaQuery.of(context).padding.bottom),
         children: [
           IntentToggle(driver: _asDriver, onChanged: (d) => setState(() => _asDriver = d)),
+          const SizedBox(height: 8),
+          Text(_asDriver ? 'create.intro_driver'.tr() : 'create.intro_passenger'.tr(),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)),
           const SizedBox(height: 16),
           _routeCard(dark),
           const SizedBox(height: 16),
@@ -108,7 +110,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           const SizedBox(height: 12),
           AppButton(
             label: _asDriver ? 'create.submit_driver'.tr() : 'create.submit_passenger'.tr(),
-            variant: _asDriver ? AppButtonVariant.grape : AppButtonVariant.brand,
+            variant: _asDriver ? AppButtonVariant.brand : AppButtonVariant.grape,
             onPressed: _submit,
           ),
         ],

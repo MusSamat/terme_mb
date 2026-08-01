@@ -242,7 +242,10 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   // ── Sticky control bar: filters chip + date stepper ────────────────────────
   Widget _controlBar(BuildContext context, bool dark, bool driver, ChipAccent accent) {
     return Container(
-      color: (dark ? InkColors.c950 : InkColors.c50).withValues(alpha: 0.92),
+      decoration: BoxDecoration(
+        color: (dark ? InkColors.c950 : InkColors.c50).withValues(alpha: 0.92),
+        border: Border(bottom: BorderSide(color: dark ? InkColors.c800 : InkColors.c100)),
+      ),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -254,6 +257,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                   : 'feed.filters'.tr(),
               icon: Icons.tune,
               selected: true,
+              filled: true,
               accent: accent,
               onTap: () => showFiltersSheet(
                 context,

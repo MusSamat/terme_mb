@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// Filter/quick chip — port of tappjet_ft ui/chip. `accent` picks the selected
-/// tint (brand for passenger context, grape for driver).
+/// Filter/quick chip — port of tappjet_ft ui/chip.
+/// [filled] = the «quick» leading chip (solid accent). Default = «filter» chip
+/// (light-tinted selected: soft bg + accent text + accent border).
 class AppChip extends StatelessWidget {
   const AppChip({
     super.key,
@@ -12,6 +13,7 @@ class AppChip extends StatelessWidget {
     this.onTap,
     this.icon,
     this.accent = ChipAccent.brand,
+    this.filled = false,
   });
 
   final String label;
@@ -19,19 +21,37 @@ class AppChip extends StatelessWidget {
   final VoidCallback? onTap;
   final IconData? icon;
   final ChipAccent accent;
+  final bool filled;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final acc = accent == ChipAccent.grape ? GrapeColors.c600 : BrandColors.c600;
+    final grape = accent == ChipAccent.grape;
+    final acc600 = grape ? GrapeColors.c600 : BrandColors.c600;
+    final acc500 = grape ? GrapeColors.c500 : BrandColors.c500;
+    final acc50 = grape ? GrapeColors.c50 : BrandColors.c50;
+    final acc300 = grape ? GrapeColors.c300 : BrandColors.c300;
+    final acc700 = grape ? GrapeColors.c700 : BrandColors.c700;
 
-    final bg = selected
-        ? acc
-        : (dark ? InkColors.c800 : Colors.white);
-    final fg = selected
-        ? Colors.white
-        : (dark ? InkColors.c200 : InkColors.c700);
-    final border = selected ? acc : (dark ? InkColors.c700 : InkColors.c200);
+    late final Color bg;
+    late final Color fg;
+    late final Color border;
+
+    if (selected && filled) {
+      // «quick» chip — solid accent.
+      bg = acc600;
+      fg = Colors.white;
+      border = acc600;
+    } else if (selected) {
+      // «filter» chip — light tinted.
+      bg = dark ? acc500.withValues(alpha: 0.15) : acc50;
+      fg = dark ? acc300 : acc700;
+      border = acc500;
+    } else {
+      bg = dark ? InkColors.c900 : Colors.white;
+      fg = dark ? InkColors.c200 : InkColors.c700;
+      border = dark ? InkColors.c700 : InkColors.c200;
+    }
 
     return GestureDetector(
       onTap: onTap,

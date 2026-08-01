@@ -53,7 +53,7 @@ class _NotifCard extends StatelessWidget {
       case 'rating':
         return (icon: Icons.star, color: AccentColors.c500);
       default:
-        return (icon: Icons.info, color: GrapeColors.c500);
+        return (icon: Icons.info, color: InkColors.c600);
     }
   }
 
@@ -88,7 +88,7 @@ class _NotifCard extends StatelessWidget {
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: medBg, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: medBg, borderRadius: BorderRadius.circular(12)),
             child: Icon(v.icon, size: 20, color: medFg),
           ),
           const SizedBox(width: 12),
@@ -110,6 +110,13 @@ class _NotifCard extends StatelessWidget {
               ],
             ),
           ),
+          if (unread)
+            Container(
+              margin: const EdgeInsets.only(left: 8, top: 6),
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(color: CoralColors.c500, shape: BoxShape.circle),
+            ),
         ],
       ),
     );
