@@ -9,6 +9,7 @@ import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/action_modal.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/city_picker.dart';
 import '../../widgets/intent_toggle.dart';
 import '../../widgets/seats_stepper.dart';
 
@@ -163,28 +164,29 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   }
 
   Widget _field(bool dark, IconData icon, TextEditingController c, String hint) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: dark ? InkColors.c400 : InkColors.c400),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: c,
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: dark ? Colors.white : InkColors.c900),
-              decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: const TextStyle(color: InkColors.c400, fontWeight: FontWeight.w700),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 15),
+    return GestureDetector(
+      onTap: () async {
+        final city = await showCityPicker(context);
+        if (city != null) setState(() => c.text = city);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: InkColors.c400),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                c.text.isEmpty ? hint : c.text,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: c.text.isEmpty ? InkColors.c400 : (dark ? Colors.white : InkColors.c900)),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
