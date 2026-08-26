@@ -43,7 +43,7 @@ const _terminalBookingStatuses = {
   'expired',
 };
 
-/// «Мои» hub — 1:1 port of tappjet_ft my/bookings page. Title + publish button,
+/// «Мои» hub — 1:1 port of terme_ft my/bookings page. Title + publish button,
 /// segmented tabs (passenger: Брони/Заявки/Избранное · driver: Поездки/Избранное).
 class MyBookingsScreen extends ConsumerStatefulWidget {
   const MyBookingsScreen({super.key, this.tab});

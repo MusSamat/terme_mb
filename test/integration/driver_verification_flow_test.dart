@@ -12,9 +12,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:tappjet_mb/providers/core_providers.dart';
-import 'package:tappjet_mb/screens/profile/driver_verification_screen.dart';
-import 'package:tappjet_mb/widgets/app_button.dart';
+import 'package:terme_mb/providers/core_providers.dart';
+import 'package:terme_mb/screens/profile/driver_verification_screen.dart';
+import 'package:terme_mb/widgets/app_button.dart';
 
 /// Integration: the driver-verification wizard must NOT advance past step 1
 /// until the car data is valid — the whole point of «verify before next page».
@@ -28,7 +28,7 @@ void main() {
     Localization.load(const Locale('ru'), translations: Translations(json.decode(raw) as Map<String, dynamic>));
     final dir = Directory.systemTemp.createTempSync('tj_verif');
     Hive.init(dir.path);
-    box = await Hive.openBox<dynamic>('tappjet_verif');
+    box = await Hive.openBox<dynamic>('terme_verif');
   });
 
   Widget wrap(Widget child) => ProviderScope(

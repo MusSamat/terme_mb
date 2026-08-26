@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// Filter/quick chip — port of tappjet_ft ui/chip.
+/// Filter/quick chip — port of terme_ft ui/chip.
 /// [filled] = the «quick» leading chip (solid accent). Default = «filter» chip
 /// (light-tinted selected: soft bg + accent text + accent border).
 class AppChip extends StatelessWidget {

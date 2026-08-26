@@ -21,7 +21,7 @@ import '../../widgets/request_card.dart';
 import '../../widgets/trip_card.dart';
 import '../trip/trip_detail_screen.dart' show showTripDetailSheet;
 
-/// Home feed — 1:1 port of tappjet_ft feed-header + search-layout / requests-feed.
+/// Home feed — 1:1 port of terme_ft feed-header + search-layout / requests-feed.
 /// Map band → intent toggle → search card → sticky (filters chip + date stepper)
 /// → cards. Passenger shows trips (teal); driver shows requests (grape).
 class HomeFeedScreen extends ConsumerStatefulWidget {
@@ -250,7 +250,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
         ),
       );
 
-  // ── Recent routes (Hive, max 3 · web tappjet_recent_routes parity) ─────────
+  // ── Recent routes (Hive, max 3 · web terme_recent_routes parity) ─────────
   List<({String from, String to})> _recentRoutes() {
     final raw =
         (ref.read(hiveBoxProvider).get(StorageKeys.recentRoutes) as List?) ??

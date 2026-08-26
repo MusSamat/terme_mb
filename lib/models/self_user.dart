@@ -1,5 +1,5 @@
 /// Minimal hand-written model for the skeleton. Full freezed models (mirroring
-/// tappjet_ft/src/lib/api/schema.gen.ts) land in step 2 of the ТЗ.
+/// terme_ft/src/lib/api/schema.gen.ts) land in step 2 of the ТЗ.
 class SelfUser {
   const SelfUser({
     required this.id,

@@ -29,17 +29,17 @@ class AppConfig {
 
 /// Hive box + key names, and non-secret client flags.
 class StorageKeys {
-  static const box = 'tappjet';
+  static const box = 'terme';
 
-  static const sessionHint = 'tappjet_session'; // "1" when a session may exist
-  static const activeMode = 'tappjet_mode'; // passenger | driver
-  static const theme = 'tappjet_theme'; // light | dark | system
-  static const locale = 'tappjet_locale'; // ru | kg
-  static const onboardingSeen = 'tappjet_onboarding_seen';
-  static const deferredAction = 'tappjet_deferred_action';
-  static const notifPrefsPrefix = 'tappjet_notif_prefs_'; // + userId
-  static const celebratedPrefix = 'tappjet_celebrated_'; // + bookingId
-  static const draftCreate = 'tappjet_draft_create';
-  static const recentRoutes = 'tappjet_recent_routes'; // List<String> "from|to", max 3
-  static const anonId = 'tappjet_anon_id';
+  static const sessionHint = 'terme_session'; // "1" when a session may exist
+  static const activeMode = 'terme_mode'; // passenger | driver
+  static const theme = 'terme_theme'; // light | dark | system
+  static const locale = 'terme_locale'; // ru | kg
+  static const onboardingSeen = 'terme_onboarding_seen';
+  static const deferredAction = 'terme_deferred_action';
+  static const notifPrefsPrefix = 'terme_notif_prefs_'; // + userId
+  static const celebratedPrefix = 'terme_celebrated_'; // + bookingId
+  static const draftCreate = 'terme_draft_create';
+  static const recentRoutes = 'terme_recent_routes'; // List<String> "from|to", max 3
+  static const anonId = 'terme_anon_id';
 }

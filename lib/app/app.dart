@@ -11,8 +11,8 @@ import '../widgets/app_toast.dart';
 import '../widgets/offline_banner.dart';
 import 'router.dart';
 
-class TappjetApp extends ConsumerWidget {
-  const TappjetApp({super.key});
+class TermeApp extends ConsumerWidget {
+  const TermeApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,7 +22,7 @@ class TappjetApp extends ConsumerWidget {
     ref.watch(socketBootstrapProvider); // live socket (notifications/chat/bookings)
 
     return MaterialApp.router(
-      title: 'Tappjet',
+      title: 'Terme',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: AppTheme.light,

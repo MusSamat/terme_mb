@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/models/review.dart';
+import 'package:terme_mb/models/review.dart';
 
 void main() {
   group('Review.fromJson — full', () {

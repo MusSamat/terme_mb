@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/models/car.dart';
+import 'package:terme_mb/models/car.dart';
 
 void main() {
   group('Car.fromJson', () {

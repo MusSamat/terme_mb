@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/models/trip_card_item.dart';
+import 'package:terme_mb/models/trip_card_item.dart';
 
 /// Full-fidelity JSON as the backend returns it for a trip card.
 Map<String, dynamic> fullJson() => {

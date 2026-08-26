@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// Lifecycle status pill — port of tappjet_ft status-badge. Label from the
+/// Lifecycle status pill — port of terme_ft status-badge. Label from the
 /// `status.*` i18n namespace; color grouped by outcome.
 class StatusBadge extends StatelessWidget {
   const StatusBadge({super.key, required this.status});

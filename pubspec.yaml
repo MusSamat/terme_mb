@@ -1,5 +1,5 @@
-name: tappjet_mb
-description: Tappjet — native mobile client (iOS + Android). Port of tappjet_ft.
+name: terme_mb
+description: Terme — native mobile client (iOS + Android). Port of terme_ft.
 publish_to: "none"
 version: 1.1.0+8
 

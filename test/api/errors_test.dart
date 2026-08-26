@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/api/errors.dart';
+import 'package:terme_mb/api/errors.dart';
 
 Response<dynamic> _resp(int status, dynamic data) => Response(
       requestOptions: RequestOptions(path: '/x'),

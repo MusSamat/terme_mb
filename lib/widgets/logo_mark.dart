@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// Tappjet brand mark — exact geometry from tappjet_ft `LogoMark`
+/// Terme brand mark — exact geometry from terme_ft `LogoMark`
 /// (viewBox 48×48): white paper-plane (two facets), amber point dot, two white
 /// spark dots. `plain` drops the teal tile (for the plane on a teal surface).
 class LogoMark extends StatelessWidget {
@@ -26,7 +26,7 @@ class _LogoPainter extends CustomPainter {
   final bool plain;
 
   @override
-  void paint(Canvas canvas, Size size) => paintTappjetLogo(canvas, size, plain: plain);
+  void paint(Canvas canvas, Size size) => paintTermeLogo(canvas, size, plain: plain);
 
   @override
   bool shouldRepaint(covariant _LogoPainter oldDelegate) => oldDelegate.plain != plain;
@@ -34,7 +34,7 @@ class _LogoPainter extends CustomPainter {
 
 /// Draws the brand mark into [canvas] scaled to [size] (viewBox 48×48).
 /// Public so tooling (app-icon generation) can reuse the exact geometry.
-void paintTappjetLogo(Canvas canvas, Size size, {bool plain = false}) {
+void paintTermeLogo(Canvas canvas, Size size, {bool plain = false}) {
   canvas.save();
   canvas.scale(size.width / 48);
 
@@ -76,7 +76,7 @@ void paintTappjetLogo(Canvas canvas, Size size, {bool plain = false}) {
   canvas.restore();
 }
 
-/// «Tappjet» wordmark — «Tapp» ink, «jet» brand teal (display font, 900).
+/// «Terme» wordmark — «Tapp» ink, «jet» brand teal (display font, 900).
 class Wordmark extends StatelessWidget {
   const Wordmark({super.key, this.fontSize = 24});
 

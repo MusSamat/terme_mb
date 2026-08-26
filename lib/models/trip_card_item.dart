@@ -1,6 +1,6 @@
 import 'metrics.dart';
 
-/// Lean trip card model — mirror of tappjet_ft TripCardItem (browse card).
+/// Lean trip card model — mirror of terme_ft TripCardItem (browse card).
 /// Hand-written for now; replaced by the freezed model in ТЗ step 2.
 class TripCardItem {
   const TripCardItem({

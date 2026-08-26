@@ -1,4 +1,4 @@
-/// Feed filter state — mirrors the tappjet_ft search query params.
+/// Feed filter state — mirrors the terme_ft search query params.
 class FeedFilters {
   const FeedFilters({
     this.from = '',

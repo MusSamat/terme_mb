@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:tappjet_mb/api/services/cars_service.dart';
-import 'package:tappjet_mb/api/services/requests_service.dart';
-import 'package:tappjet_mb/api/services/users_service.dart';
-import 'package:tappjet_mb/api/services/ratings_service.dart';
-import 'package:tappjet_mb/api/services/misc_services.dart';
+import 'package:terme_mb/api/services/cars_service.dart';
+import 'package:terme_mb/api/services/requests_service.dart';
+import 'package:terme_mb/api/services/users_service.dart';
+import 'package:terme_mb/api/services/ratings_service.dart';
+import 'package:terme_mb/api/services/misc_services.dart';
 
 class MockDio extends Mock implements Dio {}
 

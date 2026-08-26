@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/models/feed_filters.dart';
+import 'package:terme_mb/models/feed_filters.dart';
 
 void main() {
   group('FeedFilters defaults', () {

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/models/request_response.dart';
-import 'package:tappjet_mb/models/pending_rating.dart';
-import 'package:tappjet_mb/models/driver_stats.dart';
+import 'package:terme_mb/models/request_response.dart';
+import 'package:terme_mb/models/pending_rating.dart';
+import 'package:terme_mb/models/driver_stats.dart';
 
 void main() {
   group('RequestResponse.fromJson', () {

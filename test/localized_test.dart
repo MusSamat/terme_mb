@@ -9,9 +9,9 @@ import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tappjet_mb/api/errors.dart';
-import 'package:tappjet_mb/api/friendly_error.dart';
-import 'package:tappjet_mb/utils/date_format.dart';
+import 'package:terme_mb/api/errors.dart';
+import 'package:terme_mb/api/friendly_error.dart';
+import 'package:terme_mb/utils/date_format.dart';
 
 /// Loads the real ru.json into easy_localization's static instance so the global
 /// `tr()` used by friendlyError / date_format resolves against production

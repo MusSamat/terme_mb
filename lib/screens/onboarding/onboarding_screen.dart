@@ -8,7 +8,7 @@ import '../../theme/colors.dart';
 import '../../theme/role_theme.dart';
 import '../../widgets/logo_mark.dart';
 
-/// Welcome / onboarding — port of tappjet_ft welcome-screen. The two role
+/// Welcome / onboarding — port of terme_ft welcome-screen. The two role
 /// buttons save the first-selected role (activeMode) and enter the app.
 class OnboardingScreen extends ConsumerWidget {
   const OnboardingScreen({super.key});

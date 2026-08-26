@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// Seat meter — port of tappjet_ft seat-meter.tsx. A row of vertical pills:
+/// Seat meter — port of terme_ft seat-meter.tsx. A row of vertical pills:
 /// taken (gray) first, free (teal) last. Optional free-count text.
 enum SeatMeterSize { sm, md, lg }
 

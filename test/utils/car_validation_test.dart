@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/utils/car_validation.dart';
+import 'package:terme_mb/utils/car_validation.dart';
 
 void main() {
   group('normalizePlate', () {

@@ -1,14 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:tappjet_mb/api/services/requests_service.dart';
-import 'package:tappjet_mb/api/services/bookings_service.dart';
-import 'package:tappjet_mb/api/services/ratings_service.dart';
-import 'package:tappjet_mb/api/services/drivers_service.dart';
-import 'package:tappjet_mb/api/services/trips_service.dart';
-import 'package:tappjet_mb/api/services/profile_service.dart';
-import 'package:tappjet_mb/api/services/misc_services.dart';
-import 'package:tappjet_mb/api/services/likes_service.dart';
+import 'package:terme_mb/api/services/requests_service.dart';
+import 'package:terme_mb/api/services/bookings_service.dart';
+import 'package:terme_mb/api/services/ratings_service.dart';
+import 'package:terme_mb/api/services/drivers_service.dart';
+import 'package:terme_mb/api/services/trips_service.dart';
+import 'package:terme_mb/api/services/profile_service.dart';
+import 'package:terme_mb/api/services/misc_services.dart';
+import 'package:terme_mb/api/services/likes_service.dart';
 
 class MockDio extends Mock implements Dio {}
 

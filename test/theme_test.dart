@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/theme/app_theme.dart';
-import 'package:tappjet_mb/theme/colors.dart';
-import 'package:tappjet_mb/theme/role_theme.dart';
+import 'package:terme_mb/theme/app_theme.dart';
+import 'package:terme_mb/theme/colors.dart';
+import 'package:terme_mb/theme/role_theme.dart';
 
 void main() {
   test('AppColors extension is attached to both themes', () {

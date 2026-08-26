@@ -23,7 +23,7 @@ import 'password_change_card.dart';
 import 'phone_change_card.dart';
 import 'profile_edit_card.dart';
 
-/// Profile — 1:1 port of tappjet_ft profile mobile layout: add-phone banner →
+/// Profile — 1:1 port of terme_ft profile mobile layout: add-phone banner →
 /// hero card (trust chips + stat strip) → quick settings → pill tabs →
 /// about / cars / reviews / history / settings.
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -561,7 +561,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _exportData() async {
     try {
       final bytes = await ref.read(profileServiceProvider).exportData();
-      final file = File('${Directory.systemTemp.path}/tappjet_export_${DateTime.now().millisecondsSinceEpoch}.json');
+      final file = File('${Directory.systemTemp.path}/terme_export_${DateTime.now().millisecondsSinceEpoch}.json');
       await file.writeAsBytes(bytes);
       if (mounted) Toasts.success('toasts.saved'.tr());
     } catch (e) {
@@ -660,7 +660,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
 }
 
-/// Quick settings — [RU|KG] + [☀|🌙], 1:1 with tappjet_ft SettingsCard.
+/// Quick settings — [RU|KG] + [☀|🌙], 1:1 with terme_ft SettingsCard.
 class _SettingsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {

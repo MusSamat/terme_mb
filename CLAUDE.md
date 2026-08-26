@@ -1,17 +1,17 @@
-# CLAUDE.md — Tappjet Mobile (`tappjet_mb`)
+# CLAUDE.md — Terme Mobile (`terme_mb`)
 
-Нативное Flutter-приложение (iOS + Android). Порт мобильного клиента `tappjet_ft`.
-**Полное ТЗ — источник истины: `../tappjet_mb_TZ.md`.** Читай его перед задачей.
+Нативное Flutter-приложение (iOS + Android). Порт мобильного клиента `terme_ft`.
+**Полное ТЗ — источник истины: `../terme_mb_TZ.md`.** Читай его перед задачей.
 
 ## Стоп перед кодом
 Неясно → один вопрос. Два варианта → назови оба, жди выбора. Показывай только
 изменённые строки. Новый pub-пакет — только по явному запросу.
 
 ## Каноны (не менять)
-- Стиль: `../tappjet_ft/tailwind.config.ts`, `globals.css`, `src/lib/role-colors.ts`
+- Стиль: `../terme_ft/tailwind.config.ts`, `globals.css`, `src/lib/role-colors.ts`
   → перенесено в `lib/theme/*`. Цвета/шрифты/радиусы — только через тему, без хардкода.
-- API: `../tappjet_ft/src/lib/api/openapi.json` (65 путей). Контракт не меняем.
-- Тексты: `../tappjet_ft/src/messages/{ru,kg}.json` → `assets/l10n/`. Только через
+- API: `../terme_ft/src/lib/api/openapi.json` (65 путей). Контракт не меняем.
+- Тексты: `../terme_ft/src/messages/{ru,kg}.json` → `assets/l10n/`. Только через
   `tr('ns.key')`, новые ключи — в оба файла.
 
 ## Стек

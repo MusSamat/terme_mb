@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 
 /// Small brand check badge shown next to a verified driver's name.
-/// Port of tappjet_ft verified-badge.tsx.
+/// Port of terme_ft verified-badge.tsx.
 class VerifiedBadge extends StatelessWidget {
   const VerifiedBadge({super.key, this.size = 14});
 

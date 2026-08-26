@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/data/mock_app_data.dart';
+import 'package:terme_mb/data/mock_app_data.dart';
 
 void main() {
   group('MockBooking.fromJson — as passenger (other = trip.driver)', () {

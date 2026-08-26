@@ -4,7 +4,7 @@ import '../theme/colors.dart';
 import '../theme/dimens.dart';
 
 /// Primary action button. Amber = главное действие (submit/book), brand/grape =
-/// operational, outline = secondary. Port of tappjet_ft button variants.
+/// operational, outline = secondary. Port of terme_ft button variants.
 enum AppButtonVariant { amber, brand, grape, outline }
 
 class AppButton extends StatelessWidget {

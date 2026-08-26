@@ -6,7 +6,7 @@ import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/dimens.dart';
 
-/// Floating pill bottom navigation — port of tappjet_ft/src/components/layout/
+/// Floating pill bottom navigation — port of terme_ft/src/components/layout/
 /// bottom-nav.tsx. Five slots for authenticated users with a raised amber
 /// create-FAB in the center; two slots for guests.
 ///

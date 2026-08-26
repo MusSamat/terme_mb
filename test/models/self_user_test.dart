@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/models/self_user.dart';
+import 'package:terme_mb/models/self_user.dart';
 
 void main() {
   group('SelfUser.fromJson — full', () {

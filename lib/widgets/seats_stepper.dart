@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// +/- seat stepper — port of tappjet_ft seats-stepper. Count text is role/
+/// +/- seat stepper — port of terme_ft seats-stepper. Count text is role/
 /// state colored; bounded by [min]..[max].
 class SeatsStepper extends StatelessWidget {
   const SeatsStepper({

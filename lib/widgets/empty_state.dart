@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import 'app_button.dart';
 
-/// Empty state — port of tappjet_ft empty-state. Icon medallion + title +
+/// Empty state — port of terme_ft empty-state. Icon medallion + title +
 /// description + optional CTA.
 class EmptyState extends StatelessWidget {
   const EmptyState({

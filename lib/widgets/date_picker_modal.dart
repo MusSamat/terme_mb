@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// Calendar month-grid picker — 1:1 port of tappjet_ft DatePickerModal.
+/// Calendar month-grid picker — 1:1 port of terme_ft DatePickerModal.
 /// Per-day availability counts, weekend coral, today ring, selected brand.
 /// Returns the chosen 'YYYY-MM-DD' (or '' when cleared) via [onChange].
 Future<void> showDatePickerModal(

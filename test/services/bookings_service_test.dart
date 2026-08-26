@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:tappjet_mb/api/services/bookings_service.dart';
+import 'package:terme_mb/api/services/bookings_service.dart';
 
 class MockDio extends Mock implements Dio {}
 

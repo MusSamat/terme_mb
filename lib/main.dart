@@ -26,7 +26,7 @@ Future<void> main() async {
         overrides: [
           hiveBoxProvider.overrideWithValue(box),
         ],
-        child: const TappjetApp(),
+        child: const TermeApp(),
       ),
     ),
   );

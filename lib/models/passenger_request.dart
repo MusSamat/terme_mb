@@ -1,6 +1,6 @@
 import 'metrics.dart';
 
-/// Lean passenger-request model — mirror of tappjet_ft PassengerRequest card.
+/// Lean passenger-request model — mirror of terme_ft PassengerRequest card.
 /// Hand-written for the mock phase; freezed model lands in ТЗ step 2.
 class PassengerRequestItem {
   const PassengerRequestItem({

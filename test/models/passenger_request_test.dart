@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tappjet_mb/models/passenger_request.dart';
+import 'package:terme_mb/models/passenger_request.dart';
 
 void main() {
   group('PassengerRequestItem.fromJson — full payload', () {

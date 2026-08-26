@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// Letter avatar — port of tappjet_ft driver-avatar.tsx.
+/// Letter avatar — port of terme_ft driver-avatar.tsx.
 /// Grape tint, font-900 initials; optional brand check-dot overlay.
 enum AvatarSize { xs, sm, md, lg, xl }
 

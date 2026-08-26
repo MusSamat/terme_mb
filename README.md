@@ -1,14 +1,14 @@
-# Tappjet Mobile (`tappjet_mb`)
+# Terme Mobile (`terme_mb`)
 
-Нативное Flutter-приложение (iOS + Android) — порт мобильного клиента `tappjet_ft`.
-Полное ТЗ: `../tappjet_mb_TZ.md`.
+Нативное Flutter-приложение (iOS + Android) — порт мобильного клиента `terme_ft`.
+Полное ТЗ: `../terme_mb_TZ.md`.
 
 ## Что уже есть (skeleton — этап 1 ТЗ)
 
 - Дизайн-система: палитры, типографика, радиусы/тени, ролевая тема (guest/passenger/
   driver), light/dark — `lib/theme/*` (перенос из `tailwind.config.ts` + `role-colors.ts`).
 - Шрифты Nunito + Fredoka — `assets/fonts/` (Fredoka без кириллицы → фолбэк Nunito 900).
-- Локали ru + kg — `assets/l10n/` (скопированы из `tappjet_ft/src/messages`, ~1646 ключей).
+- Локали ru + kg — `assets/l10n/` (скопированы из `terme_ft/src/messages`, ~1646 ключей).
 - Навигация go_router + floating pill-nav с центральным create-FAB — `lib/app/*`, `lib/widgets/pill_nav.dart`.
 - API-слой (dio + cookie jar + refresh-interceptor), token store, socket-обёртка — `lib/api/*`, `lib/socket/*`.
 - Riverpod-провайдеры: auth, роль, тема, dio/socket — `lib/providers/*`.
@@ -19,8 +19,8 @@
 Каталоги `android/` и `ios/` генерирует сам инструмент. В корне проекта:
 
 ```bash
-cd /home/musa/projects/tappjet_mb
-flutter create . --org kg.tappjet --project-name tappjet_mb --platforms=android,ios
+cd /home/musa/projects/terme_mb
+flutter create . --org kg.terme --project-name terme_mb --platforms=android,ios
 flutter pub get
 ```
 

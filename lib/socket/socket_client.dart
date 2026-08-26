@@ -5,7 +5,7 @@ import '../api/token_store.dart';
 
 /// Thin wrapper over socket.io — websocket-only transport, manual connect,
 /// exponential backoff, and token re-auth on every (re)connect.
-/// Mirrors tappjet_ft/src/lib/socket/client.ts.
+/// Mirrors terme_ft/src/lib/socket/client.ts.
 class SocketClient {
   SocketClient(this._tokens) {
     // Re-authenticate the socket whenever the access token changes.

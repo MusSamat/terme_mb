@@ -19,7 +19,7 @@ import '../../widgets/intent_toggle.dart';
 import '../../widgets/seats_stepper.dart';
 import '../profile/cars_card.dart' show showAddCarSheet;
 
-/// Unified create screen — port of tappjet_ft create-screen. Drivers publish a
+/// Unified create screen — port of terme_ft create-screen. Drivers publish a
 /// trip, passengers post a ride request; the intent toggle switches copy and
 /// accent. Mock (no backend) — submit shows a success toast.
 class CreateScreen extends ConsumerStatefulWidget {

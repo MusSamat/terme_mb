@@ -11,7 +11,7 @@ import 'app_chip.dart';
 import 'city_picker.dart';
 import 'date_picker_modal.dart';
 
-/// Filters sheet — 1:1 port of tappjet_ft FiltersBody. Applies live to a
+/// Filters sheet — 1:1 port of terme_ft FiltersBody. Applies live to a
 /// [FeedFilters] via [onChanged], exactly like the web (URL params update the
 /// feed as you tap).
 Future<void> showFiltersSheet(

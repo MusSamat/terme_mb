@@ -1,6 +1,6 @@
 import 'package:flutter/painting.dart';
 
-/// Canonical palette — 1:1 port of tappjet_ft/tailwind.config.ts.
+/// Canonical palette — 1:1 port of terme_ft/tailwind.config.ts.
 /// Do NOT hardcode colors in widgets; read them through the theme (AppColors
 /// ThemeExtension) or these token classes.
 ///

@@ -7,10 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:tappjet_mb/providers/auth_provider.dart';
-import 'package:tappjet_mb/providers/core_providers.dart';
-import 'package:tappjet_mb/models/self_user.dart';
-import 'package:tappjet_mb/screens/screens.dart';
+import 'package:terme_mb/providers/auth_provider.dart';
+import 'package:terme_mb/providers/core_providers.dart';
+import 'package:terme_mb/models/self_user.dart';
+import 'package:terme_mb/screens/screens.dart';
 
 /// Renders every screen and asserts no exception (layout errors like an
 /// unbounded Expanded throw during pump — this catches them across all screens).
@@ -23,7 +23,7 @@ void main() {
     await EasyLocalization.ensureInitialized();
     final dir = Directory.systemTemp.createTempSync('tj_test');
     Hive.init(dir.path);
-    box = await Hive.openBox<dynamic>('tappjet_test');
+    box = await Hive.openBox<dynamic>('terme_test');
   });
 
   Widget wrap(Widget child, {bool driver = false}) {

@@ -25,7 +25,7 @@ String _roleOf(WidgetRef ref) {
 }
 
 /// Opens the trip detail as a bottom sheet — the feed's «Подробнее» behavior
-/// (tappjet_ft `TripDetailView variant="rail"`). CTA sits at the end of scroll.
+/// (terme_ft `TripDetailView variant="rail"`). CTA sits at the end of scroll.
 void showTripDetailSheet(BuildContext context, String id) {
   showModalBottomSheet<void>(
     useRootNavigator: true,

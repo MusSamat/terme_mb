@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
-        android:label="Tappjet"
+        android:label="Terme"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

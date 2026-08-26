@@ -1,9 +1,9 @@
-# Облачная сборка iOS/Android для tappjet_mb (Codemagic — macOS в облаке).
+# Облачная сборка iOS/Android для terme_mb (Codemagic — macOS в облаке).
 # iOS НЕЛЬЗЯ собрать на Linux, поэтому сборка идёт на маке Codemagic.
 #
 # Что нужно один раз в Codemagic UI:
 #   1) Подключить этот git-репозиторий.
-#   2) iOS code signing → App Store Connect API key + Bundle ID kg.tappjet.tappjetMb
+#   2) iOS code signing → App Store Connect API key + Bundle ID kg.terme.termeMb
 #      (нужен Apple Developer аккаунт, $99/год).
 #   3) Указать группу тестировщиков TestFlight (или ad-hoc профиль).
 # После сборки приложение прилетает в TestFlight → ставится на iPhone.
@@ -19,7 +19,7 @@ workflows:
       cocoapods: default
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: kg.tappjet.tappjetMb
+        bundle_identifier: kg.terme.termeMb
       vars:
         APP_STORE_APPLE_ID: "REPLACE_WITH_APP_ID" # из App Store Connect
     scripts:

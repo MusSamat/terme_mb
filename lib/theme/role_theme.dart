@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'dimens.dart';
 
-/// Role colour language — 1:1 port of tappjet_ft/src/lib/role-colors.ts.
+/// Role colour language — 1:1 port of terme_ft/src/lib/role-colors.ts.
 ///   guest = ink (warm gray) · passenger = brand (teal) · driver = grape (indigo).
 /// Primary CTAs stay amber everywhere; role accents drive nav, headers, chips.
 enum UiRole { guest, passenger, driver }
