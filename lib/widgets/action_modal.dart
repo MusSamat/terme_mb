@@ -80,7 +80,13 @@ Future<T?> showActionModal<T>(
 }
 
 /// Success result modal (brand medallion + check).
-Future<void> showSuccessModal(BuildContext context, {required String title, String? body, String? primaryLabel, VoidCallback? onPrimary}) {
+Future<void> showSuccessModal(BuildContext context,
+    {required String title,
+    String? body,
+    String? primaryLabel,
+    VoidCallback? onPrimary,
+    String? secondaryLabel,
+    VoidCallback? onSecondary}) {
   return showActionModal<void>(
     context,
     icon: Icons.check_circle,
@@ -92,6 +98,12 @@ Future<void> showSuccessModal(BuildContext context, {required String title, Stri
         : AppButton(label: primaryLabel, variant: AppButtonVariant.brand, onPressed: () {
             Navigator.of(context).pop();
             onPrimary?.call();
+          }),
+    secondary: secondaryLabel == null
+        ? null
+        : AppButton(label: secondaryLabel, variant: AppButtonVariant.outline, onPressed: () {
+            Navigator.of(context).pop();
+            onSecondary?.call();
           }),
   );
 }

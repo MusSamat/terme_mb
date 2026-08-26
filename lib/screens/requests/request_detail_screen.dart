@@ -1,35 +1,44 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_requests.dart';
+import '../../api/friendly_error.dart';
 import '../../models/passenger_request.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../widgets/action_modal.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
+import '../../widgets/listing_metrics.dart';
+import '../../widgets/query_error.dart';
+import '../../widgets/request_edit_sheet.dart';
 import '../../widgets/seat_meter.dart';
 
 /// Request detail — 1:1 port of request-detail-pane.tsx (grape-themed, symmetric
 /// to the trip detail): passenger header, route spine, details grid, comment,
 /// sticky «Откликнуться» + contact reveal.
-class RequestDetailScreen extends StatelessWidget {
+class RequestDetailScreen extends ConsumerWidget {
   const RequestDetailScreen({super.key, required this.id});
   final String id;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final r = mockRequestById(id);
-
-    return Scaffold(
+    return ref.watch(requestDetailProvider(id)).when(
+      loading: () => Scaffold(backgroundColor: dark ? InkColors.c950 : InkColors.c50, body: const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: GrapeColors.c500))),
+      error: (e, _) => Scaffold(backgroundColor: dark ? InkColors.c950 : InkColors.c50, body: Center(child: QueryError(error: e, onRetry: () => ref.invalidate(requestDetailProvider(id))))),
+      data: (r) => Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
       appBar: AppBar(
         backgroundColor: dark ? InkColors.c950 : InkColors.c50,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.canPop() ? context.pop() : context.go('/requests')),
-        title: Text('requests.request_label'.tr(), style: TextStyle(fontFamily: 'Fredoka', fontWeight: FontWeight.w800, fontSize: 20, color: dark ? Colors.white : InkColors.c900)),
+        title: Text('requests.request_label'.tr(), style: TextStyle(fontFamily: 'Manrope', fontWeight: FontWeight.w800, fontSize: 20, color: dark ? Colors.white : InkColors.c900)),
       ),
       body: Column(
         children: [
@@ -38,6 +47,10 @@ class RequestDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
               children: [
                 _passengerHeader(context, dark, r),
+                if (r.metrics != null) ...[
+                  const SizedBox(height: 12),
+                  Align(alignment: Alignment.centerLeft, child: ListingMetricsRow(metrics: r.metrics)),
+                ],
                 const SizedBox(height: 16),
                 _label(dark, 'request_filters.route_label'.tr()),
                 const SizedBox(height: 8),
@@ -58,31 +71,86 @@ class RequestDetailScreen extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
-            decoration: BoxDecoration(color: dark ? InkColors.c900 : Colors.white, border: Border(top: BorderSide(color: dark ? InkColors.c800 : InkColors.c100))),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              GestureDetector(
-                onTap: () => _showRespondSheet(context, r),
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  height: 50,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: GrapeColors.c600, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.indigoCta),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.check_circle, size: 20, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text('requests.respond_title'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const _ContactReveal(phone: '+996 700 123 456'),
-            ]),
-          ),
+          Builder(builder: (context) {
+            final myId = ref.watch(authProvider).user?.id;
+            final isOwner = myId != null && r.passengerId == myId;
+            return Container(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+              decoration: BoxDecoration(color: dark ? InkColors.c900 : Colors.white, border: Border(top: BorderSide(color: dark ? InkColors.c800 : InkColors.c100))),
+              child: isOwner
+                  // Owner: edit / cancel your OWN request — never respond or call yourself.
+                  ? (r.status == 'open'
+                      ? Row(children: [
+                          Expanded(child: _barBtn(Icons.edit_outlined, 'my.act_edit'.tr(), GrapeColors.c600, filled: false, onTap: () => showRequestEditSheet(context, r, onSaved: () => ref.invalidate(requestDetailProvider(id))))),
+                          const SizedBox(width: 10),
+                          Expanded(child: _barBtn(Icons.close, 'my.act_cancel'.tr(), CoralColors.c600, filled: false, onTap: () => _confirmCancel(context, ref, r))),
+                        ])
+                      : Center(child: Text('requests.my.closed'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400))))
+                  // Driver: respond + reveal contact.
+                  : Column(mainAxisSize: MainAxisSize.min, children: [
+                      GestureDetector(
+                        onTap: () => _showRespondSheet(context, r),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          height: 50,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: GrapeColors.c600, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.indigoCta),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.check_circle, size: 20, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text('requests.respond_title'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+                          ]),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _ContactReveal(onReveal: () => ref.read(requestsServiceProvider).revealContact(r.id)),
+                    ]),
+            );
+          }),
         ],
       ),
+      ),
     );
+  }
+
+  Widget _barBtn(IconData icon, String label, Color color, {required bool filled, required VoidCallback onTap}) => GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 50,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: filled ? color : color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 18, color: filled ? Colors.white : color),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: filled ? Colors.white : color)),
+          ]),
+        ),
+      );
+
+  Future<void> _confirmCancel(BuildContext context, WidgetRef ref, PassengerRequestItem r) async {
+    final ok = await showConfirmModal(
+      context,
+      icon: Icons.cancel_outlined,
+      title: 'requests.my.cancel_title'.tr(),
+      confirmLabel: 'requests.my.cancel_btn'.tr(),
+      cancelLabel: 'book_form.cancel'.tr(),
+      danger: true,
+    );
+    if (!ok) return;
+    try {
+      await ref.read(requestsServiceProvider).cancel(r.id);
+      ref.invalidate(myRequestsProvider);
+      ref.invalidate(requestDetailProvider(id));
+      Toasts.success('toasts.request_cancelled'.tr());
+      if (context.mounted) context.canPop() ? context.pop() : context.go('/requests');
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    }
   }
 
   Widget _passengerHeader(BuildContext context, bool dark, PassengerRequestItem r) {
@@ -200,19 +268,39 @@ class RequestDetailScreen extends StatelessWidget {
 }
 
 class _ContactReveal extends StatefulWidget {
-  const _ContactReveal({required this.phone});
-  final String phone;
+  const _ContactReveal({required this.onReveal});
+  final Future<String?> Function() onReveal;
   @override
   State<_ContactReveal> createState() => _ContactRevealState();
 }
 
 class _ContactRevealState extends State<_ContactReveal> {
-  bool _revealed = false;
+  String? _phone;
+  bool _busy = false;
+
+  Future<void> _tap() async {
+    if (_busy) return;
+    if (_phone != null) {
+      await launchUrl(Uri.parse('tel:$_phone'));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final p = await widget.onReveal();
+      if (mounted) setState(() => _phone = p);
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final revealed = _phone != null;
     return GestureDetector(
-      onTap: () => setState(() => _revealed = true),
+      onTap: _tap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         height: 46,
@@ -223,11 +311,13 @@ class _ContactRevealState extends State<_ContactReveal> {
           borderRadius: BorderRadius.circular(AppRadii.lg),
           border: Border.all(color: dark ? GrapeColors.c500.withValues(alpha: 0.4) : GrapeColors.c200),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(_revealed ? Icons.call : Icons.phone_outlined, size: 18, color: dark ? GrapeColors.c300 : GrapeColors.c600),
-          const SizedBox(width: 8),
-          Text(_revealed ? widget.phone : 'contact.call'.tr(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? GrapeColors.c300 : GrapeColors.c700)),
-        ]),
+        child: _busy
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: GrapeColors.c500))
+            : Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(revealed ? Icons.call : Icons.phone_outlined, size: 18, color: dark ? GrapeColors.c300 : GrapeColors.c600),
+                const SizedBox(width: 8),
+                Text(revealed ? _phone! : 'contact.call'.tr(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? GrapeColors.c300 : GrapeColors.c700)),
+              ]),
       ),
     );
   }
@@ -236,55 +326,107 @@ class _ContactRevealState extends State<_ContactReveal> {
 // ── Respond sheet ────────────────────────────────────────────────────────────
 
 void _showRespondSheet(BuildContext context, PassengerRequestItem r) {
-  final price = TextEditingController(text: '${r.budget}');
-  final message = TextEditingController();
   showModalBottomSheet<void>(
     useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) {
-      final dark = Theme.of(ctx).brightness == Brightness.dark;
-      return Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          decoration: BoxDecoration(color: dark ? InkColors.c900 : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl4))),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: InkColors.c300, borderRadius: BorderRadius.circular(999)))),
-              const SizedBox(height: 14),
-              Text('requests.respond_title'.tr(), style: TextStyle(fontFamily: 'Fredoka', fontSize: 20, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-              const SizedBox(height: 14),
-              Text('requests.price_label'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),
-              const SizedBox(height: 6),
-              _field(dark, price, 'requests.price_placeholder'.tr(), number: true),
-              const SizedBox(height: 12),
-              Text('requests.message_label'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),
-              const SizedBox(height: 6),
-              _field(dark, message, 'requests.message_placeholder'.tr(), lines: 3),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  Toasts.success('toasts.offer_sent'.tr());
-                },
-                behavior: HitTestBehavior.opaque,
+    builder: (ctx) => _RespondSheet(request: r),
+  );
+}
+
+class _RespondSheet extends ConsumerStatefulWidget {
+  const _RespondSheet({required this.request});
+  final PassengerRequestItem request;
+  @override
+  ConsumerState<_RespondSheet> createState() => _RespondSheetState();
+}
+
+class _RespondSheetState extends ConsumerState<_RespondSheet> {
+  late final _price = TextEditingController(text: '${widget.request.budget}');
+  final _message = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _price.dispose();
+    _message.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_loading) return;
+    final price = int.tryParse(_price.text.trim());
+    if (price == null || price <= 0) {
+      Toasts.error('requests.price_placeholder'.tr());
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final msg = _message.text.trim();
+      // Backend requires a departureTime — offer for the day the passenger asked
+      // (default 09:00), falling back to tomorrow if the request has no date.
+      final day = widget.request.departureDate ?? DateTime.now().add(const Duration(days: 1));
+      final departAt = DateTime(day.year, day.month, day.day, 9).toUtc().toIso8601String();
+      await ref.read(requestsServiceProvider).respond(
+            widget.request.id,
+            price: price,
+            departureTime: departAt,
+            message: msg.isEmpty ? null : msg,
+          );
+      ref.invalidate(requestDetailProvider(widget.request.id));
+      if (mounted) Navigator.of(context).pop();
+      Toasts.success('toasts.offer_sent'.tr());
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(color: dark ? InkColors.c900 : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl4))),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: InkColors.c300, borderRadius: BorderRadius.circular(999)))),
+            const SizedBox(height: 14),
+            Text('requests.respond_title'.tr(), style: TextStyle(fontFamily: 'Manrope', fontSize: 20, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+            const SizedBox(height: 14),
+            Text('requests.price_label'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),
+            const SizedBox(height: 6),
+            _field(dark, _price, 'requests.price_placeholder'.tr(), number: true),
+            const SizedBox(height: 12),
+            Text('requests.message_label'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),
+            const SizedBox(height: 6),
+            _field(dark, _message, 'requests.message_placeholder'.tr(), lines: 3),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: _loading ? null : _submit,
+              behavior: HitTestBehavior.opaque,
+              child: Opacity(
+                opacity: _loading ? 0.6 : 1,
                 child: Container(
                   height: 50,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(color: GrapeColors.c600, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.indigoCta),
-                  child: Text('requests.submit_response'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+                  child: _loading
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+                      : Text('requests.submit_response'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
 }
 
 Widget _field(bool dark, TextEditingController c, String hint, {bool number = false, int lines = 1}) => TextField(

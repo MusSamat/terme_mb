@@ -1,5 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/cupertino.dart' show CupertinoLocalizations;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/core_providers.dart';
@@ -17,6 +19,7 @@ class TappjetApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
     ref.watch(apiBootstrapProvider); // attach dio refresh → auth/token store
+    ref.watch(socketBootstrapProvider); // live socket (notifications/chat/bookings)
 
     return MaterialApp.router(
       title: 'Tappjet',
@@ -25,7 +28,17 @@ class TappjetApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
-      localizationsDelegates: context.localizationDelegates,
+      // Kyrgyz: the app (mirroring the web) uses the code `kg`, but Flutter's
+      // bundled localizations register Kyrgyz as `ky`. Without these shims,
+      // MaterialLocalizations.of() has no data for `kg` and any widget that needs
+      // it (bottom sheets, tooltips, text-field selection…) throws — silently
+      // killing taps on that subtree. Prepended so they win over the globals.
+      localizationsDelegates: [
+        const _KgMaterialDelegate(),
+        const _KgCupertinoDelegate(),
+        const _KgWidgetsDelegate(),
+        ...context.localizationDelegates,
+      ],
       supportedLocales: context.supportedLocales,
       locale: context.locale,
       builder: (context, child) => Stack(
@@ -37,4 +50,40 @@ class TappjetApp extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Flutter's built-in localizations key Kyrgyz as `ky`; this app uses `kg`.
+/// These shims load the `ky` framework data whenever the app locale is `kg`
+/// (and pass every other locale straight through), so MaterialLocalizations /
+/// CupertinoLocalizations / WidgetsLocalizations resolve for Kyrgyz.
+Locale _frameworkLocale(Locale l) => l.languageCode == 'kg' ? const Locale('ky') : l;
+
+class _KgMaterialDelegate extends LocalizationsDelegate<MaterialLocalizations> {
+  const _KgMaterialDelegate();
+  @override
+  bool isSupported(Locale locale) => GlobalMaterialLocalizations.delegate.isSupported(_frameworkLocale(locale));
+  @override
+  Future<MaterialLocalizations> load(Locale locale) => GlobalMaterialLocalizations.delegate.load(_frameworkLocale(locale));
+  @override
+  bool shouldReload(_KgMaterialDelegate old) => false;
+}
+
+class _KgCupertinoDelegate extends LocalizationsDelegate<CupertinoLocalizations> {
+  const _KgCupertinoDelegate();
+  @override
+  bool isSupported(Locale locale) => GlobalCupertinoLocalizations.delegate.isSupported(_frameworkLocale(locale));
+  @override
+  Future<CupertinoLocalizations> load(Locale locale) => GlobalCupertinoLocalizations.delegate.load(_frameworkLocale(locale));
+  @override
+  bool shouldReload(_KgCupertinoDelegate old) => false;
+}
+
+class _KgWidgetsDelegate extends LocalizationsDelegate<WidgetsLocalizations> {
+  const _KgWidgetsDelegate();
+  @override
+  bool isSupported(Locale locale) => GlobalWidgetsLocalizations.delegate.isSupported(_frameworkLocale(locale));
+  @override
+  Future<WidgetsLocalizations> load(Locale locale) => GlobalWidgetsLocalizations.delegate.load(_frameworkLocale(locale));
+  @override
+  bool shouldReload(_KgWidgetsDelegate old) => false;
 }

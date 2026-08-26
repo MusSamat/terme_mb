@@ -1,46 +1,144 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/friendly_error.dart';
 import '../../data/mock_app_data.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/core_providers.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../utils/config.dart';
+import '../../utils/date_format.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
+import '../../widgets/query_error.dart';
 
 /// Chat thread — 1:1 port of chat-panel / message-bubble / message-composer.
 /// Bubbles (mine = brand right, other = white left with avatar), status ticks,
-/// rounded composer with a circular send button.
-class ChatThreadScreen extends StatefulWidget {
+/// rounded composer with a circular send button. History is loaded from the
+/// backend; sends are optimistic and persisted via REST.
+class ChatThreadScreen extends ConsumerStatefulWidget {
   const ChatThreadScreen({super.key, required this.bookingId});
   final String bookingId;
 
   @override
-  State<ChatThreadScreen> createState() => _ChatThreadScreenState();
+  ConsumerState<ChatThreadScreen> createState() => _ChatThreadScreenState();
 }
 
-class _ChatThreadScreenState extends State<ChatThreadScreen> {
-  final _messages = mockThread().reversed.toList();
+class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
+  final List<MockMessage> _messages = [];
   final _input = TextEditingController();
+  bool _loaded = false;
+  bool _sending = false;
+  String? _myId;
+  void Function(dynamic)? _onSocketMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (AppConfig.useMock) return;
+    _myId = ref.read(authProvider).user?.id;
+    // Mark the whole thread read on open (web chat-panel behavior), then refresh
+    // the unread badges.
+    ref.read(chatServiceProvider).markAllRead(widget.bookingId).then((_) {
+      if (!mounted) return;
+      ref.invalidate(unreadChatProvider);
+      ref.invalidate(chatSummariesProvider);
+    }).catchError((_) {/* best-effort */});
+    final socket = ref.read(socketClientProvider);
+    socket.connect();
+    // Incoming messages arrive on our user room (server emits chat:message to the
+    // recipient). Append the ones for THIS booking sent by the other party.
+    _onSocketMessage = (data) {
+      try {
+        final m = ((data as Map)['message'] as Map?)?.cast<String, dynamic>();
+        if (m == null) return;
+        if (m['bookingId'] != widget.bookingId) return;
+        if (_myId != null && m['senderId'] == _myId) return; // ignore own echo
+        final created = DateTime.tryParse((m['createdAt'] ?? '') as String)?.toLocal();
+        if (!mounted) return;
+        setState(() {
+          _messages.insert(0, MockMessage(
+            text: (m['text'] ?? '') as String,
+            mine: false,
+            timeLabel: created != null ? hhmm(created) : 'chat.now'.tr(),
+            read: true,
+          ));
+        });
+      } catch (_) {/* ignore malformed frame */}
+    };
+    socket.on('chat:message', _onSocketMessage!);
+  }
 
   @override
   void dispose() {
     _input.dispose();
+    if (!AppConfig.useMock && _onSocketMessage != null) {
+      ref.read(socketClientProvider).off('chat:message', _onSocketMessage);
+    }
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _input.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _sending) return;
     setState(() {
-      _messages.insert(0, MockMessage(text: text, mine: true, timeLabel: 'сейчас', read: false));
+      _messages.insert(0, MockMessage(text: text, mine: true, timeLabel: 'chat.now'.tr(), read: false));
       _input.clear();
+      _sending = true;
     });
+    try {
+      if (!AppConfig.useMock) {
+        await ref.read(chatServiceProvider).sendMessage(widget.bookingId, text);
+      }
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
+
+  MockChat _fallbackChat() =>
+      MockChat(bookingId: widget.bookingId, otherName: '—', route: '', lastMessage: '', timeLabel: '', unread: 0);
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final chat = mockChats().firstWhere((c) => c.bookingId == widget.bookingId, orElse: () => mockChats().first);
+    final summaries = ref.watch(chatSummariesProvider).valueOrNull ?? const <MockChat>[];
+    // Prefer the summary; when the thread was deep-linked and isn't in the list
+    // yet, fall back to the booking fetched by id (web getBooking behavior).
+    final booking = ref.watch(bookingDetailProvider(widget.bookingId)).valueOrNull;
+    final chat = summaries.firstWhere(
+      (c) => c.bookingId == widget.bookingId,
+      orElse: () => booking != null
+          ? MockChat(
+              bookingId: widget.bookingId,
+              otherName: booking.otherName,
+              route: '${booking.origin} → ${booking.destination}',
+              lastMessage: '',
+              timeLabel: '',
+              unread: 0,
+              bookingStatus: booking.status)
+          : _fallbackChat(),
+    );
+    final threadAsync = ref.watch(chatThreadProvider(widget.bookingId));
+
+    // Seed the mutable list once from the loaded history.
+    ref.listen(chatThreadProvider(widget.bookingId), (_, next) {
+      next.whenData((d) {
+        if (!_loaded && mounted) {
+          setState(() {
+            _messages
+              ..clear()
+              ..addAll(d);
+            _loaded = true;
+          });
+        }
+      });
+    });
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
@@ -94,12 +192,19 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             ]),
           ),
           Expanded(
-            child: ListView.builder(
-              reverse: true,
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-              itemCount: _messages.length,
-              itemBuilder: (_, i) => _Bubble(msg: _messages[i], otherName: chat.otherName),
-            ),
+            child: !_loaded && threadAsync.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : (!_loaded && threadAsync.hasError)
+                    ? QueryError(
+                        error: threadAsync.error!,
+                        onRetry: () => ref.invalidate(chatThreadProvider(widget.bookingId)),
+                      )
+                    : ListView.builder(
+                        reverse: true,
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                        itemCount: _messages.length,
+                        itemBuilder: (_, i) => _Bubble(msg: _messages[i], otherName: chat.otherName),
+                      ),
           ),
           _Composer(controller: _input, onSend: _send),
         ],

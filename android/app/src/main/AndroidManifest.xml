@@ -1,6 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Release APKs need these explicitly: Flutter only injects INTERNET into the
+         debug manifest, so a release build without them cannot reach the network
+         (looks "offline" on a connected phone). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- In-app live camera (driver-verification capture with a guide overlay). -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
-        android:label="tappjet_mb"
+        android:label="Tappjet"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

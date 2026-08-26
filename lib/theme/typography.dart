@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
 /// Typography — 1:1 port of tailwind fontSize tokens.
-/// Body font = Nunito (family 'Nunito'); display/headings = Fredoka
-/// (family 'Fredoka') which lacks Cyrillic → fallback to Nunito 900.
+/// Single font: Manrope (excellent Cyrillic) for body AND display — replaces
+/// Fredoka (no Cyrillic → silently fell back) and Nunito.
 ///
 /// Sizes are in logical px (tailwind rem * 16). Do NOT disable textScaler —
 /// text must scale with the OS accessibility setting.
 class AppTypography {
-  static const _display = 'Fredoka';
-  static const _body = 'Nunito';
-  static const _dispFallback = <String>['Nunito'];
+  static const _display = 'Manrope';
+  static const _body = 'Manrope';
+  static const _dispFallback = <String>[];
 
   static const display = TextStyle(
     fontFamily: _display,

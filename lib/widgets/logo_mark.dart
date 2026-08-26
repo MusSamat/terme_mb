@@ -86,8 +86,8 @@ class Wordmark extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final base = TextStyle(
-      fontFamily: 'Fredoka',
-      fontFamilyFallback: const ['Nunito'],
+      fontFamily: 'Manrope',
+      fontFamilyFallback: const ['Manrope'],
       fontSize: fontSize,
       fontWeight: FontWeight.w900,
       height: 1,

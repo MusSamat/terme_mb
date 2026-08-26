@@ -22,6 +22,10 @@ class _OfflineBannerState extends State<OfflineBanner> {
   bool _offline = false;
   bool _restored = false;
   Timer? _flash;
+  Timer? _verify;
+
+  static bool _isOffline(List<ConnectivityResult> r) =>
+      r.isEmpty || r.every((c) => c == ConnectivityResult.none);
 
   @override
   void initState() {
@@ -31,29 +35,46 @@ class _OfflineBannerState extends State<OfflineBanner> {
   }
 
   void _apply(List<ConnectivityResult> results) {
-    final offline = results.isEmpty || results.every((r) => r == ConnectivityResult.none);
-    if (offline == _offline) return;
-    setState(() {
-      if (offline) {
-        _offline = true;
-        _restored = false;
-      } else {
+    final offline = _isOffline(results);
+
+    if (!offline) {
+      // Any live connection cancels a pending "offline" verification and, if we
+      // were showing the banner, flashes the restored state.
+      _verify?.cancel();
+      if (!_offline) return;
+      setState(() {
         _offline = false;
         _restored = true;
-      }
-    });
-    if (_restored) {
+      });
       _flash?.cancel();
       _flash = Timer(const Duration(milliseconds: 2600), () {
         if (mounted) setState(() => _restored = false);
       });
+      return;
     }
+
+    // Offline reported — but connectivity_plus emits a transient `none` during
+    // cellular/Wi-Fi handoff. Don't trust it immediately: re-check after a short
+    // delay and only show the banner if it's STILL down. Avoids false "no
+    // connection" flashes on phones that actually have internet.
+    if (_offline || _verify != null) return;
+    _verify = Timer(const Duration(seconds: 3), () async {
+      _verify = null;
+      final again = await _conn.checkConnectivity();
+      if (mounted && _isOffline(again)) {
+        setState(() {
+          _offline = true;
+          _restored = false;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _sub?.cancel();
     _flash?.cancel();
+    _verify?.cancel();
     super.dispose();
   }
 

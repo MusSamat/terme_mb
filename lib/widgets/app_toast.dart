@@ -24,6 +24,8 @@ class Toasts {
   static int _seq = 0;
 
   static void push(ToastVariant variant, String title, [String body = '']) {
+    // Dismiss the keyboard so a submit result is never hidden behind it.
+    FocusManager.instance.primaryFocus?.unfocus();
     final item = ToastItem(_seq++, variant, title, body);
     items.value = [...items.value, item];
   }
@@ -41,11 +43,13 @@ class ToastOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final safeBottom = MediaQuery.of(context).padding.bottom;
+    // Top-anchored so it stays visible above the keyboard (a bottom toast
+    // gets hidden behind it on submit).
+    final safeTop = MediaQuery.of(context).padding.top;
     return Positioned(
       left: 20,
       right: 20,
-      bottom: 96 + safeBottom,
+      top: safeTop + 12,
       child: ValueListenableBuilder<List<ToastItem>>(
         valueListenable: Toasts.items,
         builder: (context, list, _) => Column(

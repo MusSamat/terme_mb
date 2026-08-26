@@ -1,9 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/mock_calendar.dart';
 import '../models/feed_filters.dart';
+import '../providers/data_providers.dart';
 import '../theme/colors.dart';
 import '../theme/dimens.dart';
 import 'app_chip.dart';
@@ -28,19 +29,18 @@ Future<void> showFiltersSheet(
   );
 }
 
-class _FiltersSheet extends StatefulWidget {
+class _FiltersSheet extends ConsumerStatefulWidget {
   const _FiltersSheet({required this.initial, required this.onChanged, required this.accent});
   final FeedFilters initial;
   final ValueChanged<FeedFilters> onChanged;
   final ChipAccent accent;
 
   @override
-  State<_FiltersSheet> createState() => _FiltersSheetState();
+  ConsumerState<_FiltersSheet> createState() => _FiltersSheetState();
 }
 
-class _FiltersSheetState extends State<_FiltersSheet> {
+class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
   late FeedFilters _f = widget.initial;
-  String _from = '', _to = '';
   late final _priceFrom = TextEditingController(text: _f.minPrice?.toString() ?? '');
   late final _priceTo = TextEditingController(text: _f.maxPrice?.toString() ?? '');
 
@@ -62,7 +62,6 @@ class _FiltersSheetState extends State<_FiltersSheet> {
   void _reset() {
     _priceFrom.clear();
     _priceTo.clear();
-    _from = _to = '';
     _set(const FeedFilters());
   }
 
@@ -192,15 +191,11 @@ class _FiltersSheetState extends State<_FiltersSheet> {
         );
 
     return Column(children: [
-      field(_from, 'search_filters.from_placeholder'.tr(), (v) => setState(() => _from = v)),
+      field(_f.from, 'search_filters.from_placeholder'.tr(), (v) => _set(_f.copyWith(from: v))),
       Row(children: [
         Expanded(child: Container(height: 1, color: dark ? InkColors.c800 : InkColors.c100)),
         GestureDetector(
-          onTap: () => setState(() {
-            final t = _from;
-            _from = _to;
-            _to = t;
-          }),
+          onTap: () => _set(_f.copyWith(from: _f.to, to: _f.from)),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             width: 24,
@@ -211,7 +206,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
         ),
         Expanded(child: Container(height: 1, color: dark ? InkColors.c800 : InkColors.c100)),
       ]),
-      field(_to, 'search_filters.to_placeholder'.tr(), (v) => setState(() => _to = v)),
+      field(_f.to, 'search_filters.to_placeholder'.tr(), (v) => _set(_f.copyWith(to: v))),
     ]);
   }
 
@@ -222,7 +217,11 @@ class _FiltersSheetState extends State<_FiltersSheet> {
         context,
         value: isCustom ? _f.date : '',
         min: _todayYmd,
-        dayCounts: mockCalendarCounts(),
+        dayCounts: ref.read(calendarCountsProvider((
+          kind: widget.accent == ChipAccent.grape ? 'requests' : 'trips',
+          from: _f.from,
+          to: _f.to,
+        ))).valueOrNull,
         onChange: (v) => _set(_f.copyWith(date: v.isEmpty ? '' : v)),
       ),
       behavior: HitTestBehavior.opaque,

@@ -27,3 +27,16 @@ String hhmm(DateTime dt) {
   final l = dt.toLocal();
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
+
+/// Short relative label for lists (notifications, etc.): «сейчас», «5 мин»,
+/// «2 ч», «3 дн», then a compact dd.MM. Keeps the timestamp column narrow so it
+/// never squeezes the title.
+String shortRelative(DateTime dt) {
+  final l = dt.toLocal();
+  final diff = DateTime.now().difference(l);
+  if (diff.inMinutes < 1) return tr('time.now');
+  if (diff.inMinutes < 60) return '${diff.inMinutes} ${tr('time.min')}';
+  if (diff.inHours < 24) return '${diff.inHours} ${tr('time.hour')}';
+  if (diff.inDays < 7) return '${diff.inDays} ${tr('time.day')}';
+  return '${l.day.toString().padLeft(2, '0')}.${l.month.toString().padLeft(2, '0')}';
+}

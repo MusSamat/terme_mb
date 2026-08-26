@@ -66,7 +66,7 @@ class SeatMeter extends StatelessWidget {
           Text(
             '$safeFree',
             style: TextStyle(
-              fontFamily: 'Nunito',
+              fontFamily: 'Manrope',
               fontWeight: FontWeight.w900,
               fontSize: _countPx[this.size],
               height: 1,

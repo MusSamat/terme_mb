@@ -4,11 +4,13 @@ class SelfUser {
   const SelfUser({
     required this.id,
     required this.name,
+    this.surname,
     required this.roles,
     required this.phone,
     required this.phoneVerified,
     required this.telegramLinked,
     required this.language,
+    this.bio,
     this.avatarUrl,
     this.rating,
     this.ratingCount = 0,
@@ -20,11 +22,13 @@ class SelfUser {
 
   final String id;
   final String name;
+  final String? surname;
   final List<String> roles;
   final String phone;
   final bool phoneVerified;
   final bool telegramLinked;
   final String language; // 'ru' | 'kg'
+  final String? bio;
   final String? avatarUrl;
   final double? rating;
   final int ratingCount;
@@ -38,14 +42,35 @@ class SelfUser {
   bool get isDriver => roles.contains('driver');
   bool get isPassenger => roles.contains('passenger');
 
+  SelfUser copyWith({String? name, String? bio, String? avatarUrl, String? language}) => SelfUser(
+        id: id,
+        name: name ?? this.name,
+        surname: surname,
+        roles: roles,
+        phone: phone,
+        phoneVerified: phoneVerified,
+        telegramLinked: telegramLinked,
+        language: language ?? this.language,
+        bio: bio ?? this.bio,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
+        rating: rating,
+        ratingCount: ratingCount,
+        loyaltyTier: loyaltyTier,
+        loyaltyPoints: loyaltyPoints,
+        notificationsEnabled: notificationsEnabled,
+        createdAt: createdAt,
+      );
+
   factory SelfUser.fromJson(Map<String, dynamic> j) => SelfUser(
         id: j['id'] as String,
         name: (j['name'] ?? '') as String,
+        surname: j['surname'] as String?,
         roles: (j['roles'] as List?)?.cast<String>() ?? const [],
         phone: (j['phone'] ?? '') as String,
         phoneVerified: (j['phoneVerified'] ?? false) as bool,
         telegramLinked: (j['telegramLinked'] ?? false) as bool,
         language: (j['language'] ?? 'ru') as String,
+        bio: j['bio'] as String?,
         avatarUrl: j['avatarUrl'] as String?,
         rating: (j['rating'] as num?)?.toDouble(),
         ratingCount: (j['ratingCount'] ?? 0) as int,

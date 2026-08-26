@@ -134,7 +134,7 @@ class AppTheme {
         secondary: c.accent,
         error: c.danger,
       ),
-      fontFamily: 'Nunito',
+      fontFamily: 'Manrope',
       textTheme: AppTypography.textTheme(c.textPrimary),
       extensions: <ThemeExtension<dynamic>>[c],
       splashFactory: NoSplash.splashFactory,

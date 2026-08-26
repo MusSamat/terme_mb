@@ -1,7 +1,7 @@
 name: tappjet_mb
 description: Tappjet — native mobile client (iOS + Android). Port of tappjet_ft.
 publish_to: "none"
-version: 0.1.0+1
+version: 1.1.0+8
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -45,6 +45,7 @@ dependencies:
   latlong2: ^0.9.1
 
   # Media
+  camera: ^0.11.0
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
 
@@ -72,6 +73,7 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   shared_preferences: ^2.5.5 # used by smoke_test to mock easy_localization prefs
   flutter_launcher_icons: ^0.14.1
+  mocktail: ^1.0.5
 
 # App/PWA icons from the brand mark. Regenerate: dart run flutter_launcher_icons
 # (source PNG built by test/gen_app_icon_test.dart). Enable android/ios once
@@ -95,9 +97,8 @@ flutter:
     - assets/images/
 
   fonts:
-    - family: Nunito
+    # Manrope — single family for the whole app (excellent Cyrillic; replaces
+    # Fredoka which had none, and Nunito). Variable TTF covers 200–800.
+    - family: Manrope
       fonts:
-        - asset: assets/fonts/Nunito.ttf
-    - family: Fredoka
-      fonts:
-        - asset: assets/fonts/Fredoka.ttf
+        - asset: assets/fonts/Manrope.ttf

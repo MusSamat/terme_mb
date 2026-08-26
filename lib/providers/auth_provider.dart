@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 
@@ -74,6 +76,8 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void clearSession() {
     ref.read(tokenStoreProvider).clear();
+    // Drop the persisted refresh cookie so a restart can't silently re-login.
+    unawaited(ref.read(dioClientProvider).cookieJar.deleteAll());
     _box.delete(StorageKeys.sessionHint);
     state = AuthState(status: AuthStatus.anonymous, activeMode: state.activeMode);
   }

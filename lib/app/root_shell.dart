@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/data_providers.dart';
 import '../widgets/pill_nav.dart';
 
 /// Hosts the four main tab branches and the floating pill nav.
@@ -14,8 +15,10 @@ class RootShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authed = ref.watch(authProvider).isAuthenticated;
+    final status = ref.watch(authProvider).status;
     final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    // Live unread chat count for the nav badge (0 when logged out).
+    final chatUnread = status == AuthStatus.authenticated ? (ref.watch(unreadChatProvider).valueOrNull ?? 0) : 0;
 
     return Scaffold(
       // Let the pill float over content; content adds its own bottom clearance.
@@ -25,21 +28,20 @@ class RootShell extends ConsumerWidget {
           ? null
           : PillNav(
               currentIndex: navigationShell.currentIndex,
-              onSelect: (i) => _onSelect(context, i, authed),
+              // Divert to login ONLY when definitively anonymous — while auth is
+              // still resolving (idle/loading on cold start or token refresh) the
+              // tab must still switch, otherwise «Мои» silently no-ops / bounces
+              // to login for a logged-in user.
+              onSelect: (i) => _onSelect(context, i, status == AuthStatus.anonymous),
               onCreate: () => context.push('/trips/create'),
-              // TODO: wire real unread count from unreadProvider.
-              chatUnread: 0,
+              chatUnread: chatUnread,
             ),
     );
   }
 
-  void _onSelect(BuildContext context, int index, bool authed) {
-    if (!authed) {
-      if (index == 0) {
-        navigationShell.goBranch(0);
-      } else {
-        context.push('/auth/login');
-      }
+  void _onSelect(BuildContext context, int index, bool anon) {
+    if (anon && index != 0) {
+      context.push('/auth/login');
       return;
     }
     navigationShell.goBranch(

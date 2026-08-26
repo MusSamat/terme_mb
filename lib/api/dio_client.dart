@@ -15,13 +15,17 @@ typedef RefreshFn = Future<String?> Function();
 ///  - HttpOnly refresh cookie carried by the cookie jar
 ///  - on 401 + TOKEN_EXPIRED: refresh once, re-auth, retry the original request
 class DioClient {
-  DioClient(this._tokens);
+  DioClient(this._tokens, {required Storage cookieStorage}) : _cookieStorage = cookieStorage;
 
   final TokenStore _tokens;
+  final Storage _cookieStorage;
   RefreshFn? _refresh;
   bool _isRefreshing = false;
 
-  late final CookieJar cookieJar = CookieJar();
+  // Persistent so the HttpOnly refresh cookie survives app restarts → the user
+  // stays logged in until they explicitly log out (which clears the jar).
+  late final CookieJar cookieJar =
+      PersistCookieJar(storage: _cookieStorage, persistSession: true);
 
   late final Dio dio = _build();
 

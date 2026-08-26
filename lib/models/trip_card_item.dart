@@ -1,3 +1,5 @@
+import 'metrics.dart';
+
 /// Lean trip card model — mirror of tappjet_ft TripCardItem (browse card).
 /// Hand-written for now; replaced by the freezed model in ТЗ step 2.
 class TripCardItem {
@@ -14,6 +16,7 @@ class TripCardItem {
     this.departureWindowEnd,
     this.status = 'active',
     this.liked = false,
+    this.metrics,
     this.instant = false,
     this.wholeCabin = false,
     this.booked = false,
@@ -34,6 +37,7 @@ class TripCardItem {
   final List<String> pickupCities;
   final String status; // active | completed | cancelled
   final bool liked;
+  final Metrics? metrics; // creator-only engagement counters
   final bool instant;
   final bool wholeCabin;
   final bool booked;
@@ -58,6 +62,7 @@ class TripCardItem {
         pickupCities: (j['pickupCities'] as List?)?.cast<String>() ?? const [],
         status: (j['status'] ?? 'active') as String,
         liked: (j['liked'] ?? false) as bool,
+        metrics: Metrics.fromJson(j['metrics']),
         luggage: (j['luggage'] ?? 'small') as String,
         comment: j['comment'] as String?,
         preferences: (j['preferences'] as Map?)?.map((k, v) => MapEntry(k as String, v as bool)) ?? const {},

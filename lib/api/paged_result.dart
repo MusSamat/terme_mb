@@ -1,11 +1,12 @@
 /// Cursor-paginated list response — `{ data: [...], nextCursor, nearby? }`.
 /// Every list endpoint in the backend returns this shape (ТЗ §5.3).
 class PagedResult<T> {
-  const PagedResult({required this.data, this.nextCursor, this.nearby});
+  const PagedResult({required this.data, this.nextCursor, this.nearby = false});
 
   final List<T> data;
   final String? nextCursor;
-  final List<T>? nearby;
+  /// True when the backend fell back to nearby-city results (no exact matches).
+  final bool nearby;
 
   bool get hasMore => nextCursor != null;
 
@@ -18,7 +19,7 @@ class PagedResult<T> {
     return PagedResult<T>(
       data: parse(json['data']),
       nextCursor: json['nextCursor'] as String?,
-      nearby: json['nearby'] != null ? parse(json['nearby']) : null,
+      nearby: json['nearby'] == true,
     );
   }
 }

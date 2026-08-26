@@ -1,3 +1,5 @@
+import 'metrics.dart';
+
 /// Lean passenger-request model — mirror of tappjet_ft PassengerRequest card.
 /// Hand-written for the mock phase; freezed model lands in ТЗ step 2.
 class PassengerRequestItem {
@@ -9,6 +11,7 @@ class PassengerRequestItem {
     required this.dateLabel,
     required this.budget,
     required this.passengerName,
+    this.passengerId,
     this.passengerRating,
     this.passengerRatingCount = 0,
     this.passengerVerified = false,
@@ -16,6 +19,8 @@ class PassengerRequestItem {
     this.status = 'open',
     this.liked = false,
     this.responded = false,
+    this.departureDate,
+    this.metrics,
   });
 
   final String id;
@@ -23,8 +28,10 @@ class PassengerRequestItem {
   final String destinationCity;
   final int seatsNeeded;
   final String dateLabel;
+  final DateTime? departureDate;
   final int budget;
   final String passengerName;
+  final String? passengerId;
   final double? passengerRating;
   final int passengerRatingCount;
   final bool passengerVerified;
@@ -32,6 +39,7 @@ class PassengerRequestItem {
   final String status; // open | closed
   final bool liked;
   final bool responded;
+  final Metrics? metrics; // creator-only engagement counters
 
   factory PassengerRequestItem.fromJson(Map<String, dynamic> j) {
     final p = (j['passenger'] as Map?)?.cast<String, dynamic>() ?? const {};
@@ -47,6 +55,7 @@ class PassengerRequestItem {
       dateLabel: dateLabel,
       budget: ((j['budget'] ?? 0) as num).toInt(),
       passengerName: (p['name'] ?? '') as String,
+      passengerId: p['id'] as String?,
       passengerRating: (p['rating'] as num?)?.toDouble(),
       passengerRatingCount: (p['ratingCount'] ?? 0) as int,
       passengerVerified: (p['verified'] ?? false) as bool,
@@ -54,6 +63,8 @@ class PassengerRequestItem {
       status: (j['status'] ?? 'open') as String,
       liked: (j['liked'] ?? false) as bool,
       responded: j['myResponse'] != null,
+      departureDate: date,
+      metrics: Metrics.fromJson(j['metrics']),
     );
   }
 }

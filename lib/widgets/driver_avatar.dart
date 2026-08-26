@@ -60,7 +60,7 @@ class DriverAvatar extends StatelessWidget {
       child: Text(
         _initials,
         style: TextStyle(
-          fontFamily: 'Nunito',
+          fontFamily: 'Manrope',
           fontWeight: FontWeight.w900,
           fontSize: _fontPx[size],
           color: dark ? GrapeColors.c300 : GrapeColors.c600,

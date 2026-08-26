@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 
 import '../api/dio_client.dart';
+import '../api/hive_cookie_storage.dart';
 import '../api/token_store.dart';
 import '../socket/socket_client.dart';
 import '../utils/config.dart';
@@ -19,7 +20,10 @@ final tokenStoreProvider = Provider<TokenStore>((ref) {
 });
 
 final dioClientProvider = Provider<DioClient>((ref) {
-  return DioClient(ref.watch(tokenStoreProvider));
+  return DioClient(
+    ref.watch(tokenStoreProvider),
+    cookieStorage: HiveCookieStorage(ref.watch(hiveBoxProvider)),
+  );
 });
 
 final socketClientProvider = Provider<SocketClient>((ref) {

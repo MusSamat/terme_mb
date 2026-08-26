@@ -34,7 +34,7 @@ class SeatsStepper extends StatelessWidget {
           child: Text('$value',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontFamily: 'Fredoka',
+                  fontFamily: 'Manrope',
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: accent)),

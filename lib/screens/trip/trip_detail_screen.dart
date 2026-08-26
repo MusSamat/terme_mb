@@ -1,16 +1,20 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_trips.dart';
+import '../../api/friendly_error.dart';
+import '../../widgets/query_error.dart';
 import '../../models/trip_card_item.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../utils/date_format.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
+import '../../widgets/listing_metrics.dart';
 import '../../widgets/verified_badge.dart';
 
 /// Resolves the current viewer role (guest/passenger/driver) from auth.
@@ -31,7 +35,6 @@ void showTripDetailSheet(BuildContext context, String id) {
     builder: (ctx) => Consumer(
       builder: (ctx, ref, _) {
         final dark = Theme.of(ctx).brightness == Brightness.dark;
-        final trip = mockTripById(id);
         final role = _roleOf(ref);
         return Container(
           constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.9),
@@ -40,18 +43,22 @@ void showTripDetailSheet(BuildContext context, String id) {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl4)),
           ),
           clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                tripHeader(ctx, trip, onClose: () => Navigator.of(ctx).pop()),
-                tripBody(ctx, trip),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + MediaQuery.of(ctx).padding.bottom),
-                  child: tripCta(ctx, trip, role),
+          child: ref.watch(tripDetailProvider(id)).when(
+                loading: () => const SizedBox(height: 240, child: Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500))),
+                error: (e, _) => SizedBox(height: 240, child: QueryError(error: e, onRetry: () => ref.invalidate(tripDetailProvider(id)))),
+                data: (trip) => SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      tripHeader(ctx, trip, onClose: () => Navigator.of(ctx).pop(), isOwner: ref.read(authProvider).user?.id == trip.driver.id),
+                      tripBody(ctx, trip),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + MediaQuery.of(ctx).padding.bottom),
+                        child: tripCta(ctx, trip, role, isOwner: ref.read(authProvider).user?.id == trip.driver.id),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
+              ),
         );
       },
     ),
@@ -68,38 +75,43 @@ class TripDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final trip = mockTripById(id);
     final role = _roleOf(ref);
-
-    if (autoBook) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted && role == 'passenger') showBookingSheet(context, trip);
-      });
-    }
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                tripHeader(context, trip, onBack: () => context.canPop() ? context.pop() : context.go('/')),
-                tripBody(context, trip),
-              ],
-            ),
+      body: ref.watch(tripDetailProvider(id)).when(
+            loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500)),
+            error: (e, _) => Center(child: QueryError(error: e, onRetry: () => ref.invalidate(tripDetailProvider(id)))),
+            data: (trip) {
+              final isOwner = ref.read(authProvider).user?.id == trip.driver.id;
+              if (autoBook && !isOwner) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (context.mounted && role == 'passenger') showBookingSheet(context, trip);
+                });
+              }
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        tripHeader(context, trip, onBack: () => context.canPop() ? context.pop() : context.go('/'), isOwner: isOwner),
+                        tripBody(context, trip),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+                    decoration: BoxDecoration(
+                      color: dark ? InkColors.c900 : Colors.white,
+                      border: Border(top: BorderSide(color: dark ? InkColors.c800 : InkColors.c200)),
+                    ),
+                    child: tripCta(context, trip, role, isOwner: isOwner),
+                  ),
+                ],
+              );
+            },
           ),
-          Container(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
-            decoration: BoxDecoration(
-              color: dark ? InkColors.c900 : Colors.white,
-              border: Border(top: BorderSide(color: dark ? InkColors.c800 : InkColors.c200)),
-            ),
-            child: tripCta(context, trip, role),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -107,7 +119,7 @@ class TripDetailScreen extends ConsumerWidget {
 // ── Shared pieces (used by both the page and the sheet) ──────────────────────
 
 /// Teal gradient header: back/close, share, like, route spine + price.
-Widget tripHeader(BuildContext context, TripCardItem trip, {VoidCallback? onBack, VoidCallback? onClose}) {
+Widget tripHeader(BuildContext context, TripCardItem trip, {VoidCallback? onBack, VoidCallback? onClose, bool isOwner = false}) {
   final stops = trip.pickupCities.isNotEmpty ? trip.pickupCities.join(' · ') : null;
 
   Widget circleBtn(IconData icon, VoidCallback onTap) => GestureDetector(
@@ -135,8 +147,9 @@ Widget tripHeader(BuildContext context, TripCardItem trip, {VoidCallback? onBack
             if (onBack != null) circleBtn(Icons.arrow_back, onBack) else const SizedBox(width: 36),
             Row(children: [
               circleBtn(Icons.ios_share, () => Toasts.info('detail.share_copied'.tr())),
-              const SizedBox(width: 8),
-              _LikeCircle(liked: trip.liked),
+              // Owner can't like their own listing (backend own_listing); a
+              // finished/cancelled trip is read-only so its like is hidden too.
+              if (!isOwner && !trip.inactive) ...[const SizedBox(width: 8), _LikeCircle(id: trip.id, liked: trip.liked)],
               if (onClose != null) ...[const SizedBox(width: 8), circleBtn(Icons.close, onClose)],
             ]),
           ],
@@ -214,6 +227,11 @@ Widget tripBody(BuildContext context, TripCardItem trip) {
     padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
     child: Column(
       children: [
+        // Creator-only engagement counters (views · likes · calls).
+        if (trip.metrics != null) ...[
+          Align(alignment: Alignment.centerLeft, child: ListingMetricsRow(metrics: trip.metrics)),
+          const SizedBox(height: 12),
+        ],
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -267,7 +285,22 @@ Widget tripBody(BuildContext context, TripCardItem trip) {
 }
 
 /// Role-aware CTA + contact reveal.
-Widget tripCta(BuildContext context, TripCardItem trip, String role) {
+Widget tripCta(BuildContext context, TripCardItem trip, String role, {bool isOwner = false}) {
+  // Own trip: the passenger-mode viewer must NOT see «book» / «reveal contact»
+  // (both 400 on the backend — cannot_book_own_trip / own_listing). Show the
+  // driver CTA («create similar») instead, exactly like the web mini-app.
+  if (isOwner) role = 'driver';
+  // Completed / cancelled trip → read-only: no «book», no contact reveal, no phone.
+  if (trip.inactive && role != 'driver' && role != 'guest') {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 50,
+      width: double.infinity,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: dark ? InkColors.c800 : InkColors.c100, borderRadius: BorderRadius.circular(AppRadii.lg)),
+      child: Text('detail.trip_unavailable'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: InkColors.c500)),
+    );
+  }
   late final Color bg;
   late final Color fg;
   late final IconData icon;
@@ -317,7 +350,7 @@ Widget tripCta(BuildContext context, TripCardItem trip, String role) {
       ),
       if (role != 'driver') ...[
         const SizedBox(height: 8),
-        const _ContactReveal(phone: '+996 700 123 456'),
+        Consumer(builder: (ctx, ref, _) => _ContactReveal(onReveal: () => ref.read(tripsServiceProvider).revealContact(trip.id))),
       ],
     ],
   );
@@ -349,19 +382,37 @@ class _HeaderSpine extends StatelessWidget {
   }
 }
 
-class _LikeCircle extends StatefulWidget {
-  const _LikeCircle({required this.liked});
+class _LikeCircle extends ConsumerStatefulWidget {
+  const _LikeCircle({required this.id, required this.liked});
+  final String id;
   final bool liked;
   @override
-  State<_LikeCircle> createState() => _LikeCircleState();
+  ConsumerState<_LikeCircle> createState() => _LikeCircleState();
 }
 
-class _LikeCircleState extends State<_LikeCircle> {
+class _LikeCircleState extends ConsumerState<_LikeCircle> {
   late bool _liked = widget.liked;
+  bool _busy = false;
+
+  Future<void> _toggle() async {
+    if (_busy) return;
+    final next = !_liked;
+    setState(() { _liked = next; _busy = true; }); // optimistic
+    try {
+      final svc = ref.read(tripsServiceProvider);
+      next ? await svc.like(widget.id) : await svc.unlike(widget.id);
+    } catch (e) {
+      if (mounted) setState(() => _liked = !next); // revert
+      Toasts.error(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => setState(() => _liked = !_liked),
+      onTap: _toggle,
       behavior: HitTestBehavior.opaque,
       child: Container(
         width: 36,
@@ -374,20 +425,42 @@ class _LikeCircleState extends State<_LikeCircle> {
   }
 }
 
+/// Reveal-contact button — calls the audited reveal endpoint on tap and shows
+/// the real phone (tap again to dial). Used for both trips and requests.
 class _ContactReveal extends StatefulWidget {
-  const _ContactReveal({required this.phone});
-  final String phone;
+  const _ContactReveal({required this.onReveal});
+  final Future<String?> Function() onReveal;
   @override
   State<_ContactReveal> createState() => _ContactRevealState();
 }
 
 class _ContactRevealState extends State<_ContactReveal> {
-  bool _revealed = false;
+  String? _phone;
+  bool _busy = false;
+
+  Future<void> _tap() async {
+    if (_busy) return;
+    if (_phone != null) {
+      await launchUrl(Uri.parse('tel:$_phone'));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final p = await widget.onReveal();
+      if (mounted) setState(() => _phone = p);
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final revealed = _phone != null;
     return GestureDetector(
-      onTap: () => setState(() => _revealed = true),
+      onTap: _tap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         height: 46,
@@ -398,11 +471,13 @@ class _ContactRevealState extends State<_ContactReveal> {
           borderRadius: BorderRadius.circular(AppRadii.lg),
           border: Border.all(color: dark ? BrandColors.c500.withValues(alpha: 0.4) : BrandColors.c200),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(_revealed ? Icons.call : Icons.phone_outlined, size: 18, color: dark ? BrandColors.c300 : BrandColors.c600),
-          const SizedBox(width: 8),
-          Text(_revealed ? widget.phone : 'contact.call'.tr(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? BrandColors.c300 : BrandColors.c700)),
-        ]),
+        child: _busy
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: BrandColors.c500))
+            : Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(revealed ? Icons.call : Icons.phone_outlined, size: 18, color: dark ? BrandColors.c300 : BrandColors.c600),
+                const SizedBox(width: 8),
+                Text(revealed ? _phone! : 'contact.call'.tr(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? BrandColors.c300 : BrandColors.c700)),
+              ]),
       ),
     );
   }
@@ -420,16 +495,18 @@ void showBookingSheet(BuildContext context, TripCardItem trip) {
   );
 }
 
-class _BookingSheet extends StatefulWidget {
+class _BookingSheet extends ConsumerStatefulWidget {
   const _BookingSheet({required this.trip});
   final TripCardItem trip;
   @override
-  State<_BookingSheet> createState() => _BookingSheetState();
+  ConsumerState<_BookingSheet> createState() => _BookingSheetState();
 }
 
-class _BookingSheetState extends State<_BookingSheet> {
+class _BookingSheetState extends ConsumerState<_BookingSheet> {
   int _seats = 1;
   bool _sent = false;
+  bool _loading = false;
+  String? _bookingId; // real id of the created booking (for the chat link)
   final _comment = TextEditingController();
 
   static const _chips = ['book_form.chip_bus_station', 'book_form.chip_small_luggage', 'book_form.chip_alone', 'book_form.chip_early'];
@@ -440,6 +517,29 @@ class _BookingSheetState extends State<_BookingSheet> {
   void dispose() {
     _comment.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final comment = _comment.text.trim();
+      final id = await ref.read(bookingsServiceProvider).create(
+            tripId: widget.trip.id,
+            seats: _seats,
+            comment: comment.isEmpty ? null : comment,
+          );
+      // Refresh the seat count on the trip, the passenger's bookings, and the
+      // feed behind the sheet.
+      ref.invalidate(tripDetailProvider(widget.trip.id));
+      ref.invalidate(myBookingsProvider);
+      ref.invalidate(tripsFeedProvider);
+      if (mounted) setState(() { _sent = true; _bookingId = id; });
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -470,7 +570,7 @@ class _BookingSheetState extends State<_BookingSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text('detail.book_modal_title'.tr(), style: TextStyle(fontFamily: 'Fredoka', fontSize: 20, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+            Text('detail.book_modal_title'.tr(), style: TextStyle(fontFamily: 'Manrope', fontSize: 20, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
             const Spacer(),
             GestureDetector(onTap: () => Navigator.of(context).pop(), child: const Icon(Icons.close, color: InkColors.c400)),
           ]),
@@ -566,17 +666,22 @@ class _BookingSheetState extends State<_BookingSheet> {
             Expanded(
               flex: 2,
               child: GestureDetector(
-                onTap: () => setState(() => _sent = true),
+                onTap: _loading ? null : _submit,
                 behavior: HitTestBehavior.opaque,
-                child: Container(
-                  height: 50,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: AccentColors.c500, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.cta),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.send, size: 18, color: AccentColors.ink),
-                    const SizedBox(width: 8),
-                    Text('book_form.submit'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AccentColors.ink)),
-                  ]),
+                child: Opacity(
+                  opacity: _loading ? 0.6 : 1,
+                  child: Container(
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: AccentColors.c500, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.cta),
+                    child: _loading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: AccentColors.ink))
+                        : Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.send, size: 18, color: AccentColors.ink),
+                            const SizedBox(width: 8),
+                            Text('book_form.submit'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AccentColors.ink)),
+                          ]),
+                  ),
                 ),
               ),
             ),
@@ -637,7 +742,9 @@ class _BookingSheetState extends State<_BookingSheet> {
             child: GestureDetector(
               onTap: () {
                 Navigator.of(context).pop();
-                context.push('/my/bookings/b1/chat');
+                // Real booking id — not a hardcoded "b1". If unknown, fall back
+                // to the bookings list.
+                context.push(_bookingId != null ? '/my/bookings/$_bookingId/chat' : '/my/bookings');
               },
               behavior: HitTestBehavior.opaque,
               child: Container(

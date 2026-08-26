@@ -2,26 +2,23 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/friendly_error.dart';
-import '../../models/self_user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
-import '../../utils/config.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/logo_mark.dart';
+import 'auth_fields.dart';
 
-/// Login — real Telegram auth: phone → «Получить код» (delivered to Telegram) →
-/// OTP verify → session. Plus a Telegram bot deep-link login. DEV buttons only
-/// appear in mock mode.
+/// Classical login — phone + password. "Forgot password" runs the Telegram-OTP
+/// reset flow (send code → verify → new password). Registration lives on a
+/// separate screen. No other login methods.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -29,26 +26,36 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-enum _Step { phone, otp }
+enum _Step { login, otp, reset }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phone = TextEditingController();
+  final _password = TextEditingController();
   final _otp = TextEditingController();
-  _Step _step = _Step.phone;
+  final _newPassword = TextEditingController();
+  final _confirmPassword = TextEditingController();
+
+  _Step _step = _Step.login;
   bool _loading = false;
+  bool _showPassword = false;
+  bool _showNewPassword = false;
   int _resend = 0;
   Timer? _resendTimer;
-  Timer? _pollTimer;
 
   String get _fullPhone => '+996${_phone.text}';
   bool get _phoneValid => _phone.text.length == 9;
+  bool get _canLogin => _phoneValid && _password.text.isNotEmpty;
+  bool get _canReset =>
+      _newPassword.text.length >= 8 && _newPassword.text == _confirmPassword.text;
 
   @override
   void dispose() {
     _phone.dispose();
+    _password.dispose();
     _otp.dispose();
+    _newPassword.dispose();
+    _confirmPassword.dispose();
     _resendTimer?.cancel();
-    _pollTimer?.cancel();
     super.dispose();
   }
 
@@ -61,12 +68,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  Future<void> _sendCode() async {
-    if (!_phoneValid || _loading) return;
+  Future<void> _finishSession(String token) async {
+    final auth = ref.read(authServiceProvider);
+    ref.read(tokenStoreProvider).set(token);
+    final me = await auth.me();
+    ref.read(authProvider.notifier).setSession(me, accessToken: token);
+    if (mounted) context.go('/');
+  }
+
+  // ── Login with password ──────────────────────────────────────────────────
+  Future<void> _login() async {
+    if (!_canLogin || _loading) return;
+    setState(() => _loading = true);
+    try {
+      final result = await ref.read(authServiceProvider).loginPassword(_fullPhone, _password.text);
+      final token = result.accessToken;
+      if (token == null) {
+        Toasts.error('errors.global_desc'.tr());
+        return;
+      }
+      await _finishSession(token);
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ── Forgot password: send Telegram OTP ───────────────────────────────────
+  Future<void> _sendResetCode() async {
+    if (!_phoneValid) {
+      Toasts.error('auth.login.enter_phone_first'.tr());
+      return;
+    }
+    if (_loading || _resend > 0) return;
     setState(() => _loading = true);
     try {
       await ref.read(authServiceProvider).sendOtp(_fullPhone);
       if (!mounted) return;
+      _otp.clear();
       setState(() => _step = _Step.otp);
       _startResend();
     } catch (e) {
@@ -76,87 +116,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  // ── Verify OTP → temporary session for the reset call ────────────────────
   Future<void> _verify() async {
-    if (_otp.text.length < 4 || _loading) return;
+    if (_otp.text.length < 6 || _loading) return;
     setState(() => _loading = true);
     try {
-      final auth = ref.read(authServiceProvider);
-      final result = await auth.verifyOtp(_fullPhone, _otp.text);
+      final result = await ref.read(authServiceProvider).verifyOtp(_fullPhone, _otp.text);
       final token = result.accessToken;
       if (token == null) {
         Toasts.error('errors.global_desc'.tr());
         return;
       }
-      ref.read(tokenStoreProvider).set(token); // authenticate the me() call
-      final me = await auth.me();
-      ref.read(authProvider.notifier).setSession(me, accessToken: token);
-      if (mounted) context.go('/');
+      ref.read(tokenStoreProvider).set(token);
+      if (!mounted) return;
+      setState(() => _step = _Step.reset);
     } catch (e) {
       Toasts.error(friendlyError(e));
+      _otp.clear();
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _telegramLogin() async {
-    if (_loading) return;
+  // ── Set the new password ─────────────────────────────────────────────────
+  Future<void> _reset() async {
+    if (!_canReset || _loading) return;
     setState(() => _loading = true);
     try {
       final auth = ref.read(authServiceProvider);
-      final init = await auth.botLoginInit();
-      final deepLink = init['deepLink'] as String?;
-      final token = init['token'] as String?;
-      if (deepLink == null || token == null) {
-        Toasts.error('errors.global_desc'.tr());
-        return;
+      await auth.resetPassword(_newPassword.text);
+      final token = ref.read(tokenStoreProvider).accessToken;
+      if (token != null) {
+        await _finishSession(token);
+      } else if (mounted) {
+        context.go('/');
       }
-      await launchUrl(Uri.parse(deepLink), mode: LaunchMode.externalApplication);
-      _pollTimer?.cancel();
-      _pollTimer = Timer.periodic(const Duration(seconds: 2), (t) async {
-        try {
-          final status = await auth.botLoginStatus(token);
-          if (status == 'done') {
-            t.cancel();
-            final result = await auth.botLoginClaim(token);
-            final tk = result.accessToken;
-            if (tk != null) {
-              ref.read(tokenStoreProvider).set(tk);
-              final me = await auth.me();
-              ref.read(authProvider.notifier).setSession(me, accessToken: tk);
-              if (mounted) context.go('/');
-            }
-          } else if (status == 'expired' || status == 'not_found') {
-            t.cancel();
-          }
-        } catch (_) {
-          t.cancel();
-        }
-      });
     } catch (e) {
       Toasts.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  void _devLogin(ActiveMode mode) {
-    final user = SelfUser(
-      id: 'dev-user',
-      name: mode == ActiveMode.driver ? 'Дев Водитель' : 'Дев Пассажир',
-      roles: mode == ActiveMode.driver ? const ['passenger', 'driver'] : const ['passenger'],
-      phone: '+996700000000',
-      phoneVerified: true,
-      telegramLinked: true,
-      language: context.locale.languageCode == 'kg' ? 'kg' : 'ru',
-      rating: 4.8,
-      ratingCount: 24,
-      loyaltyTier: 'traveler',
-      loyaltyPoints: 180,
-      createdAt: DateTime(2024, 3, 15),
-    );
-    ref.read(authProvider.notifier).setActiveMode(mode);
-    ref.read(authProvider.notifier).setSession(user, accessToken: 'dev-token');
-    context.go('/');
   }
 
   @override
@@ -173,7 +172,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: GestureDetector(
                 onTap: () {
                   if (_step == _Step.otp) {
-                    setState(() => _step = _Step.phone);
+                    setState(() => _step = _Step.login);
+                  } else if (_step == _Step.reset) {
+                    setState(() => _step = _Step.otp);
                   } else {
                     context.canPop() ? context.pop() : context.go('/');
                   }
@@ -192,66 +193,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 12),
             const Center(child: Wordmark(fontSize: 30)),
             const SizedBox(height: 28),
-            if (_step == _Step.phone) ..._phoneStep(dark) else ..._otpStep(dark),
+            if (_step == _Step.login)
+              ..._loginStep(dark)
+            else if (_step == _Step.otp)
+              ..._otpStep(dark)
+            else
+              ..._resetStep(dark),
           ],
         ),
       ),
     );
   }
 
-  List<Widget> _phoneStep(bool dark) {
+  List<Widget> _loginStep(bool dark) {
     return [
-      Container(
-        height: 52,
-        padding: const EdgeInsets.only(left: 14),
-        decoration: BoxDecoration(
-          color: dark ? InkColors.c800 : InkColors.c50,
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          border: Border.all(color: dark ? InkColors.c700 : InkColors.c200, width: 2),
-        ),
-        child: Row(children: [
-          const Text('+996 ', style: TextStyle(fontWeight: FontWeight.w800, color: InkColors.c500)),
-          Expanded(
-            child: TextField(
-              controller: _phone,
-              keyboardType: TextInputType.phone,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
-              onChanged: (_) => setState(() {}),
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: dark ? Colors.white : InkColors.c900),
-              decoration: const InputDecoration(hintText: '700 123 456', hintStyle: TextStyle(color: InkColors.c400), border: InputBorder.none),
-            ),
-          ),
-        ]),
-      ),
+      PhoneField(controller: _phone, dark: dark, onChanged: () => setState(() {})),
       const SizedBox(height: 12),
-      AppButton(
-        label: 'auth.login.continue_btn'.tr(),
-        loading: _loading,
-        onPressed: _phoneValid ? _sendCode : null,
-      ),
-      const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Row(children: [
-          Expanded(child: Divider(color: InkColors.c200)),
-          Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('или', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400))),
-          Expanded(child: Divider(color: InkColors.c200)),
-        ]),
-      ),
-      GestureDetector(
-        onTap: _telegramLogin,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: const Color(0xFF0088CC), borderRadius: BorderRadius.circular(AppRadii.lg)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.send, size: 18, color: Colors.white),
-            const SizedBox(width: 8),
-            Text('auth.login.login_telegram'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
-          ]),
-        ),
+      PasswordField(
+        controller: _password,
+        dark: dark,
+        hint: 'auth.login.password_placeholder'.tr(),
+        obscure: !_showPassword,
+        onToggle: () => setState(() => _showPassword = !_showPassword),
+        onChanged: () => setState(() {}),
+        onSubmit: _canLogin ? _login : null,
       ),
       const SizedBox(height: 16),
+      AppButton(label: 'auth.login.login_btn'.tr(), loading: _loading, onPressed: _canLogin ? _login : null),
+      const SizedBox(height: 16),
+      Center(
+        child: GestureDetector(
+          onTap: (_loading || _resend > 0) ? null : _sendResetCode,
+          behavior: HitTestBehavior.opaque,
+          child: Text(
+            _resend > 0 ? 'auth.login.resend_in'.tr(namedArgs: {'n': '$_resend'}) : 'auth.login.forgot_password'.tr(),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: (_resend > 0) ? InkColors.c400 : InkColors.c500,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 14),
       Center(
         child: GestureDetector(
           onTap: () => context.push('/auth/register'),
@@ -262,10 +246,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ])),
         ),
       ),
-      if (AppConfig.useMock) ...[
-        const SizedBox(height: 28),
-        _devBlock(dark),
-      ],
     ];
   }
 
@@ -275,61 +255,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const Icon(Icons.send, size: 16, color: Color(0xFF0088CC)),
         const SizedBox(width: 8),
         Flexible(
-          child: Text('Код отправлен в Telegram на $_fullPhone',
+          child: Text('${'auth.login.otp_dm_hint'.tr()} $_fullPhone',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c500)),
         ),
       ]),
       const SizedBox(height: 20),
-      TextField(
+      OtpField(
         controller: _otp,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 6,
-        autofocus: true,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
+        dark: dark,
         onChanged: (v) {
           setState(() {});
           if (v.length == 6) _verify();
         },
-        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 8, color: dark ? Colors.white : InkColors.c900),
-        decoration: InputDecoration(
-          counterText: '',
-          hintText: '••••••',
-          hintStyle: const TextStyle(color: InkColors.c300, letterSpacing: 8),
-          filled: true,
-          fillColor: dark ? InkColors.c800 : InkColors.c50,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: BorderSide(color: dark ? InkColors.c700 : InkColors.c200, width: 2)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: BorderSide(color: dark ? InkColors.c700 : InkColors.c200, width: 2)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.lg), borderSide: const BorderSide(color: BrandColors.c500, width: 2)),
-        ),
       ),
       const SizedBox(height: 16),
-      AppButton(label: 'auth.login.login_btn'.tr(), loading: _loading, onPressed: _otp.text.length >= 4 ? _verify : null),
+      AppButton(label: 'auth.login.confirm_btn'.tr(), loading: _loading, onPressed: _otp.text.length >= 6 ? _verify : null),
       const SizedBox(height: 16),
       Center(
         child: _resend > 0
-            ? Text('${'auth.login.sending'.tr()} · $_resend', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400))
+            ? Text('auth.login.resend_in'.tr(namedArgs: {'n': '$_resend'}), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400))
             : GestureDetector(
-                onTap: _sendCode,
+                onTap: _sendResetCode,
                 behavior: HitTestBehavior.opaque,
-                child: Text('auth.login.login_sms'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BrandColors.c600)),
+                child: Text('auth.login.resend_btn'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BrandColors.c600)),
               ),
       ),
     ];
   }
 
-  Widget _devBlock(bool dark) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: dark ? InkColors.c900 : InkColors.c100, borderRadius: BorderRadius.circular(AppRadii.lg), border: Border.all(color: dark ? InkColors.c800 : InkColors.c200)),
-        child: Column(children: [
-          const Text('DEV — быстрый вход без бэкенда', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: InkColors.c400)),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(child: AppButton(label: 'Пассажир', variant: AppButtonVariant.brand, height: 44, onPressed: () => _devLogin(ActiveMode.passenger))),
-            const SizedBox(width: 8),
-            Expanded(child: AppButton(label: 'Водитель', variant: AppButtonVariant.grape, height: 44, onPressed: () => _devLogin(ActiveMode.driver))),
-          ]),
-        ]),
-      );
+  List<Widget> _resetStep(bool dark) {
+    return [
+      Center(
+        child: Text('auth.login.reset_title'.tr(),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+      ),
+      const SizedBox(height: 20),
+      PasswordField(
+        controller: _newPassword,
+        dark: dark,
+        hint: 'auth.login.new_password_label'.tr(),
+        obscure: !_showNewPassword,
+        onToggle: () => setState(() => _showNewPassword = !_showNewPassword),
+        onChanged: () => setState(() {}),
+      ),
+      const SizedBox(height: 12),
+      PasswordField(
+        controller: _confirmPassword,
+        dark: dark,
+        hint: 'auth.login.confirm_password_label'.tr(),
+        obscure: !_showNewPassword,
+        onToggle: () => setState(() => _showNewPassword = !_showNewPassword),
+        onChanged: () => setState(() {}),
+        onSubmit: _canReset ? _reset : null,
+      ),
+      const SizedBox(height: 8),
+      Text('auth.register.password_rule'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: InkColors.c400)),
+      const SizedBox(height: 16),
+      AppButton(label: 'auth.login.set_password_btn'.tr(), loading: _loading, onPressed: _canReset ? _reset : null),
+    ];
+  }
 }

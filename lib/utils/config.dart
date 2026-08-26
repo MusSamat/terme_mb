@@ -21,9 +21,10 @@ class AppConfig {
 
   static const requestTimeout = Duration(seconds: 15);
 
-  /// While true, data providers serve the bundled mock data. Flip to false
-  /// (or pass --dart-define=USE_MOCK=false) to hit the real backend at API_URL.
-  static const useMock = bool.fromEnvironment('USE_MOCK', defaultValue: true);
+  /// While true, data providers serve the bundled mock data. Defaults to false
+  /// so the app talks to the real backend at API_URL; pass
+  /// --dart-define=USE_MOCK=true to demo without a backend.
+  static const useMock = bool.fromEnvironment('USE_MOCK', defaultValue: false);
 }
 
 /// Hive box + key names, and non-secret client flags.
@@ -39,5 +40,6 @@ class StorageKeys {
   static const notifPrefsPrefix = 'tappjet_notif_prefs_'; // + userId
   static const celebratedPrefix = 'tappjet_celebrated_'; // + bookingId
   static const draftCreate = 'tappjet_draft_create';
+  static const recentRoutes = 'tappjet_recent_routes'; // List<String> "from|to", max 3
   static const anonId = 'tappjet_anon_id';
 }

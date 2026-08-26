@@ -40,6 +40,44 @@ class AuthService {
     return AuthResult.fromJson(res.data!);
   }
 
+  /// POST /auth/register → verifies the Telegram OTP and creates the account
+  /// with name/surname/password in one call. Returns a full session.
+  Future<AuthResult> register({
+    required String phone,
+    required String code,
+    required String name,
+    required String surname,
+    required String password,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/auth/register',
+      data: {
+        'phone': phone,
+        'code': code,
+        'name': name,
+        'surname': surname,
+        'password': password,
+        'channel': 'web',
+      },
+    );
+    return AuthResult.fromJson(res.data!);
+  }
+
+  /// POST /auth/phone/reset-password → set a new password after an OTP-verified
+  /// session (forgot-password flow). Requires the caller to be authenticated.
+  Future<void> resetPassword(String newPassword) =>
+      _dio.post('/auth/phone/reset-password', data: {'newPassword': newPassword, 'channel': 'web'});
+
+  /// PATCH /users/me/password → change password. `currentPassword` required when
+  /// the account already has one.
+  Future<void> setPassword(String newPassword, {String? currentPassword}) => _dio.patch(
+        '/users/me/password',
+        data: {
+          'newPassword': newPassword,
+          if (currentPassword != null) 'currentPassword': currentPassword,
+        },
+      );
+
   // ── Telegram bot deep-link login ───────────────────────────────────────────
   Future<Map<String, dynamic>> botLoginInit() async {
     final res = await _dio.post<Map<String, dynamic>>('/auth/telegram/bot-login/init');

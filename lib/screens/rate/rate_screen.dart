@@ -1,29 +1,42 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_trips.dart';
+import '../../api/friendly_error.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_toast.dart';
 
-class RateScreen extends StatefulWidget {
+class RateScreen extends ConsumerStatefulWidget {
   const RateScreen({super.key, required this.tripId, required this.rateeId});
   final String tripId;
   final String rateeId;
 
   @override
-  State<RateScreen> createState() => _RateScreenState();
+  ConsumerState<RateScreen> createState() => _RateScreenState();
 }
 
-class _RateScreenState extends State<RateScreen> {
+class _RateScreenState extends ConsumerState<RateScreen> {
   int _score = 0;
   bool _sent = false;
+  bool _submitting = false;
   final _comment = TextEditingController();
   final Set<String> _tags = {};
 
-  static const _positiveTags = ['on_time', 'safe_driving', 'pleasant_chat', 'clean_car', 'comfortable_ride'];
-  static const _negativeTags = ['late', 'dirty_car', 'dangerous_driving', 'rudeness'];
+  // Tag sets differ by who you're rating (backend DRIVER_TAGS / PASSENGER_TAGS).
+  // A driver (active mode) rates a passenger → passenger tags; else driver tags.
+  static const _driverPos = ['on_time', 'clean_car', 'safe_driving', 'pleasant_chat', 'comfortable_ride'];
+  static const _driverNeg = ['late', 'dirty_car', 'dangerous_driving', 'rudeness', 'car_mismatch'];
+  static const _passengerPos = ['arrived_on_time', 'polite', 'no_heavy_luggage', 'pleasant_chat'];
+  static const _passengerNeg = ['late', 'too_much_luggage', 'rudeness', 'no_show'];
+
+  bool get _ratingPassenger => ref.read(authProvider).activeMode == ActiveMode.driver;
+  List<String> get _positiveTags => _ratingPassenger ? _passengerPos : _driverPos;
+  List<String> get _negativeTags => _ratingPassenger ? _passengerNeg : _driverNeg;
 
   @override
   void dispose() {
@@ -31,10 +44,29 @@ class _RateScreenState extends State<RateScreen> {
     super.dispose();
   }
 
+  Future<void> _submit() async {
+    if (_score < 1 || _submitting) return;
+    setState(() => _submitting = true);
+    try {
+      final comment = _comment.text.trim();
+      await ref.read(ratingsServiceProvider).create(
+            tripId: widget.tripId,
+            rateeId: widget.rateeId,
+            score: _score,
+            tags: _tags.toList(),
+            comment: comment.isEmpty ? null : comment,
+          );
+      if (mounted) setState(() => _sent = true);
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final name = mockTripById(widget.tripId).driver.name;
 
     if (_sent) return _success(dark);
 
@@ -54,10 +86,10 @@ class _RateScreenState extends State<RateScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 12),
-            Text('rate.question'.tr(namedArgs: {'name': name}),
+            Text('rate.question_generic'.tr(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontFamily: 'Fredoka',
+                    fontFamily: 'Manrope',
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: dark ? Colors.white : InkColors.c900)),
@@ -124,6 +156,7 @@ class _RateScreenState extends State<RateScreen> {
               TextField(
                 controller: _comment,
                 maxLines: 4,
+                maxLength: 500, // mini-app parity: MAX_COMMENT = 500 (+ counter)
                 style: TextStyle(fontSize: 14, color: dark ? Colors.white : InkColors.c900),
                 decoration: InputDecoration(
                   hintText: 'rate.comment_placeholder'.tr(),
@@ -142,7 +175,8 @@ class _RateScreenState extends State<RateScreen> {
             const Spacer(),
             AppButton(
               label: 'rate.submit'.tr(),
-              onPressed: _score > 0 ? () => setState(() => _sent = true) : null,
+              loading: _submitting,
+              onPressed: _score > 0 && !_submitting ? _submit : null,
             ),
           ],
         ),
@@ -169,7 +203,7 @@ class _RateScreenState extends State<RateScreen> {
               const SizedBox(height: 20),
               Text('rate.success_title'.tr(),
                   style: TextStyle(
-                      fontFamily: 'Fredoka',
+                      fontFamily: 'Manrope',
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                       color: dark ? Colors.white : InkColors.c900)),

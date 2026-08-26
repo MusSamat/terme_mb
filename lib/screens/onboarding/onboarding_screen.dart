@@ -1,17 +1,58 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/auth_provider.dart';
+import '../../theme/colors.dart';
 import '../../theme/role_theme.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/logo_mark.dart';
 
-/// Welcome / onboarding — port of tappjet_ft welcome-screen.
-class OnboardingScreen extends StatelessWidget {
+/// Welcome / onboarding — port of tappjet_ft welcome-screen. The two role
+/// buttons save the first-selected role (activeMode) and enter the app.
+class OnboardingScreen extends ConsumerWidget {
   const OnboardingScreen({super.key});
 
+  // Enter the app in [mode], persisting it as the default role everywhere.
+  void _continueAs(BuildContext context, WidgetRef ref, ActiveMode mode) {
+    ref.read(authProvider.notifier).setActiveMode(mode);
+    context.go('/');
+  }
+
+  Widget _roleButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 54,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(color: Color(0x22000000), blurRadius: 12, offset: Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 10),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w900, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final role = roleThemeFor(UiRole.passenger);
     final chips = [
       'welcome.chip_verified'.tr(),
@@ -36,7 +77,7 @@ class OnboardingScreen extends StatelessWidget {
                 Text('welcome.title'.tr(),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                        fontFamily: 'Fredoka',
+                        fontFamily: 'Manrope',
                         fontSize: 34,
                         fontWeight: FontWeight.w900,
                         color: Colors.white)),
@@ -67,26 +108,33 @@ class OnboardingScreen extends StatelessWidget {
                   ],
                 ),
                 const Spacer(),
-                Container(
-                  color: Colors.transparent,
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: AppButton(
-                          label: 'welcome.cta_primary'.tr(),
-                          onPressed: () => context.go('/auth/login'),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: () => context.go('/'),
-                        child: Text('welcome.cta_guest'.tr(),
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
-                      ),
-                    ],
-                  ),
+                Column(
+                  children: [
+                    _roleButton(
+                      icon: Icons.person,
+                      label: 'welcome.cta_passenger'.tr(),
+                      color: BrandColors.c600,
+                      onTap: () =>
+                          _continueAs(context, ref, ActiveMode.passenger),
+                    ),
+                    const SizedBox(height: 10),
+                    _roleButton(
+                      icon: Icons.directions_car_filled,
+                      label: 'welcome.cta_driver'.tr(),
+                      color: GrapeColors.c600,
+                      onTap: () => _continueAs(context, ref, ActiveMode.driver),
+                    ),
+                    const SizedBox(height: 10),
+                    // Returning users can jump straight to sign-in.
+                    TextButton(
+                      onPressed: () => context.go('/auth/login'),
+                      child: Text('welcome.cta_primary'.tr(),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white)),
+                    ),
+                  ],
                 ),
               ],
             ),

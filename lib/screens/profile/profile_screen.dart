@@ -1,15 +1,27 @@
+import 'dart:io';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/friendly_error.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../utils/config.dart';
+import '../../utils/image_pick.dart';
 import '../../widgets/action_modal.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
+import '../../widgets/query_error.dart';
+import 'cars_card.dart';
+import 'history_view.dart';
+import 'password_change_card.dart';
+import 'phone_change_card.dart';
+import 'profile_edit_card.dart';
 
 /// Profile — 1:1 port of tappjet_ft profile mobile layout: add-phone banner →
 /// hero card (trust chips + stat strip) → quick settings → pill tabs →
@@ -32,30 +44,96 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = auth.user;
     final isDriver = user?.isDriver ?? false;
 
-    return Scaffold(
+    // История / Настройки open as full sub-pages (back arrow → profile) instead
+    // of crowding the tab row; the pills carry only the 3 content sections.
+    final isSubPage = _tabs[_tab] == 'history' || _tabs[_tab] == 'settings';
+
+    return PopScope(
+      canPop: !isSubPage,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && mounted) setState(() => _tab = 0);
+      },
+      child: Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
       body: SafeArea(
         bottom: false,
         child: ListView(
           padding: EdgeInsets.fromLTRB(
               14, 12, 14, AppLayout.pillNavClearance + MediaQuery.of(context).padding.bottom),
-          children: [
-            if (user != null && !user.phoneVerified) ...[
-              _addPhoneBanner(dark),
-              const SizedBox(height: 14),
-            ],
-            _heroCard(dark, user, isDriver),
-            const SizedBox(height: 14),
-            _SettingsCard(),
-            const SizedBox(height: 14),
-            _pillTabs(dark),
-            const SizedBox(height: 14),
-            _tabContent(dark, isDriver, user?.loyaltyPoints ?? 0),
-          ],
+          children: isSubPage
+              ? [
+                  _subHeader(dark),
+                  const SizedBox(height: 8),
+                  _tabContent(dark, isDriver, user?.loyaltyPoints ?? 0),
+                ]
+              : [
+                  if (user != null && !user.phoneVerified) ...[
+                    _addPhoneBanner(dark),
+                    const SizedBox(height: 14),
+                  ],
+                  _heroCard(dark, user, isDriver),
+                  const SizedBox(height: 14),
+                  _pillTabs(dark),
+                  const SizedBox(height: 14),
+                  _tabContent(dark, isDriver, user?.loyaltyPoints ?? 0),
+                  const SizedBox(height: 14),
+                  _menuCard(dark),
+                ],
         ),
+      ),
       ),
     );
   }
+
+  // Sub-page header (История / Настройки) with a back arrow to the profile root.
+  Widget _subHeader(bool dark) {
+    final title = _tabs[_tab] == 'history' ? 'profile.tab_history'.tr() : 'profile.tab_settings'.tr();
+    return Row(children: [
+      GestureDetector(
+        onTap: () => setState(() => _tab = 0),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          child: Icon(Icons.arrow_back, color: dark ? Colors.white : InkColors.c900),
+        ),
+      ),
+      const SizedBox(width: 4),
+      Text(title, style: TextStyle(fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+    ]);
+  }
+
+  // Menu list under the content tabs — the quick RU/KG + theme toggles, then
+  // История поездок and Настройки as tappable rows (open as sub-pages).
+  Widget _menuCard(bool dark) {
+    return Column(children: [
+      _SettingsCard(),
+      const SizedBox(height: 14),
+      _card(
+        dark,
+        Column(children: [
+          _menuRow(dark, Icons.history, 'profile.tab_history'.tr(), () => setState(() => _tab = _tabs.indexOf('history'))),
+          Divider(height: 1, color: dark ? InkColors.c800 : InkColors.c100),
+          _menuRow(dark, Icons.settings_outlined, 'profile.tab_settings'.tr(), () => setState(() => _tab = _tabs.indexOf('settings'))),
+        ]),
+      ),
+    ]);
+  }
+
+  Widget _menuRow(bool dark, IconData icon, String label, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(children: [
+            Icon(icon, size: 20, color: dark ? InkColors.c300 : InkColors.c600),
+            const SizedBox(width: 12),
+            Expanded(child: Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? InkColors.c100 : InkColors.c800))),
+            const Icon(Icons.chevron_right, size: 20, color: InkColors.c400),
+          ]),
+        ),
+      );
 
   // ── Add-phone banner ───────────────────────────────────────────────────────
   Widget _addPhoneBanner(bool dark) => Container(
@@ -109,7 +187,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DriverAvatar(name: name, size: AvatarSize.xl, square: true),
+              GestureDetector(
+                onTap: _changeAvatar,
+                behavior: HitTestBehavior.opaque,
+                child: Stack(children: [
+                  DriverAvatar(name: name, imageUrl: ref.watch(authProvider).user?.avatarUrl, size: AvatarSize.xl, square: true),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(color: BrandColors.c600, shape: BoxShape.circle, border: Border.all(color: dark ? InkColors.c900 : Colors.white, width: 2)),
+                      child: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
+                    ),
+                  ),
+                ]),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -202,43 +295,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  // ── Pill tabs ────────────────────────────────────────────────────────────
+  // ── Content pills — 3 sections that fit the width (no horizontal overflow);
+  // История / Настройки moved to the menu list below. ────────────────────────
   Widget _pillTabs(bool dark) {
+    const shown = ['about', 'cars', 'reviews'];
     String label(String k) => switch (k) {
           'about' => 'profile.tab_about'.tr(),
           'cars' => 'profile.tab_cars'.tr(),
-          'reviews' => 'profile.tab_reviews'.tr(),
-          'history' => 'profile.tab_history'.tr(),
-          _ => 'profile.tab_settings'.tr(),
+          _ => 'profile.tab_reviews'.tr(),
         };
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _tabs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
-        itemBuilder: (_, i) {
-          final active = i == _tab;
-          return GestureDetector(
-            onTap: () => setState(() => _tab = i),
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: active ? BrandColors.c600 : (dark ? InkColors.c900 : Colors.white),
-                borderRadius: BorderRadius.circular(999),
-                border: active ? null : Border.all(color: dark ? InkColors.c700 : InkColors.c200),
+    return Row(
+      children: [
+        for (final k in shown) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _tab = _tabs.indexOf(k)),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                height: 40,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: _tabs[_tab] == k ? BrandColors.c600 : (dark ? InkColors.c900 : Colors.white),
+                  borderRadius: BorderRadius.circular(999),
+                  border: _tabs[_tab] == k ? null : Border.all(color: dark ? InkColors.c700 : InkColors.c200),
+                ),
+                // Long labels (e.g. «Өзүм жөнүндө» in kg) shrink to fit one line
+                // instead of wrapping/overflowing the pill.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(label(k),
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: _tabs[_tab] == k ? FontWeight.w900 : FontWeight.w700,
+                          color: _tabs[_tab] == k ? Colors.white : (dark ? InkColors.c300 : InkColors.c600))),
+                ),
               ),
-              child: Text(label(_tabs[i]),
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: active ? FontWeight.w900 : FontWeight.w700,
-                      color: active ? Colors.white : (dark ? InkColors.c300 : InkColors.c600))),
             ),
-          );
-        },
-      ),
+          ),
+          if (k != shown.last) const SizedBox(width: 6),
+        ],
+      ],
     );
   }
 
@@ -246,9 +345,82 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         'about' => _about(dark, isDriver, points),
         'cars' => _cars(dark, isDriver),
         'reviews' => _reviews(dark),
-        'history' => _hintCard(dark, 'profile.history_hint'.tr()),
+        'history' => ProfileHistoryView(dark: dark),
         _ => _settings(dark, isDriver),
       };
+
+  // Profile-completion nudge — 1:1 with the web ProfileCompletion component.
+  // Five 20% steps; hides itself once the profile is 100% complete.
+  Widget _profileCompletion(bool dark, bool isDriver) {
+    final user = ref.watch(authProvider).user;
+    final steps = <({bool done, String label, bool hint})>[
+      (done: user?.phoneVerified ?? false, label: 'profile.completion_phone'.tr(), hint: false),
+      (done: (user?.name ?? '').isNotEmpty, label: 'profile.completion_name'.tr(), hint: false),
+      (done: (user?.avatarUrl ?? '').isNotEmpty, label: 'profile.completion_avatar'.tr(), hint: true),
+      (done: (user?.bio ?? '').trim().isNotEmpty, label: 'profile.completion_bio'.tr(), hint: true),
+      (done: isDriver, label: 'profile.completion_driver'.tr(), hint: true),
+    ];
+    final pct = steps.fold<int>(0, (s, step) => s + (step.done ? 20 : 0));
+    if (pct == 100) return const SizedBox.shrink();
+    final hintText = 'profile.completion_hint'.tr(namedArgs: {'pct': '20'});
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: dark ? AccentColors.c500.withValues(alpha: 0.08) : AccentColors.c50,
+          borderRadius: BorderRadius.circular(AppRadii.xl2),
+          border: Border.all(color: dark ? AccentColors.c500.withValues(alpha: 0.3) : AccentColors.c200),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Expanded(
+              child: Text('profile.completion_title'.tr(namedArgs: {'pct': '$pct'}),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+            ),
+            Text('$pct%', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AccentColors.c700)),
+          ]),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: pct / 100,
+              minHeight: 8,
+              backgroundColor: dark ? AccentColors.c500.withValues(alpha: 0.15) : AccentColors.c100,
+              valueColor: const AlwaysStoppedAnimation(AccentColors.c500),
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (final step in steps)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                Icon(step.done ? Icons.check_circle : Icons.radio_button_unchecked,
+                    size: 16, color: step.done ? BrandColors.c600 : InkColors.c300),
+                const SizedBox(width: 8),
+                Text(step.label,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: step.done ? FontWeight.w600 : FontWeight.w700,
+                        decoration: step.done ? TextDecoration.lineThrough : null,
+                        color: step.done ? InkColors.c400 : (dark ? InkColors.c200 : InkColors.c700))),
+                if (!step.done && step.hint) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                        color: dark ? AccentColors.c500.withValues(alpha: 0.15) : AccentColors.c100,
+                        borderRadius: BorderRadius.circular(999)),
+                    child: Text(hintText, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AccentColors.c700)),
+                  ),
+                ],
+              ]),
+            ),
+        ]),
+      ),
+    );
+  }
 
   // ── About tab ──────────────────────────────────────────────────────────────
   Widget _about(bool dark, bool isDriver, int points) {
@@ -282,6 +454,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: 14),
         ],
+        _profileCompletion(dark, isDriver),
         _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             const Icon(Icons.format_quote, size: 16, color: BrandColors.c600),
@@ -289,7 +462,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Text('profile.bio_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
           ]),
           const SizedBox(height: 8),
-          Text('profile.bio_placeholder'.tr(), style: const TextStyle(fontSize: 15, height: 1.5, fontWeight: FontWeight.w600, color: InkColors.c400)),
+          Builder(builder: (_) {
+            // Mirror the web: show the user's real bio, fall back to placeholder.
+            final bio = ref.watch(authProvider).user?.bio?.trim() ?? '';
+            final hasBio = bio.isNotEmpty;
+            return Text(hasBio ? bio : 'profile.bio_placeholder'.tr(),
+                style: TextStyle(
+                    fontSize: 15,
+                    height: 1.5,
+                    fontWeight: FontWeight.w600,
+                    color: hasBio ? (dark ? InkColors.c200 : InkColors.c700) : InkColors.c400));
+          }),
         ])),
         const SizedBox(height: 14),
         GestureDetector(
@@ -319,102 +502,96 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _cars(bool dark, bool isDriver) {
-    if (!isDriver) {
-      return _hintCard(dark, 'empty.driver_trips.description'.tr());
-    }
-    return _card(dark, Row(children: [
-      Container(
-        width: 44,
-        height: 44,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: dark ? GrapeColors.c500.withValues(alpha: 0.15) : GrapeColors.c50, borderRadius: BorderRadius.circular(12)),
-        child: const Icon(Icons.directions_car, color: GrapeColors.c600),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Toyota Camry', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-          const Text('01KG 777 · Белый · 4 места', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c400)),
-        ]),
-      ),
-    ]));
+    // Cars belong to the user, not the active mode — always show the garage
+    // (add / select / remove), so «Авто» is never mysteriously empty.
+    return _card(dark, CarsCard(dark: dark));
   }
 
   Widget _reviews(bool dark) {
-    final reviews = [
-      ('Нургуль', 5, 'Отличный водитель, доехали быстро и комфортно.'),
-      ('Данияр', 5, 'Пунктуальный, аккуратная езда. Рекомендую!'),
-    ];
-    return Column(
-      children: [
-        for (final r in reviews)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: dark ? InkColors.c900 : Colors.white,
-              borderRadius: BorderRadius.circular(AppRadii.xl3),
-              boxShadow: AppShadows.card,
+    final myId = ref.watch(authProvider).user?.id;
+    if (myId == null) return const SizedBox.shrink();
+    return ref.watch(userRatingsProvider(myId)).when(
+      loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator(strokeWidth: 2.4, color: BrandColors.c500))),
+      error: (e, _) => QueryError(error: e, onRetry: () => ref.invalidate(userRatingsProvider(myId))),
+      data: (reviews) => reviews.isEmpty
+          ? _hintCard(dark, 'drivers.no_reviews'.tr())
+          : Column(
+              children: [
+                for (final r in reviews)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: dark ? InkColors.c900 : Colors.white,
+                      borderRadius: BorderRadius.circular(AppRadii.xl3),
+                      boxShadow: AppShadows.card,
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        Text(r.raterName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+                        const Spacer(),
+                        Row(children: [for (var i = 0; i < r.score; i++) const Icon(Icons.star, size: 13, color: AccentColors.c400)]),
+                      ]),
+                      if ((r.comment ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(r.comment!, style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: InkColors.c500)),
+                      ],
+                    ]),
+                  ),
+              ],
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text(r.$1, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-                const Spacer(),
-                Row(children: [for (var i = 0; i < r.$2; i++) const Icon(Icons.star, size: 13, color: AccentColors.c400)]),
-              ]),
-              const SizedBox(height: 4),
-              Text(r.$3, style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: InkColors.c500)),
-            ]),
-          ),
-      ],
     );
   }
 
+  Future<void> _changeAvatar() async {
+    try {
+      final img = await pickCompressedImage();
+      if (img == null) return;
+      final url = await ref.read(profileServiceProvider).uploadAvatar(img);
+      final cur = ref.read(authProvider).user;
+      if (cur != null) ref.read(authProvider.notifier).updateUser(cur.copyWith(avatarUrl: url));
+      Toasts.success('profile.saved'.tr());
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    }
+  }
+
   // ── Settings tab ─────────────────────────────────────────────────────────
+  // GDPR data export — pull the bytes and drop them in a file the OS can share.
+  Future<void> _exportData() async {
+    try {
+      final bytes = await ref.read(profileServiceProvider).exportData();
+      final file = File('${Directory.systemTemp.path}/tappjet_export_${DateTime.now().millisecondsSinceEpoch}.json');
+      await file.writeAsBytes(bytes);
+      if (mounted) Toasts.success('toasts.saved'.tr());
+    } catch (e) {
+      if (mounted) Toasts.error(friendlyError(e));
+    }
+  }
+
   Widget _settings(bool dark, bool isDriver) {
     return Column(
       children: [
-        _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _cardHead(dark, 'profile.personal_section'.tr()),
-          _formField(dark, 'Имя', ref.watch(authProvider).user?.name ?? ''),
-          const SizedBox(height: 10),
-          _formField(dark, 'profile.bio_title'.tr(), '', lines: 3),
-        ])),
+        _card(dark, ProfileEditCard(dark: dark)),
         if (isDriver) ...[
           const SizedBox(height: 14),
-          _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _cardHead(dark, 'profile.car_photo_section'.tr()),
-            Container(
-              height: 110,
-              decoration: BoxDecoration(
-                color: dark ? InkColors.c800 : InkColors.c50,
-                borderRadius: BorderRadius.circular(AppRadii.lg),
-                border: Border.all(color: dark ? InkColors.c700 : InkColors.c200),
-              ),
-              child: const Center(child: Icon(Icons.add_a_photo_outlined, color: InkColors.c400)),
-            ),
-          ])),
+          _card(dark, CarsCard(dark: dark)),
         ],
         const SizedBox(height: 14),
-        _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _cardHead(dark, 'profile.password_section'.tr()),
-          _formField(dark, 'password_form.current_label'.tr(), '', obscure: true),
-          const SizedBox(height: 10),
-          _formField(dark, 'password_form.new_label'.tr(), '', obscure: true),
-        ])),
+        _card(dark, PasswordChangeCard(dark: dark)),
         const SizedBox(height: 14),
-        _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _cardHead(dark, 'profile.phone_section'.tr()),
-          _formField(dark, 'profile.chip_phone'.tr(), ref.watch(authProvider).user?.phone ?? ''),
-        ])),
+        _card(dark, PhoneChangeCard(dark: dark)),
         const SizedBox(height: 14),
         _card(dark, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('profile.session_section'.tr().toUpperCase(),
               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: InkColors.c400)),
           const SizedBox(height: 12),
-          _sessionBtn(dark, Icons.devices, 'profile.logout_all'.tr(), InkColors.c700, () {
+          _sessionBtn(dark, Icons.devices, 'profile.logout_all'.tr(), InkColors.c700, () async {
+            try {
+              await ref.read(authServiceProvider).logoutAll(); // revoke every device
+            } catch (_) {/* clear locally regardless */}
             ref.read(authProvider.notifier).clearSession();
-            context.go('/');
+            if (mounted) context.go('/');
           }),
           const SizedBox(height: 8),
           _sessionBtn(dark, Icons.logout, 'profile.logout_btn'.tr(), CoralColors.c600, () async {
@@ -428,11 +605,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               danger: true,
             );
             if (!ok || !mounted) return;
+            try {
+              await ref.read(authServiceProvider).logout(); // revoke this device's token
+            } catch (_) {/* clear locally regardless */}
             notifier.clearSession();
-            context.go('/');
+            if (mounted) context.go('/');
           }),
           const SizedBox(height: 8),
-          _sessionBtn(dark, Icons.download, 'profile.export_btn'.tr(), InkColors.c500, () {}),
+          _sessionBtn(dark, Icons.download, 'profile.export_btn'.tr(), InkColors.c500, _exportData),
           const SizedBox(height: 8),
           _sessionBtn(dark, Icons.delete_outline, 'profile.delete_btn'.tr(), CoralColors.c600, () => context.push('/profile/delete')),
         ])),
@@ -440,33 +620,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _cardHead(bool dark, String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text(text, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
-      );
-
-  Widget _formField(bool dark, String label, String value, {int lines = 1, bool obscure = false}) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: InkColors.c400)),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: dark ? InkColors.c800 : InkColors.c50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: dark ? InkColors.c700 : InkColors.c200),
-            ),
-            child: TextField(
-              controller: TextEditingController(text: value),
-              maxLines: obscure ? 1 : lines,
-              obscureText: obscure,
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900),
-              decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 12)),
-            ),
-          ),
-        ],
-      );
 
   Widget _sessionBtn(bool dark, IconData icon, String label, Color color, VoidCallback onTap) => GestureDetector(
         onTap: onTap,

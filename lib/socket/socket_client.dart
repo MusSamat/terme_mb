@@ -42,13 +42,29 @@ class SocketClient {
     return s;
   }
 
-  void connect() => socket.connect();
+  void connect() {
+    final s = socket;
+    // Always stamp the current token before connecting (the socket may have been
+    // created before auth completed, or after a token refresh).
+    s.auth = {'token': _tokens.accessToken};
+    if (!s.connected) s.connect();
+  }
+
   void disconnect() => _socket?.disconnect();
+
+  bool get connected => _socket?.connected ?? false;
+
+  // Listener / emit passthroughs (used by the global listener + chat thread).
+  void on(String event, void Function(dynamic) handler) => socket.on(event, handler);
+  void off(String event, [void Function(dynamic)? handler]) => _socket?.off(event, handler);
+  void emit(String event, [dynamic data]) => _socket?.emit(event, data);
 
   void refreshAuth() {
     final s = _socket;
     if (s == null) return;
     s.auth = {'token': _tokens.accessToken};
+    // Reconnect with the new token (mirrors web refreshSocketAuth).
+    if (s.connected) s.disconnect().connect();
   }
 
   void dispose() {

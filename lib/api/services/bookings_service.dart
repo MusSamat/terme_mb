@@ -25,12 +25,25 @@ class BookingsService {
     return PagedResult.fromJson(res.data!, MockBooking.fromJson);
   }
 
-  Future<void> create({required String tripId, required int seats, String? comment}) =>
-      _dio.post('/bookings',
-          data: {'tripId': tripId, 'seatsCount': seats, if (comment != null) 'comment': comment},
-          options: Options(headers: {'Idempotency-Key': uuidV4()}));
+  /// Returns the created booking's id so the UI can link straight to it
+  /// (the waiting screen used to hardcode a fake "b1").
+  Future<String?> create({required String tripId, required int seats, String? comment}) async {
+    final res = await _dio.post<Map<String, dynamic>>('/bookings',
+        data: {'tripId': tripId, 'seatsCount': seats, if (comment != null) 'comment': comment},
+        options: Options(headers: {'Idempotency-Key': uuidV4()}));
+    return res.data?['id'] as String?;
+  }
+
+  /// GET /bookings/{id} — a single booking's full detail.
+  Future<MockBooking> get(String id) async {
+    final res = await _dio.get<Map<String, dynamic>>('/bookings/$id');
+    return MockBooking.fromJson(res.data!);
+  }
 
   Future<void> accept(String id) => _dio.patch('/bookings/$id/accept');
   Future<void> reject(String id) => _dio.patch('/bookings/$id/reject');
   Future<void> cancel(String id) => _dio.patch('/bookings/$id/cancel');
+
+  /// PATCH /bookings/{id}/no-show — driver marks the passenger as a no-show.
+  Future<void> markNoShow(String id) => _dio.patch('/bookings/$id/no-show');
 }

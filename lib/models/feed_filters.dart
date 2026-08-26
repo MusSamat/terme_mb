@@ -1,6 +1,8 @@
 /// Feed filter state — mirrors the tappjet_ft search query params.
 class FeedFilters {
   const FeedFilters({
+    this.from = '',
+    this.to = '',
     this.date = '', // '' = today, 'any', or YYYY-MM-DD
     this.sort = 'time', // time | price_asc | rating_desc
     this.onlyVerified = false,
@@ -13,6 +15,8 @@ class FeedFilters {
     this.pets = false,
   });
 
+  final String from;
+  final String to;
   final String date;
   final String sort;
   final bool onlyVerified;
@@ -25,6 +29,8 @@ class FeedFilters {
   final bool pets;
 
   FeedFilters copyWith({
+    String? from,
+    String? to,
     String? date,
     String? sort,
     bool? onlyVerified,
@@ -39,6 +45,8 @@ class FeedFilters {
     bool clearMaxPrice = false,
   }) {
     return FeedFilters(
+      from: from ?? this.from,
+      to: to ?? this.to,
       date: date ?? this.date,
       sort: sort ?? this.sort,
       onlyVerified: onlyVerified ?? this.onlyVerified,

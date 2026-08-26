@@ -3,123 +3,164 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// Two-line intent switch — 1:1 port of tappjet_ft intent-toggle.tsx.
-/// «Я пассажир · ищу поездку» / «Я водитель · ищу пассажиров».
+/// Role / intent switch — a segmented control with one sliding thumb in the
+/// active role colour (teal = passenger, grape = driver). Reads as a single
+/// control with a clear current state, not two rival cards. Optional [showHint]
+/// adds a one-line caption spelling out what the mode shows (used on the feed).
+/// Same public API as before: [driver] + [onChanged].
 class IntentToggle extends StatelessWidget {
-  const IntentToggle({super.key, required this.driver, required this.onChanged});
+  const IntentToggle({
+    super.key,
+    required this.driver,
+    required this.onChanged,
+    this.showHint = false,
+  });
 
   final bool driver;
   final ValueChanged<bool> onChanged;
+  final bool showHint;
+
+  static const _dur = Duration(milliseconds: 240);
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = driver ? GrapeColors.c600 : BrandColors.c600;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: _card(
-            context,
-            active: !driver,
-            accent: BrandColors.c600,
-            accentBg: BrandColors.c50,
-            accentBorder: BrandColors.c500,
-            accentText: BrandColors.c700,
-            icon: Icons.person,
-            title: 'feed.mode_trips_title'.tr(),
-            sub: 'feed.mode_trips_sub'.tr(),
-            onTap: () => onChanged(false),
+        Container(
+          height: 48,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: dark ? InkColors.c800 : InkColors.c100,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Stack(
+            children: [
+              // Sliding thumb — half-width, animates left/right with the mode.
+              Positioned.fill(
+                child: AnimatedAlign(
+                  duration: _dur,
+                  curve: Curves.easeOutCubic,
+                  alignment:
+                      driver ? Alignment.centerRight : Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: 0.5,
+                    heightFactor: 1,
+                    child: AnimatedContainer(
+                      duration: _dur,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        borderRadius: BorderRadius.circular(11),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.45),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    _segment(
+                      active: !driver,
+                      icon: Icons.person,
+                      label: 'feed.mode_trips_title'.tr(),
+                      onTap: () => onChanged(false),
+                      dark: dark,
+                    ),
+                    _segment(
+                      active: driver,
+                      icon: Icons.directions_car_filled,
+                      label: 'feed.mode_requests_title'.tr(),
+                      onTap: () => onChanged(true),
+                      dark: dark,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _card(
-            context,
-            active: driver,
-            accent: GrapeColors.c500,
-            accentBg: GrapeColors.c50,
-            accentBorder: GrapeColors.c500,
-            accentText: GrapeColors.c600,
-            icon: Icons.directions_car_filled,
-            title: 'feed.mode_requests_title'.tr(),
-            sub: 'feed.mode_requests_sub'.tr(),
-            onTap: () => onChanged(true),
-          ),
-        ),
+        if (showHint) ...[
+          const SizedBox(height: 8),
+          _hint(dark, accent),
+        ],
       ],
     );
   }
 
-  Widget _card(
-    BuildContext context, {
+  Widget _segment({
     required bool active,
-    required Color accent,
-    required Color accentBg,
-    required Color accentBorder,
-    required Color accentText,
     required IconData icon,
-    required String title,
-    required String sub,
+    required String label,
     required VoidCallback onTap,
+    required bool dark,
   }) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: active
-              ? (dark ? InkColors.c800 : accentBg)
-              : (dark ? InkColors.c800 : Colors.white),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            width: 3,
-            color: active ? accentBorder : (dark ? InkColors.c700 : InkColors.c200),
+    final off = dark ? InkColors.c400 : InkColors.c500;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: active,
+        label: label,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedDefaultTextStyle(
+            duration: _dur,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: active ? Colors.white : off,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: active ? Colors.white : off),
+                const SizedBox(width: 7),
+                Flexible(
+                  child:
+                      Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              ],
+            ),
           ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: active ? accent : (dark ? InkColors.c700 : InkColors.c100),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 16, color: active ? Colors.white : InkColors.c400),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14,
-                          height: 1.1,
-                          fontWeight: FontWeight.w900,
-                          color: active
-                              ? (dark ? Colors.white : accentText)
-                              : (dark ? InkColors.c300 : InkColors.c700))),
-                  Text(sub,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: active
-                              ? (dark ? InkColors.c300 : InkColors.c600)
-                              : InkColors.c500)),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
+    );
+  }
+
+  // One-line caption: identity + what the feed shows for this mode.
+  Widget _hint(bool dark, Color accent) {
+    final title =
+        driver ? 'feed.mode_requests_title'.tr() : 'feed.mode_trips_title'.tr();
+    final hint =
+        driver ? 'feed.mode_requests_hint'.tr() : 'feed.mode_trips_hint'.tr();
+    return Row(
+      children: [
+        Icon(driver ? Icons.directions_car_filled : Icons.search,
+            size: 14, color: accent),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            '$title · $hint',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: dark ? InkColors.c400 : InkColors.c500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

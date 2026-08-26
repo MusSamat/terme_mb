@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../models/passenger_request.dart';
+import '../../models/request_response.dart';
 import '../../utils/uuid.dart';
 import '../paged_result.dart';
 
@@ -11,8 +12,8 @@ class RequestsService {
 
   Future<PagedResult<PassengerRequestItem>> list({String? from, String? to, String? date, String? cursor}) async {
     final res = await _dio.get<Map<String, dynamic>>('/passenger-requests', queryParameters: {
-      if (from != null) 'from': from,
-      if (to != null) 'to': to,
+      if (from != null && from.isNotEmpty) 'from_city': from,
+      if (to != null && to.isNotEmpty) 'to_city': to,
       if (date != null) 'date': date,
       if (cursor != null) 'cursor': cursor,
     });
@@ -24,9 +25,15 @@ class RequestsService {
     return PassengerRequestItem.fromJson(res.data!);
   }
 
-  Future<Map<String, int>> calendar() async {
-    final res = await _dio.get<Map<String, dynamic>>('/passenger-requests/calendar');
-    return res.data!.map((k, v) => MapEntry(k, (v as num).toInt()));
+  /// GET /passenger-requests/calendar?from_city&to_city → per-day open-request
+  /// counts for the route. { data: [{date, count}] } → {date: count}.
+  Future<Map<String, int>> calendar(String fromCity, String toCity) async {
+    final res = await _dio.get<Map<String, dynamic>>('/passenger-requests/calendar', queryParameters: {
+      'from_city': fromCity,
+      'to_city': toCity,
+    });
+    final rows = (res.data?['data'] as List?) ?? const [];
+    return {for (final r in rows) (r['date'] as String): ((r['count'] as num?)?.toInt() ?? 0)};
   }
 
   Future<PagedResult<PassengerRequestItem>> mine({String? cursor}) async {
@@ -51,4 +58,40 @@ class RequestsService {
 
   Future<void> like(String id) => _dio.post('/passenger-requests/$id/like');
   Future<void> unlike(String id) => _dio.delete('/passenger-requests/$id/like');
+
+  /// PATCH /passenger-requests/{id} — edit own open request (seats/date/comment).
+  Future<void> edit(String id, Map<String, dynamic> patch) => _dio.patch('/passenger-requests/$id', data: patch);
+
+  /// DELETE /passenger-requests/{id} — cancel the passenger's own request.
+  Future<void> cancel(String id) => _dio.delete('/passenger-requests/$id');
+
+  /// POST /passenger-requests/{id}/view — deduped view tracking.
+  Future<void> recordView(String id) => _dio.post('/passenger-requests/$id/view');
+
+  /// POST /passenger-requests/{id}/contact — reveal the passenger's phone.
+  Future<String?> revealContact(String id) async {
+    final res = await _dio.post<Map<String, dynamic>>('/passenger-requests/$id/contact');
+    return res.data?['phone'] as String?;
+  }
+
+  /// GET /passenger-requests/{id}/responses — driver offers on the request
+  /// (owner-only). The backend returns a bare array, not a paged envelope.
+  Future<List<RequestResponse>> responses(String requestId) async {
+    final res = await _dio.get<List<dynamic>>('/passenger-requests/$requestId/responses');
+    return (res.data ?? const [])
+        .map((e) => RequestResponse.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// POST /passenger-requests/{requestId}/respond/{responseId}/accept — accept a
+  /// driver's offer; the backend creates a booking and returns its id.
+  Future<String?> acceptResponse(String requestId, String responseId) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+        '/passenger-requests/$requestId/respond/$responseId/accept');
+    return res.data?['bookingId'] as String?;
+  }
+
+  /// POST /passenger-requests/{requestId}/respond/{responseId}/decline.
+  Future<void> declineResponse(String requestId, String responseId) =>
+      _dio.post('/passenger-requests/$requestId/respond/$responseId/decline');
 }

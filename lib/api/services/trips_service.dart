@@ -18,8 +18,8 @@ class TripsService {
     Map<String, dynamic>? filters,
   }) async {
     final res = await _dio.get<Map<String, dynamic>>('/trips', queryParameters: {
-      if (from != null) 'from': from,
-      if (to != null) 'to': to,
+      if (from != null && from.isNotEmpty) 'from_city': from,
+      if (to != null && to.isNotEmpty) 'to_city': to,
       if (date != null) 'date': date,
       if (cursor != null) 'cursor': cursor,
       ...?filters,
@@ -27,13 +27,15 @@ class TripsService {
     return PagedResult.fromJson(res.data!, TripCardItem.fromJson);
   }
 
-  /// GET /trips/calendar — per-day availability counts.
-  Future<Map<String, int>> calendar({String? from, String? to}) async {
+  /// GET /trips/calendar?from_city&to_city → per-day active-trip counts for the
+  /// route. Response is { data: [{date, count}] } → flattened to {date: count}.
+  Future<Map<String, int>> calendar(String fromCity, String toCity) async {
     final res = await _dio.get<Map<String, dynamic>>('/trips/calendar', queryParameters: {
-      if (from != null) 'from': from,
-      if (to != null) 'to': to,
+      'from_city': fromCity,
+      'to_city': toCity,
     });
-    return res.data!.map((k, v) => MapEntry(k, (v as num).toInt()));
+    final rows = (res.data?['data'] as List?) ?? const [];
+    return {for (final r in rows) (r['date'] as String): ((r['count'] as num?)?.toInt() ?? 0)};
   }
 
   /// GET /trips/{id} — full detail.
@@ -61,9 +63,36 @@ class TripsService {
     return TripCardItem.fromJson(res.data!);
   }
 
+  /// GET /routes/price-suggestion?from&to → { suggested, min, max } price hints
+  /// for the create-trip form.
+  Future<({int suggested, int min, int max})> priceSuggestion(String from, String to) async {
+    final res = await _dio.get<Map<String, dynamic>>('/routes/price-suggestion',
+        queryParameters: {'from': from, 'to': to});
+    final d = res.data ?? const {};
+    return (
+      suggested: ((d['suggested'] ?? 0) as num).toInt(),
+      min: ((d['min'] ?? 0) as num).toInt(),
+      max: ((d['max'] ?? 0) as num).toInt(),
+    );
+  }
+
   Future<void> like(String id) => _dio.post('/trips/$id/like');
   Future<void> unlike(String id) => _dio.delete('/trips/$id/like');
   Future<void> recordView(String id) => _dio.post('/trips/$id/view');
+
+  // ── Owner trip management ────────────────────────────────────────────────
+  /// PATCH /trips/{id} — edit price / comment / luggage / preferences.
+  Future<void> edit(String id, Map<String, dynamic> patch) => _dio.patch('/trips/$id', data: patch);
+
+  /// DELETE /trips/{id} — cancel the trip (optional reason).
+  Future<void> cancel(String id, {String? reason}) =>
+      _dio.delete('/trips/$id', data: {if (reason != null) 'reason': reason});
+
+  /// PATCH /trips/{id}/complete — mark the trip finished.
+  Future<void> complete(String id) => _dio.patch('/trips/$id/complete');
+
+  /// POST /trips/{id}/seats — adjust available seats by +1 / -1.
+  Future<void> adjustSeats(String id, int delta) => _dio.post('/trips/$id/seats', data: {'delta': delta});
 
   /// POST /trips/{id}/contact — reveal driver phone (after accepted).
   Future<String?> revealContact(String id) async {

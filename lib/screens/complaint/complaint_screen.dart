@@ -1,30 +1,74 @@
+import 'dart:io';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/friendly_error.dart';
+import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../utils/image_pick.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_toast.dart';
 
-class ComplaintScreen extends StatefulWidget {
+class ComplaintScreen extends ConsumerStatefulWidget {
   const ComplaintScreen({super.key, this.userId, this.tripId});
   final String? userId;
   final String? tripId;
 
   @override
-  State<ComplaintScreen> createState() => _ComplaintScreenState();
+  ConsumerState<ComplaintScreen> createState() => _ComplaintScreenState();
 }
 
-class _ComplaintScreenState extends State<ComplaintScreen> {
-  static const _categories = ['safety', 'fraud', 'behavior', 'payment', 'other'];
-  String _category = 'behavior';
+class _ComplaintScreenState extends ConsumerState<ComplaintScreen> {
+  // Backend enum: safety | fraud | rudeness | no_show | other.
+  static const _categories = ['safety', 'fraud', 'rudeness', 'no_show', 'other'];
+  String _category = 'safety';
   final _desc = TextEditingController();
+  final List<File> _photos = [];
   bool _sent = false;
+  bool _submitting = false;
 
   @override
   void dispose() {
     _desc.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPhotos() async {
+    if (_photos.length >= 5) return;
+    try {
+      final picked = await pickCompressedImages(limit: 5 - _photos.length);
+      if (picked.isNotEmpty && mounted) setState(() => _photos.addAll(picked));
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    if (widget.userId == null && widget.tripId == null) {
+      Toasts.error('complaint.err_no_target'.tr());
+      return;
+    }
+    if (_desc.text.trim().length < 20) return;
+    setState(() => _submitting = true);
+    try {
+      await ref.read(complaintsServiceProvider).create(
+            category: _category,
+            description: _desc.text.trim(),
+            targetUserId: widget.userId,
+            targetTripId: widget.tripId,
+            attachments: _photos,
+          );
+      if (mounted) setState(() => _sent = true);
+    } catch (e) {
+      Toasts.error(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -50,7 +94,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                 const SizedBox(height: 18),
                 Text('complaint.success_title'.tr(),
                     style: TextStyle(
-                        fontFamily: 'Fredoka',
+                        fontFamily: 'Manrope',
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: dark ? Colors.white : InkColors.c900)),
@@ -86,7 +130,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
         ),
         title: Text('complaint.title'.tr(),
             style: TextStyle(
-                fontFamily: 'Fredoka',
+                fontFamily: 'Manrope',
                 fontWeight: FontWeight.w800,
                 fontSize: 20,
                 color: dark ? Colors.white : InkColors.c900)),
@@ -161,23 +205,51 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
           Text('complaint.photos_label'.tr(),
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              height: 88,
-              decoration: BoxDecoration(
-                color: dark ? InkColors.c900 : Colors.white,
-                borderRadius: BorderRadius.circular(AppRadii.lg),
-                border: Border.all(
-                    color: dark ? InkColors.c800 : InkColors.c200, style: BorderStyle.solid),
+          if (_photos.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var i = 0; i < _photos.length; i++)
+                    Stack(children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                        child: Image.file(_photos[i], width: 72, height: 72, fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: IconButton(
+                          onPressed: () => setState(() => _photos.removeAt(i)),
+                          icon: const CircleAvatar(radius: 11, backgroundColor: Colors.black54, child: Icon(Icons.close, size: 14, color: Colors.white)),
+                          tooltip: 'complaint.remove_photo_label'.tr(),
+                        ),
+                      ),
+                    ]),
+                ],
               ),
-              child: const Center(child: Icon(Icons.add_a_photo_outlined, color: InkColors.c400)),
             ),
-          ),
+          if (_photos.length < 5)
+            GestureDetector(
+              onTap: _pickPhotos,
+              child: Container(
+                height: 88,
+                decoration: BoxDecoration(
+                  color: dark ? InkColors.c900 : Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                  border: Border.all(
+                      color: dark ? InkColors.c800 : InkColors.c200, style: BorderStyle.solid),
+                ),
+                child: const Center(child: Icon(Icons.add_a_photo_outlined, color: InkColors.c400)),
+              ),
+            ),
           const SizedBox(height: 20),
           AppButton(
             label: 'complaint.submit_btn'.tr(),
-            onPressed: valid ? () => setState(() => _sent = true) : null,
+            loading: _submitting,
+            onPressed: valid && !_submitting ? _submit : null,
           ),
         ],
       ),
