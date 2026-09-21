@@ -79,4 +79,23 @@ class SelfUser {
         notificationsEnabled: (j['notificationsEnabled'] ?? true) as bool,
         createdAt: j['createdAt'] != null ? DateTime.tryParse(j['createdAt'] as String) : null,
       );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'surname': surname,
+        'roles': roles,
+        'phone': phone,
+        'phoneVerified': phoneVerified,
+        'telegramLinked': telegramLinked,
+        'language': language,
+        'bio': bio,
+        'avatarUrl': avatarUrl,
+        'rating': rating,
+        'ratingCount': ratingCount,
+        'loyaltyTier': loyaltyTier,
+        'loyaltyPoints': loyaltyPoints,
+        'notificationsEnabled': notificationsEnabled,
+        'createdAt': createdAt?.toIso8601String(),
+      };
 }

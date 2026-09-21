@@ -89,19 +89,32 @@ final apiBootstrapProvider = Provider<void>((ref) {
       notifier.setStatus(AuthStatus.anonymous);
       return;
     }
-    notifier.setStatus(AuthStatus.loading);
+    // Optimistic hydrate: render the logged-in shell instantly from the cached
+    // profile, then silently re-authenticate in the background (single refresh —
+    // same as before, so no double-refresh / token-reuse risk).
+    final cached = notifier.readCachedUser();
+    if (cached != null) {
+      notifier.setSession(cached); // authenticated now; the real token lands below
+    } else {
+      notifier.setStatus(AuthStatus.loading);
+    }
     try {
       final token = await auth.refresh();
       if (token == null) throw Exception('refresh_failed');
       tokens.set(token);
       final me = await auth.me();
       notifier.setSession(me, accessToken: token);
+    } on DioException catch (e) {
+      // A definitive auth failure (dead / rotated cookie) → really log out. A mere
+      // offline blip (no response) keeps the optimistic cached session, so a valid
+      // 30-day login survives a network hiccup; the next online call refreshes.
+      if (e.response?.statusCode == 401) {
+        notifier.clearSession();
+      } else if (cached == null) {
+        notifier.setStatus(AuthStatus.anonymous);
+      }
     } catch (_) {
-      // Could be a dead cookie OR just an offline launch — don't destroy the
-      // stored cookie/hint (a valid 30-day session must survive a network blip);
-      // just fall back to anonymous. A later online launch, or a manual login,
-      // restores. An expired cookie simply keeps failing harmlessly.
-      notifier.setStatus(AuthStatus.anonymous);
+      if (cached == null) notifier.setStatus(AuthStatus.anonymous);
     }
   }
 

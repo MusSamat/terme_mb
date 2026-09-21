@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/auth_provider.dart';
 import '../providers/core_providers.dart';
 import '../providers/data_providers.dart';
 import '../providers/presence_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/colors.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/logo_mark.dart';
 import '../widgets/offline_banner.dart';
 import 'router.dart';
 
@@ -48,7 +51,46 @@ class TermeApp extends ConsumerWidget {
           if (child != null) child,
           const OfflineBanner(),
           const ToastOverlay(),
+          // Full-screen loader while the session is being restored — hides the
+          // login/guest UI so a cold start never flashes it. Skipped entirely
+          // when the cached profile hydrated us straight to authenticated.
+          const _StartupGate(),
         ],
+      ),
+    );
+  }
+}
+
+/// Branded full-screen loader shown while auth is `idle`/`loading` (cold-start
+/// session restore). Invisible once resolved — including the optimistic-hydrate
+/// path, which jumps straight to `authenticated` and never touches this.
+class _StartupGate extends ConsumerWidget {
+  const _StartupGate();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(authProvider.select((s) => s.status));
+    if (status != AuthStatus.idle && status != AuthStatus.loading) {
+      return const SizedBox.shrink();
+    }
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Positioned.fill(
+      child: ColoredBox(
+        color: dark ? InkColors.c950 : InkColors.c50,
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LogoMark(size: 72),
+              SizedBox(height: 22),
+              SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c600),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
@@ -65,6 +66,9 @@ class AuthNotifier extends Notifier<AuthState> {
       ref.read(tokenStoreProvider).set(accessToken);
     }
     _box.put(StorageKeys.sessionHint, '1');
+    // Cache the profile so the next cold start can render the logged-in shell
+    // instantly (optimistic hydrate) before the network refresh completes.
+    _box.put(StorageKeys.cachedUser, jsonEncode(user.toJson()));
     state = state.copyWith(
       status: AuthStatus.authenticated,
       user: user,
@@ -74,11 +78,24 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void updateUser(SelfUser user) => state = state.copyWith(user: user);
 
+  /// Last known profile, for optimistic hydrate on cold start. Null if none or
+  /// unparseable.
+  SelfUser? readCachedUser() {
+    try {
+      final raw = _box.get(StorageKeys.cachedUser) as String?;
+      if (raw == null) return null;
+      return SelfUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
   void clearSession() {
     ref.read(tokenStoreProvider).clear();
     // Drop the persisted refresh cookie so a restart can't silently re-login.
     unawaited(ref.read(dioClientProvider).cookieJar.deleteAll());
     _box.delete(StorageKeys.sessionHint);
+    _box.delete(StorageKeys.cachedUser);
     state = AuthState(status: AuthStatus.anonymous, activeMode: state.activeMode);
   }
 

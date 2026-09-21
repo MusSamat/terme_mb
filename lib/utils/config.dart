@@ -32,6 +32,7 @@ class StorageKeys {
   static const box = 'terme';
 
   static const sessionHint = 'terme_session'; // "1" when a session may exist
+  static const cachedUser = 'terme_user'; // last SelfUser JSON — for optimistic hydrate
   static const activeMode = 'terme_mode'; // passenger | driver
   static const theme = 'terme_theme'; // light | dark | system
   static const locale = 'terme_locale'; // ru | kg
