@@ -16,6 +16,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/logo_mark.dart';
 import 'auth_fields.dart';
+import '../../utils/phone.dart';
 
 /// Classical registration — phone → WhatsApp OTP (own page) → name + surname +
 /// password (own page) → account created. If the number already exists, we stop
@@ -30,7 +31,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 enum _Step { phone, otp, details }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _phone = TextEditingController();
+  final _phone = TextEditingController(text: kDefaultDial);
   final _otp = TextEditingController();
   final _name = TextEditingController();
   final _surname = TextEditingController();
@@ -44,8 +45,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   int _resend = 0;
   Timer? _resendTimer;
 
-  String get _fullPhone => '+996${_phone.text}';
-  bool get _phoneValid => _phone.text.length == 9;
+  String get _fullPhone => _phone.text;
+  bool get _phoneValid => isValidPhone(_phone.text);
   bool get _otpValid => _otp.text.length == 6;
   bool get _canSubmit =>
       _name.text.trim().isNotEmpty &&
@@ -370,7 +371,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 }
 
-/// WhatsApp-branded action button (WhatsApp green) for code-delivery actions.
+/// Primary action button (brand amber) for the "get WhatsApp code" action.
 class _WhatsappButton extends StatelessWidget {
   const _WhatsappButton({required this.label, required this.onPressed, this.loading = false});
 
@@ -389,13 +390,13 @@ class _WhatsappButton extends StatelessWidget {
         child: Container(
           height: 52,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: const Color(0xFF25D366), borderRadius: BorderRadius.circular(AppRadii.lg)),
+          decoration: BoxDecoration(color: AccentColors.c500, borderRadius: BorderRadius.circular(AppRadii.lg)),
           child: loading
-              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AccentColors.ink))
               : Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.white),
+                  const Icon(Icons.chat_bubble_outline, size: 18, color: AccentColors.ink),
                   const SizedBox(width: 8),
-                  Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white)),
+                  Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AccentColors.ink)),
                 ]),
         ),
       ),

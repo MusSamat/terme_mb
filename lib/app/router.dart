@@ -132,7 +132,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/auth/register',
-        builder: (c, s) => const RegisterScreen(),
+        // Auth is unified & passwordless — registration happens inside the login
+        // flow (new number → name+surname). Keep the path as a redirect.
+        redirect: (c, s) => '/auth/login',
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,

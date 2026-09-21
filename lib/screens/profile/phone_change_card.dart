@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../api/friendly_error.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../utils/phone.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/app_button.dart';
@@ -57,13 +58,13 @@ enum _Step { form, otp }
 
 class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
   final _password = TextEditingController();
-  final _phone = TextEditingController();
+  final _phone = TextEditingController(text: kDefaultDial);
   final _otp = TextEditingController();
   _Step _step = _Step.form;
   bool _showPass = false;
   bool _loading = false;
 
-  String get _fullPhone => '+996${_phone.text}';
+  String get _fullPhone => _phone.text;
 
   @override
   void dispose() {
@@ -74,7 +75,7 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
   }
 
   Future<void> _start() async {
-    if (_phone.text.length != 9 || _password.text.isEmpty || _loading) return;
+    if (!isValidPhone(_phone.text) || _password.text.isEmpty || _loading) return;
     setState(() => _loading = true);
     try {
       await ref.read(profileServiceProvider).startPhoneChange(_fullPhone, _password.text);
@@ -132,7 +133,7 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
             AppButton(
               label: 'auth.register.send_code_btn'.tr(),
               loading: _loading,
-              onPressed: (_phone.text.length == 9 && _password.text.isNotEmpty) ? _start : null,
+              onPressed: (isValidPhone(_phone.text) && _password.text.isNotEmpty) ? _start : null,
             ),
           ] else ...[
             Text('${'auth.register.otp_dm_hint'.tr()} $_fullPhone', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c500)),

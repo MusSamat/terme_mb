@@ -1,17 +1,17 @@
 /// Build-time configuration. Pass via `--dart-define`:
-///   flutter run --dart-define=API_URL=https://api.tappjet.kg/api/v1 \
-///               --dart-define=WS_URL=wss://api.tappjet.kg
+///   flutter run --dart-define=API_URL=https://api.terme.kg/v1 \
+///               --dart-define=WS_URL=wss://api.terme.kg
 class AppConfig {
   // Real production backend (path is /v1, not /api/v1). Overridable via
   // --dart-define=API_URL=... for local/staging.
   static const apiBaseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://api.tappjet.kg/v1',
+    defaultValue: 'https://api.terme.kg/v1',
   );
 
   static const wsUrl = String.fromEnvironment(
     'WS_URL',
-    defaultValue: 'wss://api.tappjet.kg',
+    defaultValue: 'wss://api.terme.kg',
   );
 
   /// Active auth providers (mirror of web AUTH_TELEGRAM_ONLY flag).

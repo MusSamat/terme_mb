@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../utils/phone.dart';
 
 /// Shared classical-auth input fields (phone / password / OTP) used by the
 /// login and register screens. Styling matches the design system tokens.
@@ -49,23 +50,20 @@ class PhoneField extends StatelessWidget {
       height: 52,
       padding: const EdgeInsets.only(left: 14),
       decoration: _fieldBox(dark),
-      child: Row(children: [
-        const Text('+996 ', style: TextStyle(fontWeight: FontWeight.w800, color: InkColors.c500)),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
-            onChanged: (_) => onChanged?.call(),
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: dark ? Colors.white : InkColors.c900),
-            decoration: const InputDecoration(
-              hintText: '000 000 000',
-              hintStyle: TextStyle(color: InkColors.c300, fontWeight: FontWeight.w500),
-              border: InputBorder.none,
-            ),
-          ),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.phone,
+        // Editable E.164 — defaults to +996 (seeded by the screens); users can
+        // change the country code. +996 caps at 9 national digits (see PhoneInputFormatter).
+        inputFormatters: [PhoneInputFormatter()],
+        onChanged: (_) => onChanged?.call(),
+        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: dark ? Colors.white : InkColors.c900),
+        decoration: const InputDecoration(
+          hintText: '+996 700 123 456',
+          hintStyle: TextStyle(color: InkColors.c300, fontWeight: FontWeight.w500),
+          border: InputBorder.none,
         ),
-      ]),
+      ),
     );
   }
 }

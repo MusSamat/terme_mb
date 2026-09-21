@@ -47,7 +47,7 @@ class AuthService {
     required String code,
     required String name,
     required String surname,
-    required String password,
+    String? password, // optional: mobile registers passwordless (phone+OTP only)
   }) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/auth/register',
@@ -56,8 +56,8 @@ class AuthService {
         'code': code,
         'name': name,
         'surname': surname,
-        'password': password,
-        'channel': 'web',
+        if (password != null) 'password': password,
+        'channel': 'mobile',
       },
     );
     return AuthResult.fromJson(res.data!);
