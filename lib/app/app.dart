@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/core_providers.dart';
 import '../providers/data_providers.dart';
+import '../providers/presence_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/offline_banner.dart';
@@ -20,6 +21,7 @@ class TermeApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     ref.watch(apiBootstrapProvider); // attach dio refresh → auth/token store
     ref.watch(socketBootstrapProvider); // live socket (notifications/chat/bookings)
+    ref.watch(presenceBootstrapProvider); // presence heartbeat (online counter)
 
     return MaterialApp.router(
       title: 'Terme',

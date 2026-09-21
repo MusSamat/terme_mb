@@ -13,6 +13,7 @@ import '../api/services/ratings_service.dart';
 import '../api/services/requests_service.dart';
 import '../api/services/trips_service.dart';
 import '../api/services/users_service.dart';
+import '../api/services/presence_service.dart';
 import '../data/mock_app_data.dart';
 import '../data/mock_requests.dart';
 import '../data/mock_trips.dart';
@@ -43,6 +44,20 @@ final notificationsServiceProvider = Provider<NotificationsService>((ref) => Not
 final loyaltyServiceProvider = Provider<LoyaltyService>((ref) => LoyaltyService(_dio(ref)));
 final citiesServiceProvider = Provider<CitiesService>((ref) => CitiesService(_dio(ref)));
 final popularRoutesProvider = FutureProvider<List<PopularRoute>>((ref) => ref.read(citiesServiceProvider).popularRoutes());
+final presenceServiceProvider = Provider<PresenceService>((ref) => PresenceService(_dio(ref)));
+
+/// Live online count — polls every 20s for the badge. Keeps the last value on error.
+final onlineCountProvider = StreamProvider.autoDispose<int>((ref) async* {
+  final svc = ref.watch(presenceServiceProvider);
+  while (true) {
+    try {
+      yield await svc.online();
+    } catch (_) {
+      // ignore transient errors, keep previous value
+    }
+    await Future<void>.delayed(const Duration(seconds: 20));
+  }
+});
 final ratingsServiceProvider = Provider<RatingsService>((ref) => RatingsService(_dio(ref)));
 final complaintsServiceProvider = Provider<ComplaintsService>((ref) => ComplaintsService(_dio(ref)));
 final profileServiceProvider = Provider<ProfileService>((ref) => ProfileService(_dio(ref)));

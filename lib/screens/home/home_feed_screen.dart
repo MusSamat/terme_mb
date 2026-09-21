@@ -9,6 +9,7 @@ import '../../models/trip_card_item.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/online_badge.dart';
 import '../../widgets/query_error.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
@@ -176,6 +177,8 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Align(alignment: Alignment.centerRight, child: OnlineBadge()),
+          const SizedBox(height: 10),
           Text('feed.route_hint'.tr(),
               style: const TextStyle(
                   fontSize: 14,

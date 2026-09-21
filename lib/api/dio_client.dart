@@ -51,6 +51,8 @@ class DioClient {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          // Platform attribution for presence/analytics (web | mini | mobile).
+          options.headers['X-Client-Platform'] = 'mobile';
           if (options.data is FormData) {
             options.headers.remove('Content-Type');
           }
