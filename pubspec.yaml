@@ -31,10 +31,10 @@ dependencies:
   # Storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  # flutter_secure_storage: its Linux plugin bundles an old json.hpp that fails
-  # to compile under modern Clang (-Werror). Re-enable when implementing token
-  # persistence / testing on Android+iOS (where it builds fine). ТЗ §5.5.
-  # flutter_secure_storage: ^9.2.2
+  # Refresh cookie / token persistence lives here on Android+iOS (Keychain /
+  # Keystore-backed). NOTE: its Linux plugin fails to compile under modern Clang,
+  # so `flutter run -d linux` (desktop dev only) is unsupported — mobile is fine.
+  flutter_secure_storage: ^9.2.2
 
   # i18n
   easy_localization: ^3.0.7
