@@ -16,7 +16,7 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/logo_mark.dart';
 import 'auth_fields.dart';
 
-/// Classical login — phone + password. "Forgot password" runs the Telegram-OTP
+/// Classical login — phone + password. "Forgot password" runs the WhatsApp-OTP
 /// reset flow (send code → verify → new password). Registration lives on a
 /// separate screen. No other login methods.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -95,7 +95,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  // ── Forgot password: send Telegram OTP ───────────────────────────────────
+  // ── Forgot password: send WhatsApp OTP ───────────────────────────────────
   Future<void> _sendResetCode() async {
     if (!_phoneValid) {
       Toasts.error('auth.login.enter_phone_first'.tr());
@@ -252,8 +252,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   List<Widget> _otpStep(bool dark) {
     return [
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.send, size: 16, color: Color(0xFF0088CC)),
-        const SizedBox(width: 8),
         Flexible(
           child: Text('${'auth.login.otp_dm_hint'.tr()} $_fullPhone',
               textAlign: TextAlign.center,

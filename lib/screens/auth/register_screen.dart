@@ -17,7 +17,7 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/logo_mark.dart';
 import 'auth_fields.dart';
 
-/// Classical registration — phone → Telegram OTP (own page) → name + surname +
+/// Classical registration — phone → WhatsApp OTP (own page) → name + surname +
 /// password (own page) → account created. If the number already exists, we stop
 /// and point the user to sign in / restore password.
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -239,8 +239,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return [
       PhoneField(controller: _phone, dark: dark, onChanged: () => setState(() => _existing = false)),
       const SizedBox(height: 12),
-      // Telegram-blue: this button triggers Telegram code delivery.
-      _TelegramButton(
+      // WhatsApp-green: this button triggers WhatsApp code delivery.
+      _WhatsappButton(
         label: _resend > 0 ? 'auth.register.resend_in'.tr(namedArgs: {'n': '$_resend'}) : 'auth.register.send_code_btn'.tr(),
         loading: _loading,
         onPressed: (_phoneValid && _resend == 0) ? _start : null,
@@ -262,8 +262,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   List<Widget> _otpStep(bool dark) {
     return [
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.send, size: 16, color: Color(0xFF0088CC)),
-        const SizedBox(width: 8),
         Flexible(
           child: Text('${'auth.register.otp_dm_hint'.tr()} $_fullPhone',
               textAlign: TextAlign.center,
@@ -372,9 +370,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 }
 
-/// Telegram-branded action button (Telegram blue) for code-delivery actions.
-class _TelegramButton extends StatelessWidget {
-  const _TelegramButton({required this.label, required this.onPressed, this.loading = false});
+/// WhatsApp-branded action button (WhatsApp green) for code-delivery actions.
+class _WhatsappButton extends StatelessWidget {
+  const _WhatsappButton({required this.label, required this.onPressed, this.loading = false});
 
   final String label;
   final VoidCallback? onPressed;
@@ -391,11 +389,11 @@ class _TelegramButton extends StatelessWidget {
         child: Container(
           height: 52,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: const Color(0xFF0088CC), borderRadius: BorderRadius.circular(AppRadii.lg)),
+          decoration: BoxDecoration(color: const Color(0xFF25D366), borderRadius: BorderRadius.circular(AppRadii.lg)),
           child: loading
               ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
               : Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.send, size: 18, color: Colors.white),
+                  const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.white),
                   const SizedBox(width: 8),
                   Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white)),
                 ]),
