@@ -60,6 +60,9 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
   late _MyFilter _filter = _filterFor(widget.tab);
   bool _history =
       false; // Активные ↔ История sub-toggle (not shown on «Избранное»)
+  // Dynamic default: with no explicit ?tab, open the tab the user has content in
+  // (trips first, then requests, else bookings). True while we're deciding.
+  bool _deciding = false;
 
   /// Maps a deep-link `?tab=` value to a category chip.
   static _MyFilter _filterFor(String? tab) => switch (tab) {
@@ -68,6 +71,35 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
         'liked' || 'favorites' => _MyFilter.liked,
         _ => _MyFilter.bookings,
       };
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.tab == null) {
+      _deciding = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _pickDefault());
+    }
+  }
+
+  Future<void> _pickDefault() async {
+    try {
+      final tripsF = ref.read(myTripsProvider.future);
+      final reqsF = ref.read(myRequestsProvider.future);
+      final trips = await tripsF;
+      final reqs = await reqsF;
+      if (!mounted) return;
+      setState(() {
+        _filter = trips.isNotEmpty
+            ? _MyFilter.trips
+            : reqs.isNotEmpty
+                ? _MyFilter.requests
+                : _MyFilter.bookings;
+        _deciding = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _deciding = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,8 +148,12 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
             ),
             _attentionStrip(dark),
             _filterChips(dark),
-            if (_filter != _MyFilter.liked) _activeHistoryToggle(dark),
-            Expanded(child: _content(dark)),
+            if (_filter != _MyFilter.liked && !_deciding) _activeHistoryToggle(dark),
+            Expanded(
+              child: _deciding
+                  ? const Center(child: CircularProgressIndicator(color: BrandColors.c600))
+                  : _content(dark),
+            ),
           ],
         ),
       ),
