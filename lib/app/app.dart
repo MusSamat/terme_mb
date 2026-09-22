@@ -121,7 +121,7 @@ class _RoleSwitchGateState extends ConsumerState<_RoleSwitchGate> {
       _show = true;
       _targetDriver = driver;
     });
-    _timer = Timer(const Duration(milliseconds: 1500), () {
+    _timer = Timer(const Duration(milliseconds: 900), () {
       if (mounted) setState(() => _show = false);
     });
   }

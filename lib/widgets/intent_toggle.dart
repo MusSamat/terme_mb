@@ -71,14 +71,14 @@ class IntentToggle extends StatelessWidget {
                   children: [
                     _segment(
                       active: !driver,
-                      icon: Icons.person,
+                      asset: 'assets/icons/role_passenger.png',
                       label: 'feed.mode_trips_title'.tr(),
                       onTap: () => onChanged(false),
                       dark: dark,
                     ),
                     _segment(
                       active: driver,
-                      icon: Icons.directions_car_filled,
+                      asset: 'assets/icons/role_driver.png',
                       label: 'feed.mode_requests_title'.tr(),
                       onTap: () => onChanged(true),
                       dark: dark,
@@ -99,7 +99,7 @@ class IntentToggle extends StatelessWidget {
 
   Widget _segment({
     required bool active,
-    required IconData icon,
+    required String asset,
     required String label,
     required VoidCallback onTap,
     required bool dark,
@@ -127,7 +127,13 @@ class IntentToggle extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 16, color: active ? Colors.white : off),
+                  // Role image (driver/passenger), tinted to match the segment.
+                  ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                        active ? Colors.white : off, BlendMode.srcIn),
+                    child: Image.asset(asset,
+                        width: 19, height: 19, fit: BoxFit.contain),
+                  ),
                   const SizedBox(width: 7),
                   Text(label, maxLines: 1),
                 ],

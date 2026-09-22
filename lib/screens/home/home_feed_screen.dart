@@ -503,60 +503,50 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     context.push('/results?$qs');
   }
 
-  // ── Empty-hub rails: destinations · popular · mine · history ───────────────
+  // ── Hub rails: popular · mine · history · destinations(fallback, last) ─────
   Widget _entryHints(bool dark, bool driver, bool authed) {
     final recent = _recentRoutes();
+    final hasHistory = recent.isNotEmpty;
+    final activeTrips = authed
+        ? (ref.watch(myTripsProvider).valueOrNull ?? const <TripCardItem>[])
+            .where((t) => t.status == 'active')
+            .length
+        : 0;
+    final activeReqs = authed
+        ? (ref.watch(myRequestsProvider).valueOrNull ??
+                const <PassengerRequestItem>[])
+            .where((r) => r.status == 'open')
+            .length
+        : 0;
+    final hasActive = activeTrips > 0 || activeReqs > 0;
+    // «Куда едем/везём» is a filler — only when there's nothing more relevant.
+    final showDests = !hasHistory && !hasActive;
+
+    final routes =
+        ref.watch(popularRoutesProvider).valueOrNull ?? const <PopularRoute>[];
+    final seen = <String>{};
+    final dests = <PopularRoute>[];
+    for (final r in [...routes]
+      ..sort((a, b) => b.tripCount.compareTo(a.tripCount))) {
+      if (seen.add(r.to)) dests.add(r);
+      if (dests.length >= 8) break;
+    }
+
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ref.watch(popularRoutesProvider).when(
-                loading: () => const Padding(
-                    padding: EdgeInsets.only(top: 24),
-                    child: Center(
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2.4, color: BrandColors.c500))),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (routes) {
-                  final seen = <String>{};
-                  final dests = <PopularRoute>[];
-                  final sorted = [...routes]
-                    ..sort((a, b) => b.tripCount.compareTo(a.tripCount));
-                  for (final r in sorted) {
-                    if (seen.add(r.to)) dests.add(r);
-                    if (dests.length >= 8) break;
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (dests.isNotEmpty)
-                        _rail(
-                          dark: dark,
-                          title: (driver
-                                  ? 'feed.destinations_requests'
-                                  : 'feed.destinations_trips')
-                              .tr(),
-                          height: 58,
-                          children: [
-                            for (final r in dests) _destChip(r, dark, driver),
-                          ],
-                        ),
-                      if (routes.isNotEmpty)
-                        _rail(
-                          dark: dark,
-                          title: 'feed.popular_title'.tr(),
-                          height: 58,
-                          children: [
-                            for (final r in routes)
-                              _routeCountChip(r, dark, driver),
-                          ],
-                        ),
-                    ],
-                  );
-                },
-              ),
+          if (routes.isNotEmpty)
+            _rail(
+              dark: dark,
+              title: 'feed.popular_title'.tr(),
+              height: 58,
+              children: [
+                for (final r in routes) _routeCountChip(r, dark, driver),
+              ],
+            ),
           if (authed) _mineBlock(dark),
-          if (recent.isNotEmpty)
+          if (hasHistory)
             _rail(
               dark: dark,
               title: 'feed.search_history'.tr(),
@@ -579,6 +569,18 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
               ),
               children: [
                 for (final r in recent) _histChip(r.from, r.to, dark),
+              ],
+            ),
+          if (showDests && dests.isNotEmpty)
+            _rail(
+              dark: dark,
+              title: (driver
+                      ? 'feed.destinations_requests'
+                      : 'feed.destinations_trips')
+                  .tr(),
+              height: 58,
+              children: [
+                for (final r in dests) _destChip(r, dark, driver),
               ],
             ),
         ],
@@ -645,7 +647,9 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
       sub = 'feed.from_price'.tr(namedArgs: {'n': '${r.minPrice}'});
     }
     return GestureDetector(
-      onTap: () => _applyRoute(r.from, r.to),
+      // Destination-only: fills «Куда» and leaves «Откуда» to the user (their
+      // own/geolocated city), instead of forcing a fixed origin.
+      onTap: () => setState(() => _to = r.to),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
