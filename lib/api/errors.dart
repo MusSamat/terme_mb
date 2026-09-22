@@ -58,7 +58,21 @@ AppException extractError(Object error) {
         message: 'Network is unavailable',
       );
     }
+
+    // A response came back but WITHOUT our JSON envelope — a 502/504 from the
+    // proxy (HTML body), or an unexpected 5xx/4xx. Never surface the raw
+    // DioException dump: map to a friendly code and let friendlyError localize.
+    final status = error.response?.statusCode;
+    if (status != null) {
+      return AppException(
+        code: status >= 500 ? 'SERVER_ERROR' : 'REQUEST_ERROR',
+        message: '',
+        statusCode: status,
+      );
+    }
   }
 
-  return AppException(code: 'UNKNOWN', message: error.toString());
+  // Unknown failure — generic (message empty so friendlyError uses global_desc,
+  // never a raw toString()).
+  return AppException(code: 'UNKNOWN', message: '');
 }
