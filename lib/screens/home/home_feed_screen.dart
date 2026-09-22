@@ -12,8 +12,8 @@ import '../../providers/data_providers.dart';
 import '../../utils/config.dart' show StorageKeys;
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
-import '../../widgets/city_picker.dart';
 import '../../widgets/date_picker_modal.dart';
+import '../../widgets/route_search_sheet.dart';
 import '../../widgets/intent_toggle.dart';
 import '../../widgets/logo_mark.dart';
 import '../../widgets/online_badge.dart';
@@ -269,7 +269,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
               Expanded(
                   child: _cityField(context, _from,
                       'feed.from_placeholder'.tr(), BrandColors.c600, dark,
-                      (v) => setState(() => _from = v))),
+                      true)),
               GestureDetector(
                 onTap: (_from.isEmpty || _to.isEmpty)
                     ? null
@@ -302,7 +302,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 42),
               child: _cityField(context, _to, 'feed.to_placeholder'.tr(),
-                  AccentColors.c500, dark, (v) => setState(() => _to = v)),
+                  AccentColors.c500, dark, false),
             ),
           ]),
         ),
@@ -398,17 +398,25 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     );
   }
 
+  Future<void> _openRouteSearch({required bool origin}) async {
+    final res = await showRouteSearchSheet(context,
+        from: _from, to: _to, focusTo: !origin);
+    if (res != null && mounted) {
+      setState(() {
+        _from = res.from;
+        _to = res.to;
+      });
+    }
+  }
+
   Widget _cityField(BuildContext context, String value, String hint, Color dot,
-          bool dark, ValueChanged<String> onPick) =>
+          bool dark, bool origin) =>
       Row(children: [
         Icon(Icons.circle, size: 12, color: dot),
         const SizedBox(width: 10),
         Expanded(
           child: GestureDetector(
-            onTap: () async {
-              final c = await showCityPicker(context);
-              if (c != null) onPick(c);
-            },
+            onTap: () => _openRouteSearch(origin: origin),
             behavior: HitTestBehavior.opaque,
             child: Container(
               height: 44,
