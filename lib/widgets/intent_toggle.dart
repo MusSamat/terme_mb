@@ -120,16 +120,18 @@ class IntentToggle extends StatelessWidget {
               fontWeight: FontWeight.w900,
               color: active ? Colors.white : off,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 16, color: active ? Colors.white : off),
-                const SizedBox(width: 7),
-                Flexible(
-                  child:
-                      Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-              ],
+            // Auto-shrink the whole group so long locales (kg
+            // «Мен жүргүнчүмүн») stay fully visible in the fixed half-segment.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 16, color: active ? Colors.white : off),
+                  const SizedBox(width: 7),
+                  Text(label, maxLines: 1),
+                ],
+              ),
             ),
           ),
         ),

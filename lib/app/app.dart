@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart' show CupertinoLocalizations;
 import 'package:flutter/material.dart';
@@ -13,6 +15,7 @@ import '../theme/colors.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/logo_mark.dart';
 import '../widgets/offline_banner.dart';
+import '../widgets/role_switch_overlay.dart';
 import 'router.dart';
 
 class TermeApp extends ConsumerWidget {
@@ -55,6 +58,8 @@ class TermeApp extends ConsumerWidget {
           // login/guest UI so a cold start never flashes it. Skipped entirely
           // when the cached profile hydrated us straight to authenticated.
           const _StartupGate(),
+          // Brief animated loader when the user flips Пассажир ⇄ Водитель.
+          const _RoleSwitchGate(),
         ],
       ),
     );
@@ -93,6 +98,51 @@ class _StartupGate extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// Watches the active role and, when it flips, shows [RoleSwitchOverlay] for a
+/// short beat (~1.5s) so the mode change reads as a deliberate transition.
+class _RoleSwitchGate extends ConsumerStatefulWidget {
+  const _RoleSwitchGate();
+
+  @override
+  ConsumerState<_RoleSwitchGate> createState() => _RoleSwitchGateState();
+}
+
+class _RoleSwitchGateState extends ConsumerState<_RoleSwitchGate> {
+  bool _show = false;
+  bool _targetDriver = false;
+  Timer? _timer;
+
+  void _trigger(bool driver) {
+    _timer?.cancel();
+    setState(() {
+      _show = true;
+      _targetDriver = driver;
+    });
+    _timer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _show = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Fire only on an actual change (skip the initial null → value resolve).
+    ref.listen<ActiveMode>(authProvider.select((s) => s.activeMode),
+        (prev, next) {
+      if (prev != null && prev != next) {
+        _trigger(next == ActiveMode.driver);
+      }
+    });
+    if (!_show) return const SizedBox.shrink();
+    return RoleSwitchOverlay(driver: _targetDriver);
   }
 }
 

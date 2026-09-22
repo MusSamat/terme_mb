@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/services/misc_services.dart' show PopularRoute;
+import '../../models/passenger_request.dart';
+import '../../models/trip_card_item.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
@@ -13,6 +15,7 @@ import '../../theme/dimens.dart';
 import '../../widgets/city_picker.dart';
 import '../../widgets/date_picker_modal.dart';
 import '../../widgets/intent_toggle.dart';
+import '../../widgets/logo_mark.dart';
 import '../../widgets/online_badge.dart';
 
 /// Home = the search HUB. Rails on top (destinations · popular · history) and a
@@ -74,61 +77,159 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final driver = ref.watch(authProvider).activeMode == ActiveMode.driver;
 
+    final authed = ref
+        .watch(authProvider.select((s) => s.status == AuthStatus.authenticated));
+
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            color: BrandColors.c500,
-            onRefresh: () async {
-              ref.invalidate(popularRoutesProvider);
-              await ref.read(popularRoutesProvider.future);
-            },
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(child: _header(context, dark, driver)),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                      16, 6, 16, AppLayout.pillNavClearance + 258),
-                  sliver: _entryHints(dark, driver),
-                ),
-              ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _header(context, dark),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+              child: IntentToggle(
+                driver: driver,
+                showHint: true,
+                onChanged: (d) => ref
+                    .read(authProvider.notifier)
+                    .setActiveMode(
+                        d ? ActiveMode.driver : ActiveMode.passenger),
+              ),
             ),
-          ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: AppLayout.pillNavClearance,
-            child: _dockedCard(context, dark, driver),
-          ),
-        ],
+            Expanded(
+              child: RefreshIndicator(
+                color: BrandColors.c500,
+                onRefresh: () async {
+                  ref.invalidate(popularRoutesProvider);
+                  if (authed) {
+                    ref.invalidate(myTripsProvider);
+                    ref.invalidate(myRequestsProvider);
+                  }
+                  await ref.read(popularRoutesProvider.future);
+                },
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    if (authed)
+                      SliverToBoxAdapter(child: _activeBanner(dark)),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                      sliver: _entryHints(dark, driver),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: AppLayout.pillNavClearance + 12),
+              child: _dockedCard(context, dark, driver),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ── Header: wordmark + online badge → role segment ─────────────────────────
-  Widget _header(BuildContext context, bool dark, bool driver) => Padding(
-        padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top + 10, left: 16, right: 16),
-        child: Column(
+  // ── App bar: logo + wordmark · online count + notifications ────────────────
+  Widget _header(BuildContext context, bool dark) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 6, 0),
+        child: Row(
           children: [
-            Row(children: [
-              _wordmark(dark),
-              const Spacer(),
-              const OnlineBadge(),
-            ]),
-            const SizedBox(height: 14),
-            IntentToggle(
-              driver: driver,
-              showHint: true,
-              onChanged: (d) => ref
-                  .read(authProvider.notifier)
-                  .setActiveMode(d ? ActiveMode.driver : ActiveMode.passenger),
+            const LogoMark(size: 30),
+            const SizedBox(width: 9),
+            _wordmark(dark),
+            const Spacer(),
+            const OnlineBadge(),
+            IconButton(
+              onPressed: () => context.push('/notifications'),
+              splashRadius: 22,
+              icon: Icon(Icons.notifications_none_rounded,
+                  size: 24, color: dark ? InkColors.c200 : InkColors.c700),
             ),
           ],
         ),
       );
+
+  // ── Active trip/request status banner (Yandex-style) ───────────────────────
+  Widget _activeBanner(bool dark) {
+    final trips =
+        ref.watch(myTripsProvider).valueOrNull ?? const <TripCardItem>[];
+    final reqs = ref.watch(myRequestsProvider).valueOrNull ??
+        const <PassengerRequestItem>[];
+    final activeTrips = trips.where((t) => t.status == 'active').toList();
+    final activeReqs = reqs.where((r) => r.status == 'open').toList();
+    if (activeTrips.isEmpty && activeReqs.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final isTrip = activeTrips.isNotEmpty;
+    final count = activeTrips.length + activeReqs.length;
+    final route = isTrip
+        ? '${activeTrips.first.originCity} → ${activeTrips.first.destinationCity}'
+        : '${activeReqs.first.originCity} → ${activeReqs.first.destinationCity}';
+    final title = isTrip ? 'feed.active_trip'.tr() : 'feed.active_request'.tr();
+    final accent = isTrip ? BrandColors.c600 : GrapeColors.c600;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      child: GestureDetector(
+        onTap: () => context
+            .push('/my/bookings?tab=${isTrip ? 'trips' : 'requests'}'),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: dark ? InkColors.c900 : Colors.white,
+            borderRadius: BorderRadius.circular(AppRadii.xl2),
+            border: Border.all(color: dark ? InkColors.c800 : InkColors.c100),
+            boxShadow: dark ? null : AppShadows.card,
+          ),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: dark ? 0.22 : 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                  isTrip ? Icons.directions_car_filled : Icons.person,
+                  size: 22,
+                  color: accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(count > 1 ? '$title · $count' : title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: dark ? Colors.white : InkColors.c900)),
+                  const SizedBox(height: 2),
+                  Text(route,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: InkColors.c400)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 20, color: InkColors.c400),
+          ]),
+        ),
+      ),
+    );
+  }
 
   Widget _wordmark(bool dark) => Text.rich(
         TextSpan(
@@ -273,17 +374,23 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                       ? (driver ? AppShadows.indigoCta : AppShadows.cta)
                       : null,
                 ),
-                child:
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.search,
-                      size: 20, color: ready ? ctaText : InkColors.c400),
-                  const SizedBox(width: 8),
-                  Text((driver ? 'feed.find_passenger' : 'feed.find_trip').tr(),
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: ready ? ctaText : InkColors.c400)),
-                ]),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.center,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.search,
+                        size: 20, color: ready ? ctaText : InkColors.c400),
+                    const SizedBox(width: 8),
+                    Text(
+                        (driver ? 'feed.find_passenger' : 'feed.find_trip').tr(),
+                        maxLines: 1,
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: ready ? ctaText : InkColors.c400)),
+                  ]),
+                ),
               ),
             ),
           ),
@@ -340,24 +447,27 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: active && !dark ? AppShadows.xs : null,
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(icon,
-                    size: 16,
-                    color:
-                        active ? (dark ? accentDark : accent) : InkColors.c400),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(label,
+              // Auto-shrink the whole icon+label group so long locales
+              // (kg «Жолдоштор менен») show in full instead of ellipsizing.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(icon,
+                      size: 16,
+                      color: active
+                          ? (dark ? accentDark : accent)
+                          : InkColors.c400),
+                  const SizedBox(width: 6),
+                  Text(label,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w800,
                           color: active
                               ? (dark ? accentDark : accent)
                               : (dark ? InkColors.c400 : InkColors.c500))),
-                ),
-              ]),
+                ]),
+              ),
             ),
           ),
         );
