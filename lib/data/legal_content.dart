@@ -5,7 +5,7 @@
 
 // ЗАПОЛНИТЬ ПРИ РЕГИСТРАЦИИ ЮРЛИЦА: название ОсОО, ИНН, адрес.
 const _company = 'ОсОО «Terme» (реквизиты будут указаны после регистрации)';
-const _contact = 'support@tappjet.kg';
+const _contact = 'support@terme.kg';
 
 class LegalSection {
   const LegalSection(this.heading, this.paragraphs);

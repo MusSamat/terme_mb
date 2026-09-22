@@ -321,7 +321,7 @@
       "register_link": "Катталуу",
       "otp_sent": "WhatsApp аркылуу код жиберилди",
       "otp_reset_sent": "Купуя сөздү калыбына келтирүү коду WhatsApp аркылуу жиберилди",
-      "otp_telegram_hint": "Telegramdan @tappjet_bot ачып, кодду киргизиңиз.",
+      "otp_telegram_hint": "Telegramdan @terme_kg_bot ачып, кодду киргизиңиз.",
       "otp_dm_hint": "Код WhatsApp аркылуу номерге жөнөтүлдү",
       "otp_open_bot": "Telegram'да ботту ачуу",
       "otp_reset_hint": "Тастыктагандан кийин жаңы купуя сөз коё аласыз.",

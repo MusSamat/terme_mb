@@ -165,7 +165,7 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: kb),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: h * 0.95),
+        constraints: BoxConstraints(maxHeight: h * 0.82),
         child: Container(
           decoration: BoxDecoration(
             color: dark ? InkColors.c950 : InkColors.c50,
@@ -252,8 +252,17 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
   Widget _field(TextEditingController ctrl, FocusNode focus, Color dot,
           String hint, bool dark, bool isTo) =>
       Row(children: [
-        Icon(Icons.circle, size: 11, color: dot),
-        const SizedBox(width: 10),
+        Container(
+          width: 30,
+          height: 30,
+          alignment: Alignment.center,
+          decoration:
+              BoxDecoration(color: dot, borderRadius: BorderRadius.circular(9)),
+          // Meaningful icons: origin dot for «Откуда», a flag for «Куда».
+          child: Icon(isTo ? Icons.flag_rounded : Icons.trip_origin,
+              size: 17, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: TextField(
             controller: ctrl,

@@ -388,17 +388,19 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   }
 
   Widget _nextDayCta(bool dark, bool requests) {
+    // Only show once the route's per-day counts are actually loaded — otherwise
+    // the CTA flashes with an empty calendar and reads as broken (web parity).
+    final counts = ref
+        .watch(calendarCountsProvider((
+          kind: requests ? 'requests' : 'trips',
+          from: _filters.from,
+          to: _filters.to,
+        )))
+        .valueOrNull;
+    if (counts == null || counts.isEmpty) return const SizedBox.shrink();
     final nd = _nextAvailableDay(requests);
     final color = requests ? GrapeColors.c600 : BrandColors.c600;
     if (nd == null) {
-      final counts = ref
-              .read(calendarCountsProvider((
-                kind: requests ? 'requests' : 'trips',
-                from: _filters.from,
-                to: _filters.to,
-              )))
-              .valueOrNull ??
-          const <String, int>{};
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
         child: GestureDetector(

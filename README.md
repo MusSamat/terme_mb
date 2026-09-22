@@ -53,8 +53,8 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 flutter run \
   --dart-define=USE_MOCK=false \
-  --dart-define=API_URL=https://api.tappjet.kg/api/v1 \
-  --dart-define=WS_URL=wss://api.tappjet.kg
+  --dart-define=API_URL=https://api.terme.kg/api/v1 \
+  --dart-define=WS_URL=wss://api.terme.kg
 ```
 Флаг `AppConfig.useMock` (env `USE_MOCK`) переключает провайдеры между mock и
 `GET /trips` и т.д. Готовый шаблон — `TripsService` + `tripsFeedProvider`;

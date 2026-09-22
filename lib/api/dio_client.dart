@@ -20,7 +20,10 @@ class DioClient {
   final TokenStore _tokens;
   final Storage _cookieStorage;
   RefreshFn? _refresh;
-  bool _isRefreshing = false;
+  // Single-flight: concurrent 401s share ONE refresh and all await the SAME
+  // new token — never a stale one. This also stops the client from calling
+  // /auth/refresh twice with the same cookie (which tripped reuse detection).
+  Future<String?>? _inflight;
 
   // Persistent so the HttpOnly refresh cookie survives app restarts → the user
   // stays logged in until they explicitly log out (which clears the jar).
@@ -88,14 +91,16 @@ class DioClient {
     return code == 'TOKEN_EXPIRED' && _refresh != null;
   }
 
-  Future<String?> _runRefresh() async {
-    if (_isRefreshing) return _tokens.accessToken;
-    _isRefreshing = true;
+  Future<String?> _runRefresh() {
+    // Reuse the in-flight refresh so parallel 401s all get the same fresh token.
+    return _inflight ??= _doRefresh();
+  }
+
+  Future<String?> _doRefresh() async {
     try {
-      final token = await _refresh!.call();
-      return token;
+      return await _refresh!.call();
     } finally {
-      _isRefreshing = false;
+      _inflight = null;
     }
   }
 
