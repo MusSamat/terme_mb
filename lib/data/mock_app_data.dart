@@ -76,7 +76,7 @@ List<MockBooking> mockBookings() => const [
           id: 'b2',
           otherName: 'Нургуль С.',
           origin: 'Ош',
-          destination: 'Джалал-Абад',
+          destination: 'Жалал-Абад',
           dateLabel: 'Сегодня, 09:30',
           seats: 1,
           status: 'pending',
@@ -140,7 +140,7 @@ List<MockChat> mockChats() => const [
       MockChat(
           bookingId: 'b2',
           otherName: 'Нургуль С.',
-          route: 'Ош → Джалал-Абад',
+          route: 'Ош → Жалал-Абад',
           lastMessage: 'Есть место для чемодана?',
           timeLabel: '1 ч',
           unread: 0),

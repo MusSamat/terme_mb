@@ -93,6 +93,7 @@ class CitiesService {
           final m = e as Map;
           return CityHit(
             name: (m['nameRu'] ?? '') as String,
+            type: m['type'] as String?,
             districtRu: m['districtNameRu'] as String?,
             districtKg: m['districtNameKg'] as String?,
             aiylRu: m['aiylAimakNameRu'] as String?,
@@ -136,6 +137,7 @@ class PopularRoute {
 class CityHit {
   const CityHit({
     required this.name,
+    this.type,
     this.districtRu,
     this.districtKg,
     this.aiylRu,
@@ -143,16 +145,23 @@ class CityHit {
   });
 
   final String name;
+  final String? type; // city | town | village | raion …
   final String? districtRu;
   final String? districtKg;
   final String? aiylRu;
   final String? aiylKg;
 
-  /// «Баткен району, Самаркандек айылы» — empty for republican cities
-  /// (Бишкек/Ош) that have no district.
+  /// Result tag: раион → «район»; settlement → «Баткен району, Самаркандек
+  /// айылы»; an oblast-level город with no district → «город/шаар». Distinguishes
+  /// homonyms like «Баткен · район» vs «Баткен · город».
   String subtitle(bool kg) {
+    if (type == 'raion') return 'район';
     final d = (kg ? districtKg : districtRu)?.trim();
     final a = (kg ? aiylKg : aiylRu)?.trim();
-    return [d, a].where((s) => s != null && s.isNotEmpty).join(', ');
+    final parts =
+        [d, a].where((s) => s != null && s.isNotEmpty).toList();
+    if (parts.isNotEmpty) return parts.join(', ');
+    if (type == 'city') return kg ? 'шаар' : 'город';
+    return '';
   }
 }

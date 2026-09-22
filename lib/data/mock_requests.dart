@@ -29,7 +29,7 @@ List<PassengerRequestItem> mockRequests() => const [
       PassengerRequestItem(
         id: 'r3',
         originCity: 'Ош',
-        destinationCity: 'Джалал-Абад',
+        destinationCity: 'Жалал-Абад',
         seatsNeeded: 3,
         dateLabel: 'Сегодня',
         budget: 350,
