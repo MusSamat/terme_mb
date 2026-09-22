@@ -10,11 +10,12 @@ class RequestsService {
   RequestsService(this._dio);
   final Dio _dio;
 
-  Future<PagedResult<PassengerRequestItem>> list({String? from, String? to, String? date, String? cursor}) async {
+  Future<PagedResult<PassengerRequestItem>> list({String? from, String? to, String? date, int? seats, String? cursor}) async {
     final res = await _dio.get<Map<String, dynamic>>('/passenger-requests', queryParameters: {
       if (from != null && from.isNotEmpty) 'from_city': from,
       if (to != null && to.isNotEmpty) 'to_city': to,
       if (date != null) 'date': date,
+      if (seats != null) 'seats': seats.toString(),
       if (cursor != null) 'cursor': cursor,
     });
     return PagedResult.fromJson(res.data!, PassengerRequestItem.fromJson);

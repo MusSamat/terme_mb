@@ -100,6 +100,7 @@ class CitiesService {
             from: (m['from'] ?? '') as String,
             to: (m['to'] ?? '') as String,
             tripCount: (m['tripCount'] as num?)?.toInt() ?? 0,
+            minPrice: (m['minPrice'] as num?)?.toInt(),
           );
         })
         .where((r) => r.from.isNotEmpty && r.to.isNotEmpty)
@@ -109,8 +110,9 @@ class CitiesService {
 
 /// A popular route chip for the empty feed state (mirrors web PopularRoute).
 class PopularRoute {
-  const PopularRoute({required this.from, required this.to, required this.tripCount});
+  const PopularRoute({required this.from, required this.to, required this.tripCount, this.minPrice});
   final String from;
   final String to;
   final int tripCount;
+  final int? minPrice;
 }

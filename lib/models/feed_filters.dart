@@ -4,6 +4,7 @@ class FeedFilters {
     this.from = '',
     this.to = '',
     this.date = '', // '' = today, 'any', or YYYY-MM-DD
+    this.seats, // ride-type: null = С попутчиками, 4 = Весь салон
     this.sort = 'time', // time | price_asc | rating_desc
     this.onlyVerified = false,
     this.luggage = '', // '' | yes | small | no
@@ -18,6 +19,7 @@ class FeedFilters {
   final String from;
   final String to;
   final String date;
+  final int? seats;
   final String sort;
   final bool onlyVerified;
   final String luggage;
@@ -32,6 +34,7 @@ class FeedFilters {
     String? from,
     String? to,
     String? date,
+    int? seats,
     String? sort,
     bool? onlyVerified,
     String? luggage,
@@ -41,6 +44,7 @@ class FeedFilters {
     bool? womenOnly,
     bool? noSmoking,
     bool? pets,
+    bool clearSeats = false,
     bool clearMinPrice = false,
     bool clearMaxPrice = false,
   }) {
@@ -48,6 +52,7 @@ class FeedFilters {
       from: from ?? this.from,
       to: to ?? this.to,
       date: date ?? this.date,
+      seats: clearSeats ? null : (seats ?? this.seats),
       sort: sort ?? this.sort,
       onlyVerified: onlyVerified ?? this.onlyVerified,
       luggage: luggage ?? this.luggage,

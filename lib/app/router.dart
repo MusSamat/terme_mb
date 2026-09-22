@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../models/feed_filters.dart';
 import '../providers/auth_provider.dart';
 import '../screens/screens.dart';
 import 'root_shell.dart';
@@ -80,6 +81,23 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ],
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/results',
+        builder: (c, s) {
+          final q = s.uri.queryParameters;
+          return SearchResultsScreen(
+            driver: q['mode'] == 'requests',
+            openFilters: q['filters'] == '1',
+            initial: FeedFilters(
+              from: q['from'] ?? '',
+              to: q['to'] ?? '',
+              date: q['date'] ?? '',
+              seats: int.tryParse(q['seats'] ?? ''),
+            ),
+          );
+        },
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,

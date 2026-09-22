@@ -184,6 +184,7 @@ final socketBootstrapProvider = Provider<void>((ref) {
 /// AsyncValue<List> so `.when()` keeps working; `loadMore()` appends the next
 /// page, `hasMore`/`nearby` drive the UI.
 Map<String, dynamic> _tripFilterMap(FeedFilters f) => {
+      if (f.seats != null) 'seats': f.seats.toString(),
       if (f.onlyVerified) 'only_verified': 'true',
       if (f.luggage.isNotEmpty) 'luggage': f.luggage,
       if (f.minRating > 0) 'min_rating': f.minRating.toString(),
@@ -288,6 +289,7 @@ class RequestsFeedNotifier extends FamilyAsyncNotifier<List<PassengerRequestItem
           from: filters.from.isEmpty ? null : filters.from,
           to: filters.to.isEmpty ? null : filters.to,
           date: _feedDate(filters),
+          seats: filters.seats,
         );
     _cursor = page.nextCursor;
     return page.data;
@@ -302,6 +304,7 @@ class RequestsFeedNotifier extends FamilyAsyncNotifier<List<PassengerRequestItem
             from: f.from.isEmpty ? null : f.from,
             to: f.to.isEmpty ? null : f.to,
             date: _feedDate(f),
+            seats: f.seats,
             cursor: _cursor,
           );
       _cursor = page.nextCursor;
