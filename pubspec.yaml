@@ -95,6 +95,7 @@ flutter:
   assets:
     - assets/l10n/
     - assets/images/
+    - assets/icons/
 
   fonts:
     # Manrope — single family for the whole app (excellent Cyrillic; replaces

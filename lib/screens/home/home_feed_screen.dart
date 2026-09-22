@@ -112,11 +112,9 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
-                    if (authed)
-                      SliverToBoxAdapter(child: _activeBanner(dark)),
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                      sliver: _entryHints(dark, driver),
+                      sliver: _entryHints(dark, driver, authed),
                     ),
                   ],
                 ),
@@ -156,28 +154,29 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
       );
 
   // ── Active trip/request status banner (Yandex-style) ───────────────────────
-  Widget _activeBanner(bool dark) {
+  // My active trips/requests — a compact block (no header label) between
+  // «Популярные» and «История»; tap opens the «Мои» list on the right tab.
+  Widget _mineBlock(bool dark) {
     final trips =
-        ref.watch(myTripsProvider).valueOrNull ?? const <TripCardItem>[];
-    final reqs = ref.watch(myRequestsProvider).valueOrNull ??
-        const <PassengerRequestItem>[];
-    final activeTrips = trips.where((t) => t.status == 'active').toList();
-    final activeReqs = reqs.where((r) => r.status == 'open').toList();
-    if (activeTrips.isEmpty && activeReqs.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final isTrip = activeTrips.isNotEmpty;
-    final count = activeTrips.length + activeReqs.length;
-    final route = isTrip
-        ? '${activeTrips.first.originCity} → ${activeTrips.first.destinationCity}'
-        : '${activeReqs.first.originCity} → ${activeReqs.first.destinationCity}';
-    final title = isTrip ? 'feed.active_trip'.tr() : 'feed.active_request'.tr();
+        (ref.watch(myTripsProvider).valueOrNull ?? const <TripCardItem>[])
+            .where((t) => t.status == 'active')
+            .toList();
+    final reqs = (ref.watch(myRequestsProvider).valueOrNull ??
+            const <PassengerRequestItem>[])
+        .where((r) => r.status == 'open')
+        .toList();
+    if (trips.isEmpty && reqs.isEmpty) return const SizedBox.shrink();
+    final isTrip = trips.isNotEmpty;
+    final count = isTrip ? trips.length : reqs.length;
+    final line =
+        (isTrip ? 'feed.mine_trips_line' : 'feed.mine_requests_line').plural(count);
+    final sub = (isTrip ? 'feed.mine_trips_sub' : 'feed.mine_requests_sub').tr();
     final accent = isTrip ? BrandColors.c600 : GrapeColors.c600;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      padding: const EdgeInsets.only(bottom: 18),
       child: GestureDetector(
-        onTap: () => context
-            .push('/my/bookings?tab=${isTrip ? 'trips' : 'requests'}'),
+        onTap: () =>
+            context.push('/my/bookings?tab=${isTrip ? 'trips' : 'requests'}'),
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: const EdgeInsets.all(10),
@@ -196,17 +195,15 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                 color: accent.withValues(alpha: dark ? 0.22 : 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                  isTrip ? Icons.directions_car_filled : Icons.person,
-                  size: 22,
-                  color: accent),
+              child: Icon(isTrip ? Icons.directions_car_filled : Icons.person,
+                  size: 22, color: accent),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(count > 1 ? '$title · $count' : title,
+                  Text(line,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -214,7 +211,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                           fontWeight: FontWeight.w900,
                           color: dark ? Colors.white : InkColors.c900)),
                   const SizedBox(height: 2),
-                  Text(route,
+                  Text(sub,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -506,8 +503,8 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     context.push('/results?$qs');
   }
 
-  // ── Empty-hub rails: destinations · popular · history ──────────────────────
-  Widget _entryHints(bool dark, bool driver) {
+  // ── Empty-hub rails: destinations · popular · mine · history ───────────────
+  Widget _entryHints(bool dark, bool driver, bool authed) {
     final recent = _recentRoutes();
     return SliverToBoxAdapter(
       child: Column(
@@ -558,6 +555,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                   );
                 },
               ),
+          if (authed) _mineBlock(dark),
           if (recent.isNotEmpty)
             _rail(
               dark: dark,

@@ -34,11 +34,15 @@ class _RoleSwitchOverlayState extends State<RoleSwitchOverlay>
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final accent = widget.driver ? GrapeColors.c600 : BrandColors.c600;
-    final icon =
-        widget.driver ? Icons.directions_car_filled_rounded : Icons.hail_rounded;
+    final asset =
+        widget.driver ? 'assets/icons/role_driver.png' : 'assets/icons/role_passenger.png';
     final title = (widget.driver
             ? 'feed.role_switch_driver'
             : 'feed.role_switch_passenger')
+        .tr();
+    final sub = (widget.driver
+            ? 'feed.role_switch_driver_sub'
+            : 'feed.role_switch_passenger_sub')
         .tr();
 
     return Positioned.fill(
@@ -57,14 +61,18 @@ class _RoleSwitchOverlayState extends State<RoleSwitchOverlay>
                   child: FadeTransition(
                     opacity: _c,
                     child: Container(
-                      width: 112,
-                      height: 112,
+                      width: 128,
+                      height: 128,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: accent.withValues(alpha: dark ? 0.20 : 0.10),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(icon, size: 56, color: accent),
+                      child: ColorFiltered(
+                        colorFilter: ColorFilter.mode(accent, BlendMode.srcIn),
+                        child: Image.asset(asset,
+                            width: 62, height: 62, fit: BoxFit.contain),
+                      ),
                     ),
                   ),
                 ),
@@ -86,13 +94,20 @@ class _RoleSwitchOverlayState extends State<RoleSwitchOverlay>
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'feed.role_switching'.tr(),
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: InkColors.c400,
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    sub,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                      color: InkColors.c400,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 22),
