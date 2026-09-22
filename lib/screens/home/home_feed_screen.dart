@@ -175,8 +175,10 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: GestureDetector(
+        // go (not push): /my/bookings lives in another shell branch — go
+        // switches to the «Мои» tab; push wouldn't activate the branch.
         onTap: () =>
-            context.push('/my/bookings?tab=${isTrip ? 'trips' : 'requests'}'),
+            context.go('/my/bookings?tab=${isTrip ? 'trips' : 'requests'}'),
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: const EdgeInsets.all(10),
