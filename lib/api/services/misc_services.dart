@@ -156,12 +156,11 @@ class CityHit {
   /// homonyms like «Баткен · район» vs «Баткен · город».
   String subtitle(bool kg) {
     if (type == 'raion') return 'район';
+    // Oblast-level город → tag «город/шаар» (its district often repeats the name,
+    // e.g. «Баткен» город in «Баткен» район — the district would be noise).
+    if (type == 'city') return kg ? 'шаар' : 'город';
     final d = (kg ? districtKg : districtRu)?.trim();
     final a = (kg ? aiylKg : aiylRu)?.trim();
-    final parts =
-        [d, a].where((s) => s != null && s.isNotEmpty).toList();
-    if (parts.isNotEmpty) return parts.join(', ');
-    if (type == 'city') return kg ? 'шаар' : 'город';
-    return '';
+    return [d, a].where((s) => s != null && s.isNotEmpty).join(', ');
   }
 }
