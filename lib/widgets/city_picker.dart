@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../api/services/misc_services.dart' show CityHit;
 import '../data/kg_cities.dart';
 import '../providers/data_providers.dart';
 import '../theme/colors.dart';
@@ -31,12 +32,16 @@ class _CityPickerSheet extends ConsumerStatefulWidget {
 
 class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> {
   String _query = '';
-  List<String> _results = kgCities;
+  late List<CityHit> _results = _localFilter('');
   bool _loading = false;
   Timer? _debounce;
 
-  List<String> _localFilter(String q) =>
-      kgCities.where((c) => c.toLowerCase().contains(q.toLowerCase())).toList();
+  List<CityHit> _localFilter(String q) {
+    final src = q.trim().isEmpty
+        ? kgCities
+        : kgCities.where((c) => c.toLowerCase().contains(q.toLowerCase()));
+    return [for (final c in src) CityHit(name: c)];
+  }
 
   void _onChanged(String v) {
     _query = v;
@@ -44,7 +49,7 @@ class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> {
     _debounce?.cancel();
 
     if (q.isEmpty) {
-      setState(() { _results = kgCities; _loading = false; });
+      setState(() { _results = _localFilter(''); _loading = false; });
       return;
     }
     if (AppConfig.useMock) {
@@ -107,11 +112,18 @@ class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> {
                   ? Center(child: Text('city_autocomplete.not_found'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)))
                   : ListView.builder(
                       itemCount: _results.length,
-                      itemBuilder: (_, i) => ListTile(
-                        leading: const Icon(Icons.place_outlined, color: InkColors.c400),
-                        title: Text(_results[i], style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900)),
-                        onTap: () => Navigator.of(context).pop(_results[i]),
-                      ),
+                      itemBuilder: (_, i) {
+                        final hit = _results[i];
+                        final sub = hit.subtitle(context.locale.languageCode == 'kg');
+                        return ListTile(
+                          leading: const Icon(Icons.place_outlined, color: InkColors.c400),
+                          title: Text(hit.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900)),
+                          subtitle: sub.isEmpty
+                              ? null
+                              : Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: InkColors.c400)),
+                          onTap: () => Navigator.of(context).pop(hit.name),
+                        );
+                      },
                     ),
             ),
           ],

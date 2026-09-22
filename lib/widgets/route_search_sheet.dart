@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../api/services/misc_services.dart' show CityHit;
 import '../data/kg_cities.dart';
 import '../providers/data_providers.dart';
 import '../theme/colors.dart';
@@ -49,7 +50,7 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
   final FocusNode _toFocus = FocusNode();
 
   late bool _activeIsTo = widget.focusTo;
-  List<String> _results = const [];
+  List<CityHit> _results = const [];
   bool _loading = false;
   Timer? _debounce;
 
@@ -84,18 +85,19 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
     super.dispose();
   }
 
-  List<String> _localFilter(String q) => q.trim().isEmpty
-      ? kgCities
-      : kgCities
-          .where((c) => c.toLowerCase().contains(q.toLowerCase()))
-          .toList();
+  List<CityHit> _localFilter(String q) {
+    final src = q.trim().isEmpty
+        ? kgCities
+        : kgCities.where((c) => c.toLowerCase().contains(q.toLowerCase()));
+    return [for (final c in src) CityHit(name: c)];
+  }
 
   void _search(String v) {
     final q = v.trim();
     _debounce?.cancel();
     if (q.isEmpty) {
       setState(() {
-        _results = kgCities;
+        _results = _localFilter('');
         _loading = false;
       });
       return;
@@ -129,7 +131,8 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
     });
   }
 
-  void _pick(String city) {
+  void _pick(CityHit hit) {
+    final city = hit.name;
     if (_activeIsTo) {
       _toCtrl.text = city;
       if (_fromCtrl.text.trim().isEmpty) {
@@ -165,7 +168,8 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: kb),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: h * 0.82),
+        // Leave ~15% of the display at the top while typing (keyboard-aware).
+        constraints: BoxConstraints(maxHeight: (h * 0.85 - kb).clamp(240.0, h * 0.85)),
         child: Container(
           decoration: BoxDecoration(
             color: dark ? InkColors.c950 : InkColors.c50,
@@ -227,19 +231,33 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
                             height: 1,
                             indent: 52,
                             color: dark ? InkColors.c900 : InkColors.c100),
-                        itemBuilder: (_, i) => ListTile(
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
-                          leading: const Icon(Icons.place_outlined,
-                              size: 20, color: InkColors.c400),
-                          title: Text(_results[i],
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color:
-                                      dark ? Colors.white : InkColors.c900)),
-                          onTap: () => _pick(_results[i]),
-                        ),
+                        itemBuilder: (_, i) {
+                          final hit = _results[i];
+                          final sub = hit.subtitle(
+                              context.locale.languageCode == 'kg');
+                          return ListTile(
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
+                            leading: const Icon(Icons.place_outlined,
+                                size: 20, color: InkColors.c400),
+                            title: Text(hit.name,
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color:
+                                        dark ? Colors.white : InkColors.c900)),
+                            subtitle: sub.isEmpty
+                                ? null
+                                : Text(sub,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: InkColors.c400)),
+                            onTap: () => _pick(hit),
+                          );
+                        },
                       ),
               ),
             ],

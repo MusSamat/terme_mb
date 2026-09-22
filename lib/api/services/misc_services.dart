@@ -81,12 +81,26 @@ class CitiesService {
   CitiesService(this._dio);
   final Dio _dio;
 
-  /// GET /cities?q= — city search/autocomplete.
-  Future<List<String>> search(String query) async {
+  /// GET /cities?q= — city search/autocomplete. Carries the district/aiyl
+  /// context so the client can show «Баткен району, Самаркандек айылы» under
+  /// the name. Oblasts are excluded server-side.
+  Future<List<CityHit>> search(String query) async {
     final res = await _dio.get<Map<String, dynamic>>('/cities',
         queryParameters: {if (query.isNotEmpty) 'q': query, 'limit': 20});
     final list = (res.data?['data'] as List?) ?? const [];
-    return list.map((e) => ((e as Map)['nameRu'] ?? '') as String).where((s) => s.isNotEmpty).toList();
+    return list
+        .map((e) {
+          final m = e as Map;
+          return CityHit(
+            name: (m['nameRu'] ?? '') as String,
+            districtRu: m['districtNameRu'] as String?,
+            districtKg: m['districtNameKg'] as String?,
+            aiylRu: m['aiylAimakNameRu'] as String?,
+            aiylKg: m['aiylAimakNameKg'] as String?,
+          );
+        })
+        .where((c) => c.name.isNotEmpty)
+        .toList();
   }
 
   /// GET /cities/popular-routes — curated top routes for the empty feed state.
@@ -115,4 +129,30 @@ class PopularRoute {
   final String to;
   final int tripCount;
   final int? minPrice;
+}
+
+/// A city search hit + its administrative context (район, айыл). Oblast is
+/// intentionally omitted — we never show it as a subtitle.
+class CityHit {
+  const CityHit({
+    required this.name,
+    this.districtRu,
+    this.districtKg,
+    this.aiylRu,
+    this.aiylKg,
+  });
+
+  final String name;
+  final String? districtRu;
+  final String? districtKg;
+  final String? aiylRu;
+  final String? aiylKg;
+
+  /// «Баткен району, Самаркандек айылы» — empty for republican cities
+  /// (Бишкек/Ош) that have no district.
+  String subtitle(bool kg) {
+    final d = (kg ? districtKg : districtRu)?.trim();
+    final a = (kg ? aiylKg : aiylRu)?.trim();
+    return [d, a].where((s) => s != null && s.isNotEmpty).join(', ');
+  }
 }
