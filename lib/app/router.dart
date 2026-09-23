@@ -21,7 +21,11 @@ const _protectedPrefixes = <String>[
 ];
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authProvider);
+  // Watch ONLY the auth status — not the whole AuthState. Watching everything
+  // rebuilt (recreated) the GoRouter on every activeMode change, resetting
+  // navigation to initialLocation '/'. That's why picking a role in the create
+  // sheet landed on the home hub instead of the create form.
+  final status = ref.watch(authProvider.select((s) => s.status));
 
   return GoRouter(
     navigatorKey: _rootKey,
@@ -29,7 +33,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       // Only gate once we've resolved to a definite anonymous state — never
       // during idle/loading (avoids bouncing on cold start / silent refresh).
-      if (auth.status != AuthStatus.anonymous) return null;
+      if (status != AuthStatus.anonymous) return null;
       final loc = state.matchedLocation;
       final isProtected = _protectedPrefixes.any(loc.startsWith);
       if (isProtected) return '/auth/login';

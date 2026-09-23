@@ -667,7 +667,6 @@ class _SettingsCard extends ConsumerWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final mode = ref.watch(themeModeProvider);
     final locale = context.locale.languageCode;
-    final isDark = mode == ThemeMode.dark || (mode == ThemeMode.system && dark);
 
     void setLocale(String code) {
       context.setLocale(Locale(code));
@@ -694,9 +693,18 @@ class _SettingsCard extends ConsumerWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _Segmented(
-              options: const [('light', '', Icons.light_mode), ('dark', '', Icons.dark_mode)],
-              selected: isDark ? 'dark' : 'light',
-              onSelect: (v) => ref.read(themeModeProvider.notifier).set(v == 'dark' ? ThemeMode.dark : ThemeMode.light),
+              // Авто (как на устройстве) → Светлая → Тёмная. Default = auto.
+              options: const [
+                ('system', '', Icons.brightness_auto),
+                ('light', '', Icons.light_mode),
+                ('dark', '', Icons.dark_mode),
+              ],
+              selected: mode.name,
+              onSelect: (v) => ref.read(themeModeProvider.notifier).set(switch (v) {
+                    'light' => ThemeMode.light,
+                    'dark' => ThemeMode.dark,
+                    _ => ThemeMode.system,
+                  }),
               dark: dark,
             ),
           ),
