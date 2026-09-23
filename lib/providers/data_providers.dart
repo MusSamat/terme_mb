@@ -80,6 +80,10 @@ final apiBootstrapProvider = Provider<void>((ref) {
     return token;
   });
 
+  // Token reuse detected on /auth/refresh → the backend revoked every session.
+  // Clear tokens/cookie and drop to anonymous so the router bounces to login.
+  client.attachForceLogout(notifier.clearSession);
+
   // Cold-start session restore: the persistent refresh cookie lets us silently
   // re-authenticate, so a logged-in user stays logged in across app restarts
   // until they explicitly log out. Runs once (guards on the idle status).

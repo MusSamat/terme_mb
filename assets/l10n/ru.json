@@ -324,22 +324,23 @@
       "logging_in": "Входим…",
       "change_number": "← Изменить номер",
       "alternatives": "альтернативы",
-      "login_sms": "Войти по коду из Telegram",
+      "login_sms": "Войти по коду из WhatsApp",
       "login_telegram": "Войти через Telegram",
       "sending": "Отправляем…",
       "checking": "Проверяем…",
       "forgot_password": "Забыли пароль?",
-      "no_password_hint": "У вас ещё нет пароля. Установите его через Telegram.",
+      "reset_success": "Пароль обновлён. Войдите с новым паролем.",
+      "no_password_hint": "У вас ещё нет пароля. Установите его через код из WhatsApp.",
       "set_password_btn": "Сохранить пароль",
       "enter_phone_first": "Сначала введите номер телефона.",
       "no_account": "Нет аккаунта?",
       "register_link": "Зарегистрироваться",
       "otp_sent": "Код отправлен в WhatsApp",
-      "otp_reset_sent": "Код для сброса пароля отправлен в WhatsApp",
-      "otp_telegram_hint": "Откройте @terme_kg_bot в Telegram и введите код.",
+      "otp_reset_sent": "Код для сброса пароля отправлен в WhatsApp на номер",
+      "otp_telegram_hint": "Проверьте WhatsApp и введите код.",
       "otp_dm_hint": "Код отправлен в WhatsApp на номер",
-      "otp_open_bot": "Открыть бот в Telegram",
-      "otp_reset_hint": "После подтверждения вы сможете установить новый пароль.",
+      "otp_open_bot": "Открыть WhatsApp",
+      "otp_reset_hint": "Введите номер — пришлём код в WhatsApp для сброса пароля.",
       "otp_label": "Код подтверждения",
       "otp_digit": "Цифра {n}",
       "verifying": "Проверяем…",
@@ -383,7 +384,7 @@
       "step_label": "Шаг {step} из {total} · {title}",
       "error_title": "Ошибка",
       "step_phone": "Телефон",
-      "step_otp": "Код из Telegram",
+      "step_otp": "Код из WhatsApp",
       "step_profile": "О себе",
       "step_password": "Пароль",
       "step_routes": "Маршрут",
@@ -726,7 +727,8 @@
       "closed": "Заявка закрыта"
     },
     "nearby_notice": "Точных совпадений нет — показаны запросы из соседних сёл этого района",
-    "responded_edit": "Вы откликнулись · Изменить"
+    "responded_edit": "Вы откликнулись · Изменить",
+    "err_price_range": "Цена должна быть от 1 до 100 000 сом."
   },
   "bookings": {
     "title": "Мои поездки",
@@ -1269,8 +1271,18 @@
     "when_go": "Когда хотите поехать?",
     "active_trip": "Активная поездка",
     "active_request": "Активная заявка",
-    "mine_trips_line": {"one": "У вас {} активная поездка", "few": "У вас {} активные поездки", "many": "У вас {} активных поездок", "other": "У вас {} активных поездок"},
-    "mine_requests_line": {"one": "У вас {} активная заявка", "few": "У вас {} активные заявки", "many": "У вас {} активных заявок", "other": "У вас {} активных заявок"},
+    "mine_trips_line": {
+      "one": "У вас {} активная поездка",
+      "few": "У вас {} активные поездки",
+      "many": "У вас {} активных поездок",
+      "other": "У вас {} активных поездок"
+    },
+    "mine_requests_line": {
+      "one": "У вас {} активная заявка",
+      "few": "У вас {} активные заявки",
+      "many": "У вас {} активных заявок",
+      "other": "У вас {} активных заявок"
+    },
     "mine_trips_sub": "Нажмите, чтобы управлять поездками",
     "mine_requests_sub": "Нажмите, чтобы посмотреть отклики",
     "role_switch_driver": "Режим водителя",
@@ -1618,7 +1630,8 @@
     "warning_hint": "Вы получите ответ в течение часа. Номер водителя станет виден после принятия.",
     "cancel": "Отмена",
     "sending": "Отправляем…",
-    "submit": "Отправить запрос"
+    "submit": "Отправить запрос",
+    "err_sold_out": "В этой поездке не осталось мест."
   },
   "booking_card": {
     "expired": "Истекло",

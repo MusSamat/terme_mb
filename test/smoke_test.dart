@@ -54,7 +54,7 @@ void main() {
     'complaint': const ComplaintScreen(),
     'create': const CreateScreen(),
     'login': const LoginScreen(),
-    'register': const RegisterScreen(),
+    'forgot-password': const ForgotPasswordScreen(),
     'onboarding': const OnboardingScreen(),
     'public-profile': const PublicProfileScreen(id: 'd1'),
     'driver-verification': const DriverVerificationScreen(),

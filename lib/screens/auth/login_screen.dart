@@ -230,6 +230,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         loading: _loading,
         onPressed: _phoneValid && !_loading ? _start : null,
       ),
+      const SizedBox(height: 16),
+      Center(
+        child: GestureDetector(
+          onTap: () => context.push('/auth/forgot-password'),
+          behavior: HitTestBehavior.opaque,
+          child: Text('auth.login.forgot_password'.tr(),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BrandColors.c600)),
+        ),
+      ),
     ];
   }
 

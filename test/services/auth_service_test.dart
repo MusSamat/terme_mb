@@ -42,11 +42,11 @@ void main() {
   });
 
   group('sendOtp', () {
-    test('POST /auth/telegram/otp/send with phone', () async {
+    test('POST /auth/phone/send-otp with phone', () async {
       stubPost({'expiresInSec': 120});
       final r = await svc.sendOtp('+996701');
       expect(r['expiresInSec'], 120);
-      verify(() => dio.post<Map<String, dynamic>>('/auth/telegram/otp/send', data: {'phone': '+996701'})).called(1);
+      verify(() => dio.post<Map<String, dynamic>>('/auth/phone/send-otp', data: {'phone': '+996701'})).called(1);
     });
   });
 
@@ -92,11 +92,13 @@ void main() {
   });
 
   group('resetPassword', () {
-    test('POST /auth/phone/reset-password with newPassword', () async {
+    test('POST /auth/phone/reset-password with phone, code, newPassword', () async {
       when(() => dio.post<dynamic>(any(), data: any(named: 'data'))).thenAnswer((_) async => _ok({}));
-      await svc.resetPassword('newpass');
+      await svc.resetPassword('+996701', '111111', 'newpass');
       final body = verify(() => dio.post<dynamic>('/auth/phone/reset-password',
           data: captureAny(named: 'data'))).captured.single as Map;
+      expect(body['phone'], '+996701');
+      expect(body['code'], '111111');
       expect(body['newPassword'], 'newpass');
     });
   });

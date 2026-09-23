@@ -521,6 +521,11 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
 
   Future<void> _submit() async {
     if (_loading) return;
+    // Backend rejects booking a sold-out trip (SEATS_NOT_AVAILABLE) — guard here.
+    if (widget.trip.soldOut) {
+      Toasts.error('book_form.err_sold_out'.tr());
+      return;
+    }
     setState(() => _loading = true);
     try {
       final comment = _comment.text.trim();

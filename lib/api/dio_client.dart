@@ -9,6 +9,10 @@ import 'token_store.dart';
 /// Wired by the auth layer so this file stays free of feature logic.
 typedef RefreshFn = Future<String?> Function();
 
+/// Callback that forces a full logout (clear tokens/session + cookie jar) and
+/// routes to login. Wired by the auth layer; invoked on token-reuse detection.
+typedef ForceLogoutFn = void Function();
+
 /// Builds the shared Dio instance:
 ///  - Bearer access token on every request
 ///  - strips manual Content-Type for FormData (multipart boundary)
@@ -20,6 +24,7 @@ class DioClient {
   final TokenStore _tokens;
   final Storage _cookieStorage;
   RefreshFn? _refresh;
+  ForceLogoutFn? _forceLogout;
   // Single-flight: concurrent 401s share ONE refresh and all await the SAME
   // new token — never a stale one. This also stops the client from calling
   // /auth/refresh twice with the same cookie (which tripped reuse detection).
@@ -33,6 +38,7 @@ class DioClient {
   late final Dio dio = _build();
 
   void attachRefresh(RefreshFn fn) => _refresh = fn;
+  void attachForceLogout(ForceLogoutFn fn) => _forceLogout = fn;
 
   Dio _build() {
     final d = Dio(
@@ -62,6 +68,12 @@ class DioClient {
           handler.next(options);
         },
         onError: (err, handler) async {
+          if (_isTokenReuse(err)) {
+            // Refresh token was replayed — the backend revoked the whole family.
+            // Drop the session locally and bounce to login; never retry.
+            _forceLogout?.call();
+            return handler.next(err);
+          }
           if (await _shouldRefresh(err)) {
             try {
               final newToken = await _runRefresh();
@@ -79,6 +91,20 @@ class DioClient {
     );
 
     return d;
+  }
+
+  /// True when /auth/refresh answered 401 with a token-reuse signal — either
+  /// error.details.reason == 'token_reuse_detected' or details.code ==
+  /// 'TOKEN_REUSE_DETECTED'. Requires a full logout, not a retry.
+  bool _isTokenReuse(DioException err) {
+    if (err.response?.statusCode != 401) return false;
+    final data = err.response?.data;
+    if (data is! Map || data['error'] is! Map) return false;
+    final error = data['error'] as Map;
+    final details = error['details'];
+    if (details is! Map) return false;
+    return details['reason'] == 'token_reuse_detected' ||
+        details['code'] == 'TOKEN_REUSE_DETECTED';
   }
 
   Future<bool> _shouldRefresh(DioException err) async {

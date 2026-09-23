@@ -15,10 +15,10 @@ class AuthService {
     return res.data!;
   }
 
-  /// POST /auth/telegram/otp/send → sends the login code to the user's Telegram
-  /// DM. Returns {expiresInSec}. (The code is delivered by the backend's bot.)
+  /// POST /auth/phone/send-otp → sends the login/registration code to the user's
+  /// WhatsApp. Returns {expiresInSec}. Canonical OTP-send channel.
   Future<Map<String, dynamic>> sendOtp(String phone) async {
-    final res = await _dio.post<Map<String, dynamic>>('/auth/telegram/otp/send', data: {'phone': phone});
+    final res = await _dio.post<Map<String, dynamic>>('/auth/phone/send-otp', data: {'phone': phone});
     return res.data!;
   }
 
@@ -63,10 +63,11 @@ class AuthService {
     return AuthResult.fromJson(res.data!);
   }
 
-  /// POST /auth/phone/reset-password → set a new password after an OTP-verified
-  /// session (forgot-password flow). Requires the caller to be authenticated.
-  Future<void> resetPassword(String newPassword) =>
-      _dio.post('/auth/phone/reset-password', data: {'newPassword': newPassword, 'channel': 'web'});
+  /// POST /auth/phone/reset-password → set a new password after verifying a
+  /// WhatsApp OTP. Requires {phone, code, newPassword} (unauthenticated flow).
+  Future<void> resetPassword(String phone, String code, String newPassword) =>
+      _dio.post('/auth/phone/reset-password',
+          data: {'phone': phone, 'code': code, 'newPassword': newPassword, 'channel': 'web'});
 
   /// PATCH /users/me/password → change password. `currentPassword` required when
   /// the account already has one.

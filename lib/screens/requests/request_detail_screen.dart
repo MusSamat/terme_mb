@@ -357,8 +357,8 @@ class _RespondSheetState extends ConsumerState<_RespondSheet> {
   Future<void> _submit() async {
     if (_loading) return;
     final price = int.tryParse(_price.text.trim());
-    if (price == null || price <= 0) {
-      Toasts.error('requests.price_placeholder'.tr());
+    if (price == null || price < 1 || price > 100000) {
+      Toasts.error('requests.err_price_range'.tr());
       return;
     }
     setState(() => _loading = true);
