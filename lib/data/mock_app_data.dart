@@ -362,6 +362,16 @@ String notifBody(String type, Map<String, dynamic> p) {
       }
     case 'request_response_declined':
       return 'notif.body_request_response_declined'.tr();
+    case 'request_cancelled_admin':
+      {
+        final reason = (p['reason'] ?? p['body'] ?? '') as String;
+        if (reason.isNotEmpty) return 'notif.body_request_cancelled_admin'.tr(namedArgs: {'reason': reason});
+        final from = s('originCity');
+        final to = s('destinationCity');
+        return from.isNotEmpty && to.isNotEmpty
+            ? 'notif.body_request_cancelled_admin_route'.tr(namedArgs: {'route': '$from → $to'})
+            : 'notif.body_request_cancelled_admin_fallback'.tr();
+      }
     case 'new_message':
       {
         final preview = s('preview');
@@ -448,6 +458,7 @@ String? notifDeepLink(String type, Map<String, dynamic> payload) {
     case 'request_response_received':
     case 'request_response_accepted':
     case 'request_response_declined':
+    case 'request_cancelled_admin':
       return '/my/bookings';
     case 'booking_accepted':
     case 'new_message': {

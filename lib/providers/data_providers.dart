@@ -29,8 +29,10 @@ import '../models/trip_card_item.dart';
 import '../utils/api_format.dart';
 import '../utils/config.dart';
 import '../utils/date_format.dart';
+import '../widgets/app_toast.dart';
 import 'auth_provider.dart';
 import 'core_providers.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 // ── Service singletons (built on the shared Dio) ─────────────────────────────
 Dio _dio(Ref ref) => ref.watch(dioClientProvider).dio;
@@ -159,22 +161,101 @@ final socketBootstrapProvider = Provider<void>((ref) {
   }
   void invChats() { ref.invalidate(chatSummariesProvider); ref.invalidate(unreadChatProvider); }
 
+  // Domain-event payloads arrive as JSON maps; read them defensively.
+  Map<String, dynamic> pm(dynamic d) => (d is Map) ? d.cast<String, dynamic>() : const {};
+  Map<String, dynamic>? sub(Map<String, dynamic> m, String k) => (m[k] as Map?)?.cast<String, dynamic>();
+
+  // Lightweight in-app toasts mirroring the web NotificationListener policy —
+  // only for request_response_* and booking_* events (not every notification).
   final handlers = <(String, void Function(dynamic))>[
     // Reconnect → resync everything (events fired while offline are lost).
     ('connect', (_) { invNotifs(); invBookings(); invChats(); }),
     ('notification:new', (_) => invNotifs()),
-    ('booking:new_request', (_) { invBookings(); invNotifs(); }),
-    ('booking:accepted', (_) { invBookings(); invNotifs(); }),
-    ('booking:request_confirmed', (_) { invBookings(); invNotifs(); }),
-    ('booking:rejected', (_) { invBookings(); invNotifs(); }),
-    ('booking:cancelled', (_) { invBookings(); invNotifs(); }),
-    ('booking:expired', (_) { invBookings(); invNotifs(); }),
+    ('booking:new_request', (d) {
+      invBookings(); invNotifs();
+      final p = pm(d);
+      final name = (p['passengerName'] ?? '') as String;
+      final trip = sub(p, 'trip') ?? const {};
+      final from = (trip['originCity'] ?? '') as String;
+      final to = (trip['destinationCity'] ?? '') as String;
+      Toasts.info(
+        'notif_toast.new_request_title'.tr(),
+        name.isNotEmpty
+            ? 'notif_toast.new_request_body'.tr(namedArgs: {'name': name, 'from': from, 'to': to})
+            : (from.isNotEmpty && to.isNotEmpty ? '$from → $to' : ''),
+      );
+    }),
+    ('booking:accepted', (_) {
+      invBookings(); invNotifs();
+      Toasts.success('notif_toast.accepted_title'.tr(), 'notif_toast.accepted_body'.tr());
+    }),
+    ('booking:request_confirmed', (d) {
+      invBookings(); invNotifs();
+      final name = (pm(d)['passengerName'] ?? '') as String;
+      Toasts.success(
+        'notif_toast.accepted_title'.tr(),
+        name.isNotEmpty
+            ? 'notif_toast.confirmed_body'.tr(namedArgs: {'name': name})
+            : 'notif_toast.confirmed_body_fallback'.tr(),
+      );
+    }),
+    ('booking:rejected', (_) {
+      invBookings(); invNotifs();
+      Toasts.error('notif_toast.rejected_title'.tr(), 'notif_toast.rejected_body'.tr());
+    }),
+    ('booking:cancelled', (d) {
+      invBookings(); invNotifs();
+      final body = (pm(d)['cancelledBy'] == 'driver')
+          ? 'notif_toast.cancelled_body_driver'.tr()
+          : 'notif_toast.cancelled_body'.tr();
+      Toasts.error('notif_toast.cancelled_title'.tr(), body);
+    }),
+    ('booking:expired', (_) {
+      invBookings(); invNotifs();
+      Toasts.error('notif_toast.expired_title'.tr(), 'notif_toast.expired_body'.tr());
+    }),
     ('booking:viewed', (_) => invBookings()),
-    ('trip:cancelled', (_) { invBookings(); invNotifs(); }),
+    ('trip:cancelled', (d) {
+      invBookings(); invNotifs();
+      final p = pm(d);
+      final from = (p['originCity'] ?? '') as String;
+      final to = (p['destinationCity'] ?? '') as String;
+      final route = (from.isNotEmpty && to.isNotEmpty) ? ' · $from → $to' : '';
+      Toasts.error(
+        'notif_toast.trip_cancelled_title'.tr(),
+        'notif_toast.trip_cancelled_body'.tr(namedArgs: {'route': route}),
+      );
+    }),
     ('trip:completed_rate', (_) => invNotifs()),
-    ('request:response_received', (_) => invNotifs()),
-    ('request:response_accepted', (_) { invBookings(); invNotifs(); }),
-    ('request:response_declined', (_) => invNotifs()),
+    ('request:response_received', (d) {
+      invNotifs();
+      final p = pm(d);
+      final name = (p['driverName'] ?? '') as String;
+      final price = p['price'];
+      Toasts.info(
+        'notif_toast.offer_title'.tr(),
+        name.isNotEmpty
+            ? 'notif_toast.offer_body'.tr(namedArgs: {
+                'name': name,
+                'price': price != null ? 'notif_toast.offer_price'.tr(namedArgs: {'price': '$price'}) : '',
+              })
+            : 'notif_toast.offer_body_fallback'.tr(),
+      );
+    }),
+    ('request:response_accepted', (d) {
+      invBookings(); invNotifs();
+      final name = (pm(d)['passengerName'] ?? '') as String;
+      Toasts.success(
+        'notif_toast.offer_accepted_title'.tr(),
+        name.isNotEmpty
+            ? 'notif_toast.offer_accepted_body'.tr(namedArgs: {'name': name})
+            : 'notif_toast.offer_accepted_body_fallback'.tr(),
+      );
+    }),
+    ('request:response_declined', (_) {
+      invNotifs();
+      Toasts.error('notif_toast.offer_declined_title'.tr(), 'notif_toast.offer_declined_body'.tr());
+    }),
     ('chat:message', (_) => invChats()),
   ];
 
