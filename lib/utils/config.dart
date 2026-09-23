@@ -37,6 +37,7 @@ class StorageKeys {
   static const theme = 'terme_theme'; // light | dark | system
   static const locale = 'terme_locale'; // ru | kg
   static const onboardingSeen = 'terme_onboarding_seen';
+  static const roleChosen = 'terme_role_chosen'; // "1" once the role gate is answered
   static const deferredAction = 'terme_deferred_action';
   static const notifPrefsPrefix = 'terme_notif_prefs_'; // + userId
   static const celebratedPrefix = 'terme_celebrated_'; // + bookingId

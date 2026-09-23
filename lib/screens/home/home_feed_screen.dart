@@ -13,6 +13,7 @@ import '../../utils/config.dart' show StorageKeys;
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/date_picker_modal.dart';
+import '../../widgets/role_select_sheet.dart';
 import '../../widgets/route_search_sheet.dart';
 import '../../widgets/intent_toggle.dart';
 import '../../widgets/logo_mark.dart';
@@ -34,6 +35,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   String _to = '';
   bool _whole = false;
   String _date = ''; // '' = today
+  bool _gatePrompted = false; // role gate shown once this mount
 
   static const _monthsShort = [
     'янв', 'фев', 'мар', 'апр', 'май', 'июн',
@@ -79,6 +81,15 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
 
     final authed = ref
         .watch(authProvider.select((s) => s.status == AuthStatus.authenticated));
+
+    // First login / reopen on the hub with no saved choice → open the role gate
+    // once. Runs after auth resolves (post-frame so it doesn't fight the build).
+    if (authed && !_gatePrompted && !hasChosenRole(ref)) {
+      _gatePrompted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showRoleSelectSheet(context, ref, create: false);
+      });
+    }
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/data_providers.dart';
 import '../widgets/pill_nav.dart';
+import '../widgets/role_select_sheet.dart';
 
 /// Hosts the four main tab branches and the floating pill nav.
 /// The nav hides itself when the keyboard is open (per ТЗ §6.2).
@@ -33,7 +34,9 @@ class RootShell extends ConsumerWidget {
               // tab must still switch, otherwise «Мои» silently no-ops / bounces
               // to login for a logged-in user.
               onSelect: (i) => _onSelect(context, i, status == AuthStatus.anonymous),
-              onCreate: () => context.push('/trips/create'),
+              // One «+», two outcomes — ask «поездка (водитель) / заявка
+              // (пассажир)», set the mode, then open the create form.
+              onCreate: () => showRoleSelectSheet(context, ref, create: true),
               chatUnread: chatUnread,
             ),
     );

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/core_providers.dart';
+import '../../utils/config.dart' show StorageKeys;
 import '../../theme/colors.dart';
 import '../../theme/role_theme.dart';
 import '../../widgets/logo_mark.dart';
@@ -16,6 +18,9 @@ class OnboardingScreen extends ConsumerWidget {
   // Enter the app in [mode], persisting it as the default role everywhere.
   void _continueAs(BuildContext context, WidgetRef ref, ActiveMode mode) {
     ref.read(authProvider.notifier).setActiveMode(mode);
+    // The welcome role pick IS the one-time role choice — record it so the hub
+    // gate sheet doesn't ask again on arrival.
+    ref.read(hiveBoxProvider).put(StorageKeys.roleChosen, '1');
     context.go('/');
   }
 
