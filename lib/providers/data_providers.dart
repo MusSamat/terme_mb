@@ -75,9 +75,17 @@ final apiBootstrapProvider = Provider<void>((ref) {
   final notifier = ref.read(authProvider.notifier);
 
   client.attachRefresh(() async {
-    final token = await auth.refresh();
-    if (token != null) tokens.set(token);
-    return token;
+    try {
+      final token = await auth.refresh();
+      if (token != null) tokens.set(token);
+      return token;
+    } on DioException catch (e) {
+      // Definitive 401 from /auth/refresh (dead/rotated cookie): the session is
+      // unrecoverable — log out cleanly instead of leaving a zombie session
+      // that shows «Сессия истекла» toasts while screens keep half-working.
+      if (e.response?.statusCode == 401) notifier.clearSession();
+      rethrow;
+    }
   });
 
   // Token reuse detected on /auth/refresh → the backend revoked every session.

@@ -45,6 +45,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Timer? _typingHideTimer; // auto-hides the indicator ~3s after the last event
   DateTime? _lastTypingSent; // throttles our own chat:typing emits (≤1/2s)
   int? _limitRemaining; // pre-booking «осталось N сообщений» banner (null = hidden)
+  // A message can arrive twice: once via the user room (notifier → recipient)
+  // and once via the chat room we now join. Dedupe by server message id.
+  final Set<String> _seenMsgIds = {};
 
   @override
   void initState() {
@@ -72,6 +75,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         if (m == null) return;
         if (m['bookingId'] != widget.bookingId) return;
         if (_myId != null && m['senderId'] == _myId) return; // ignore own echo
+        final id = m['id'] as String?;
+        if (id != null && !_seenMsgIds.add(id)) return; // user-room + chat-room dupe
         final created = DateTime.tryParse((m['createdAt'] ?? '') as String)?.toLocal();
         if (!mounted) return;
         setState(() {

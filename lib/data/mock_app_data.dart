@@ -127,7 +127,11 @@ class MockChat {
         otherName: (j['otherName'] ?? '') as String,
         route: (j['route'] ?? '') as String,
         lastMessage: (j['lastMessage'] ?? '') as String,
-        timeLabel: (j['lastMessageAt'] ?? '') as String,
+        // Human label, not the raw ISO string the backend sends.
+        timeLabel: (() {
+          final t = DateTime.tryParse((j['lastMessageAt'] ?? '') as String);
+          return t != null ? shortRelative(t.toLocal()) : '';
+        })(),
         unread: (j['unreadCount'] ?? 0) as int,
         avatarUrl: j['otherAvatarUrl'] as String?,
         bookingStatus: (j['bookingStatus'] ?? 'accepted') as String,
@@ -426,7 +430,10 @@ String? notifDeepLink(String type, Map<String, dynamic> payload) {
   String? bookingId() {
     final b = (payload['booking'] as Map?)?.cast<String, dynamic>();
     final m = (payload['message'] as Map?)?.cast<String, dynamic>();
-    return (b?['id'] ?? payload['bookingId'] ?? m?['bookingId']) as String?;
+    // Payload key style varies by emitter: DTO-carrying events are camelCase,
+    // cron/raw events are snake_case — accept both.
+    return (b?['id'] ?? payload['bookingId'] ?? payload['booking_id'] ?? m?['bookingId'])
+        as String?;
   }
 
   switch (type) {
@@ -448,7 +455,7 @@ String? notifDeepLink(String type, Map<String, dynamic> payload) {
       return id != null ? '/my/bookings/$id/chat' : '/my/bookings';
     }
     case 'trip_cancelled': {
-      final tripId = payload['tripId'] as String?;
+      final tripId = (payload['tripId'] ?? payload['trip_id']) as String?;
       return tripId != null ? '/trips/$tripId' : '/trips';
     }
     case 'rating_received':

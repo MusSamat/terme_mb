@@ -71,7 +71,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         ref.invalidate(unreadNotifProvider);
       } catch (_) {/* navigate anyway */}
     }
-    if (n.route != null && mounted) context.push(n.route!);
+    // go() (not push): deep-link targets include shell-branch routes
+    // (/my/bookings) — pushing those from this root-level screen was unreliable
+    // (tap appeared to do nothing). go() switches branch/route consistently.
+    if (n.route != null && mounted) context.go(n.route!);
   }
 
   @override

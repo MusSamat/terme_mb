@@ -11,6 +11,23 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
 
+  // Release builds render a build-phase exception as a BLANK white box, which
+  // reads as "the tab is empty/broken" with zero diagnostics. Surface a compact
+  // error card instead so field screenshots tell us what actually threw.
+  ErrorWidget.builder = (details) => Material(
+        color: Colors.transparent,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Ошибка экрана: ${details.exceptionAsString()}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: Color(0xFFE11D48)),
+            ),
+          ),
+        ),
+      );
+
   await Hive.initFlutter();
   final box = await Hive.openBox<dynamic>(StorageKeys.box);
 
