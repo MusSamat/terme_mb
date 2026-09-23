@@ -241,29 +241,40 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       ),
       body: Column(
         children: [
-          // Trip summary bar (route + booked status)
-          Container(
-            width: double.infinity,
-            color: dark ? BrandColors.c500.withValues(alpha: 0.1) : BrandColors.c50,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(children: [
-              Icon(Icons.directions_car_filled, size: 16, color: dark ? BrandColors.c300 : BrandColors.c600),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(chat.route,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: dark ? BrandColors.c200 : BrandColors.c800)),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                    color: dark ? BrandColors.c500.withValues(alpha: 0.2) : BrandColors.c100,
-                    borderRadius: BorderRadius.circular(999)),
-                child: Text('chat.booked'.tr(),
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: dark ? BrandColors.c200 : BrandColors.c700)),
-              ),
-            ]),
+          // Trip summary bar (route + booked status) — tappable: opens the
+          // trip the conversation is about (messenger-style context header).
+          GestureDetector(
+            onTap: booking?.tripId != null
+                ? () => context.push('/trips/${booking!.tripId}')
+                : null,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: double.infinity,
+              color: dark ? BrandColors.c500.withValues(alpha: 0.1) : BrandColors.c50,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(children: [
+                Icon(Icons.directions_car_filled, size: 16, color: dark ? BrandColors.c300 : BrandColors.c600),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(chat.route,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: dark ? BrandColors.c200 : BrandColors.c800)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: dark ? BrandColors.c500.withValues(alpha: 0.2) : BrandColors.c100,
+                      borderRadius: BorderRadius.circular(999)),
+                  child: Text('chat.booked'.tr(),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: dark ? BrandColors.c200 : BrandColors.c700)),
+                ),
+                if (booking?.tripId != null) ...[
+                  const SizedBox(width: 6),
+                  Icon(Icons.chevron_right, size: 16, color: dark ? BrandColors.c300 : BrandColors.c600),
+                ],
+              ]),
+            ),
           ),
           Expanded(
             child: !_loaded && threadAsync.isLoading

@@ -850,6 +850,14 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
         ],
         const SizedBox(height: 12),
         Row(children: [
+          // Pre-booking chat: the passenger may have sent template questions
+          // with the request — the driver must be able to READ them before
+          // deciding (writing unlocks after accept, backend-enforced).
+          _actBtn(
+              '', BrandColors.c600, dark ? InkColors.c800 : Colors.white,
+              () => context.push('/my/bookings/${b.id}/chat'),
+              icon: Icons.chat_bubble_outline),
+          const SizedBox(width: 8),
           Expanded(
             child: _actBtn(
                 'booking_card.reject'.tr(),
@@ -868,7 +876,8 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
     );
   }
 
-  Widget _actBtn(String label, Color fg, Color bg, VoidCallback onTap) =>
+  Widget _actBtn(String label, Color fg, Color bg, VoidCallback onTap,
+          {IconData? icon}) =>
       GestureDetector(
         onTap: _busy ? null : onTap,
         behavior: HitTestBehavior.opaque,
@@ -876,15 +885,18 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
           opacity: _busy ? 0.5 : 1,
           child: Container(
             height: 44,
+            width: icon != null && label.isEmpty ? 48 : null,
             alignment: Alignment.center,
             decoration: BoxDecoration(
                 color: bg,
                 borderRadius: BorderRadius.circular(AppRadii.lg),
                 border: Border.all(
                     color: bg == Colors.white ? InkColors.c200 : bg)),
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w800, color: fg)),
+            child: icon != null && label.isEmpty
+                ? Icon(icon, size: 20, color: fg)
+                : Text(label,
+                    style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w800, color: fg)),
           ),
         ),
       );
@@ -1166,7 +1178,9 @@ class _BookingCard extends ConsumerWidget {
     final isHistory = _terminalBookingStatuses.contains(b.status);
     final accepted = b.status == 'accepted';
     // История items are read-only: no chat/cancel/rate buttons, no phone.
-    final canChat = !isHistory && (accepted || b.status == 'completed');
+    // Pre-booking chat (pending/viewed) is allowed — the passenger can write
+    // template questions before acceptance (backend caps it at 10 messages).
+    final canChat = !isHistory;
     final canCancel = b.status == 'pending' || b.status == 'accepted';
 
     Future<void> cancel() async {
