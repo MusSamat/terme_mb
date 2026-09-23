@@ -202,19 +202,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     );
     final threadAsync = ref.watch(chatThreadProvider(widget.bookingId));
 
-    // Seed the mutable list once from the loaded history.
-    ref.listen(chatThreadProvider(widget.bookingId), (_, next) {
-      next.whenData((d) {
-        if (!_loaded && mounted) {
-          setState(() {
-            _messages
-              ..clear()
-              ..addAll(d);
-            _loaded = true;
-          });
-        }
-      });
-    });
+    // Seed the mutable list once from the loaded history — synchronously during
+    // build, NOT via ref.listen: listen only fires on state TRANSITIONS, so a
+    // provider that resolved before this build (warm cache / fast network)
+    // never seeded and the conversation rendered empty.
+    if (!_loaded && threadAsync.hasValue) {
+      _messages
+        ..clear()
+        ..addAll(threadAsync.value!);
+      _loaded = true;
+    }
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,

@@ -360,7 +360,11 @@ final bookingDetailProvider = FutureProvider.family<MockBooking?, String>((ref, 
 
 /// Message history for one booking, mapped to display bubbles (newest first, to
 /// match the reversed ListView). `mine` is resolved against the current user id.
-final chatThreadProvider = FutureProvider.family<List<MockMessage>, String>((ref, bookingId) async {
+// autoDispose: the thread must refetch on every open. A permanent cache made
+// reopened chats show EMPTY — the screen seeded history via ref.listen, which
+// only fires on loading→data transitions, and a warm cache never transitions.
+final chatThreadProvider =
+    FutureProvider.autoDispose.family<List<MockMessage>, String>((ref, bookingId) async {
   if (AppConfig.useMock) return mockThread().reversed.toList();
   final myId = ref.watch(authProvider).user?.id;
   final rows = await ref.watch(chatServiceProvider).messages(bookingId);
