@@ -33,8 +33,11 @@ class SocketClient {
     s.onConnectError((data) {
       final msg = data?.toString() ?? '';
       if (msg.contains('auth_required') || msg.contains('auth_failed')) {
-        // The refresh happens in the dio layer; re-auth then reconnect.
-        refreshAuth();
+        // Re-stamp the (possibly refreshed by the dio layer) token and connect
+        // once. On connect error the socket is NOT connected, so refreshAuth()'s
+        // disconnect().connect() branch never fires — calling it AND connect()
+        // here used to race two connection attempts.
+        s.auth = {'token': _tokens.accessToken};
         s.connect();
       }
     });

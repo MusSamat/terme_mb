@@ -51,8 +51,13 @@ class MockBooking {
       dateLabel: dep != null ? '${dep.day.toString().padLeft(2, '0')}.${dep.month.toString().padLeft(2, '0')}' : '',
       seats: (j['seatsCount'] ?? 1) as int,
       status: (j['status'] ?? 'pending') as String,
-      sum: ((j['totalPrice'] ?? trip['pricePerSeat'] ?? 0) as num).toInt(),
-      verified: (other['verified'] ?? false) as bool,
+      // Total = price frozen at booking time (pricePerSeatSnapshot) × seats;
+      // legacy rows without a snapshot fall back to the trip's live price.
+      sum: (((j['pricePerSeatSnapshot'] ?? trip['pricePerSeat'] ?? 0) as num).toInt()) *
+          ((j['seatsCount'] ?? 1) as int),
+      // Verified badge: the DTO has no `verified` flag — an established
+      // counterparty is one with at least one rating.
+      verified: ((other['ratingCount'] ?? 0) as num) > 0,
       phone: other['phone'] as String?,
       comment: j['comment'] as String?,
     );

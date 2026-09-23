@@ -46,7 +46,8 @@ class TripCardItem {
   final Map<String, bool> preferences;
 
   bool get soldOut => seatsAvailable == 0;
-  bool get inactive => status != 'active';
+  // 'direct' (trip born from an accepted request response) is a live trip too.
+  bool get inactive => status != 'active' && status != 'direct';
 
   factory TripCardItem.fromJson(Map<String, dynamic> j) => TripCardItem(
         id: j['id'] as String,

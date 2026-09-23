@@ -481,9 +481,12 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       error: (e, _) =>
           QueryError(error: e, onRetry: () => ref.invalidate(myTripsProvider)),
       data: (list) {
+        // 'direct' = a live trip created from an accepted passenger-request
+        // response — it belongs with the active tab, not history.
         final shown = list
-            .where(
-                (t) => _history ? t.status != 'active' : t.status == 'active')
+            .where((t) => _history
+                ? (t.status != 'active' && t.status != 'direct')
+                : (t.status == 'active' || t.status == 'direct'))
             .toList();
         final showIncoming = !_history && incoming.isNotEmpty;
         if (shown.isEmpty && !showIncoming) {
