@@ -11,7 +11,9 @@ import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../providers/core_providers.dart';
 import '../../utils/date_format.dart';
+import '../../utils/deferred_action.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/listing_metrics.dart';
@@ -53,7 +55,7 @@ void showTripDetailSheet(BuildContext context, String id) {
                       tripBody(ctx, trip),
                       Padding(
                         padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + MediaQuery.of(ctx).padding.bottom),
-                        child: tripCta(ctx, trip, role, isOwner: ref.read(authProvider).user?.id == trip.driver.id),
+                        child: tripCta(ctx, trip, role, isOwner: ref.read(authProvider).user?.id == trip.driver.id, ref: ref),
                       ),
                     ],
                   ),
@@ -106,7 +108,7 @@ class TripDetailScreen extends ConsumerWidget {
                       color: dark ? InkColors.c900 : Colors.white,
                       border: Border(top: BorderSide(color: dark ? InkColors.c800 : InkColors.c200)),
                     ),
-                    child: tripCta(context, trip, role, isOwner: isOwner),
+                    child: tripCta(context, trip, role, isOwner: isOwner, ref: ref),
                   ),
                 ],
               );
@@ -285,7 +287,7 @@ Widget tripBody(BuildContext context, TripCardItem trip) {
 }
 
 /// Role-aware CTA + contact reveal.
-Widget tripCta(BuildContext context, TripCardItem trip, String role, {bool isOwner = false}) {
+Widget tripCta(BuildContext context, TripCardItem trip, String role, {bool isOwner = false, WidgetRef? ref}) {
   // Own trip: the passenger-mode viewer must NOT see «book» / «reveal contact»
   // (both 400 on the backend — cannot_book_own_trip / own_listing). Show the
   // driver CTA («create similar») instead, exactly like the web mini-app.
@@ -320,7 +322,14 @@ Widget tripCta(BuildContext context, TripCardItem trip, String role, {bool isOwn
     fg = Colors.white;
     icon = Icons.lock_outline;
     label = 'detail.cta_signin'.tr();
-    onTap = () => context.push('/auth/login');
+    onTap = () {
+      // Guest → login → resume: remember they wanted to book THIS trip, so the
+      // login screen can bounce straight back into the booking sheet.
+      if (ref != null) {
+        saveDeferredAction(ref.read(hiveBoxProvider), type: 'book_trip', payload: {'tripId': trip.id});
+      }
+      context.push('/auth/login');
+    };
   } else {
     bg = AccentColors.c500;
     fg = AccentColors.ink;

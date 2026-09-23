@@ -11,6 +11,7 @@ import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../utils/deferred_action.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/logo_mark.dart';
@@ -72,7 +73,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.read(tokenStoreProvider).set(token);
     final me = await auth.me();
     ref.read(authProvider.notifier).setSession(me, accessToken: token);
-    if (mounted) context.go('/');
+    if (!mounted) return;
+    // Resume a guest intent parked before the login redirect (TTL-guarded);
+    // anything bad/expired falls through to home.
+    final deferred = takeDeferredAction(ref.read(hiveBoxProvider));
+    final tripId = deferred?.payload['tripId'];
+    final requestId = deferred?.payload['requestId'];
+    if (deferred?.type == 'book_trip' && tripId is String && tripId.isNotEmpty) {
+      context.go('/trips/$tripId?book=1');
+    } else if (deferred?.type == 'respond_request' && requestId is String && requestId.isNotEmpty) {
+      context.go('/requests/$requestId');
+    } else {
+      context.go('/');
+    }
   }
 
   // Step 1: check whether the number exists, then send a WhatsApp code.

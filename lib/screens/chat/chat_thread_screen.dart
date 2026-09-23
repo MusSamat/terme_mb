@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,6 +37,14 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   bool _sending = false;
   String? _myId;
   void Function(dynamic)? _onSocketMessage;
+  void Function(dynamic)? _onSocketTyping;
+  void Function(dynamic)? _onSocketRead;
+  void Function(dynamic)? _onSocketLimit;
+
+  bool _otherTyping = false; // «печатает…» under the title
+  Timer? _typingHideTimer; // auto-hides the indicator ~3s after the last event
+  DateTime? _lastTypingSent; // throttles our own chat:typing emits (≤1/2s)
+  int? _limitRemaining; // pre-booking «осталось N сообщений» banner (null = hidden)
 
   @override
   void initState() {
@@ -50,8 +60,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     }).catchError((_) {/* best-effort */});
     final socket = ref.read(socketClientProvider);
     socket.connect();
+    // Join the booking's chat room so we receive room-scoped events (typing,
+    // read, limit warnings). History still loads via REST.
+    socket.emit('chat:join', {'booking_id': widget.bookingId});
     // Incoming messages arrive on our user room (server emits chat:message to the
-    // recipient). Append the ones for THIS booking sent by the other party.
+    // recipient) AND on the chat room after join. Append the ones for THIS
+    // booking sent by the other party.
     _onSocketMessage = (data) {
       try {
         final m = ((data as Map)['message'] as Map?)?.cast<String, dynamic>();
@@ -61,6 +75,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         final created = DateTime.tryParse((m['createdAt'] ?? '') as String)?.toLocal();
         if (!mounted) return;
         setState(() {
+          _otherTyping = false; // a real message supersedes the typing hint
           _messages.insert(0, MockMessage(
             text: (m['text'] ?? '') as String,
             mine: false,
@@ -71,15 +86,71 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       } catch (_) {/* ignore malformed frame */}
     };
     socket.on('chat:message', _onSocketMessage!);
+
+    // Typing: the server relays chat:typing only to the OTHER party in the room,
+    // so any frame here means the peer is typing. Show + auto-hide after 3s.
+    _onSocketTyping = (data) {
+      try {
+        final uid = data is Map ? data['user_id'] : null;
+        if (uid != null && uid == _myId) return; // safety: never echo ourselves
+        if (!mounted) return;
+        setState(() => _otherTyping = true);
+        _typingHideTimer?.cancel();
+        _typingHideTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted) setState(() => _otherTyping = false);
+        });
+      } catch (_) {/* ignore */}
+    };
+    socket.on('chat:typing', _onSocketTyping!);
+
+    // Read receipts: the peer read my message → flip my sent bubbles to «read».
+    _onSocketRead = (_) {
+      if (!mounted) return;
+      var changed = false;
+      for (var i = 0; i < _messages.length; i++) {
+        final msg = _messages[i];
+        if (msg.mine && !msg.read) {
+          _messages[i] = MockMessage(text: msg.text, mine: true, timeLabel: msg.timeLabel, read: true);
+          changed = true;
+        }
+      }
+      if (changed) setState(() {});
+    };
+    socket.on('chat:read', _onSocketRead!);
+
+    // Pre-booking message budget warning → inline banner «осталось N сообщений».
+    _onSocketLimit = (data) {
+      try {
+        final n = data is Map ? data['remaining'] : null;
+        if (n is! int || !mounted) return;
+        setState(() => _limitRemaining = n);
+      } catch (_) {/* ignore */}
+    };
+    socket.on('chat:limit_warning', _onSocketLimit!);
   }
 
   @override
   void dispose() {
     _input.dispose();
-    if (!AppConfig.useMock && _onSocketMessage != null) {
-      ref.read(socketClientProvider).off('chat:message', _onSocketMessage);
+    _typingHideTimer?.cancel();
+    if (!AppConfig.useMock) {
+      final socket = ref.read(socketClientProvider);
+      socket.emit('chat:leave', {'booking_id': widget.bookingId});
+      if (_onSocketMessage != null) socket.off('chat:message', _onSocketMessage);
+      if (_onSocketTyping != null) socket.off('chat:typing', _onSocketTyping);
+      if (_onSocketRead != null) socket.off('chat:read', _onSocketRead);
+      if (_onSocketLimit != null) socket.off('chat:limit_warning', _onSocketLimit);
     }
     super.dispose();
+  }
+
+  /// Throttled typing signal — at most one chat:typing emit per 2s while typing.
+  void _onInputChanged() {
+    if (AppConfig.useMock) return;
+    final now = DateTime.now();
+    if (_lastTypingSent != null && now.difference(_lastTypingSent!) < const Duration(seconds: 2)) return;
+    _lastTypingSent = now;
+    ref.read(socketClientProvider).emit('chat:typing', {'booking_id': widget.bookingId});
   }
 
   Future<void> _send() async {
@@ -159,7 +230,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(chat.otherName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-                Text('chat.online'.tr(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: BrandColors.c500)),
+                Text(_otherTyping ? 'chat.typing'.tr() : 'chat.online'.tr(),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: BrandColors.c500)),
               ],
             ),
           ),
@@ -206,7 +278,21 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         itemBuilder: (_, i) => _Bubble(msg: _messages[i], otherName: chat.otherName),
                       ),
           ),
-          _Composer(controller: _input, onSend: _send),
+          if (_limitRemaining != null)
+            Container(
+              width: double.infinity,
+              color: dark ? AccentColors.c500.withValues(alpha: 0.12) : AccentColors.c50,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(children: [
+                const Icon(Icons.info_outline, size: 15, color: AccentColors.c600),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('chat.limit_warning'.tr(namedArgs: {'n': '$_limitRemaining'}),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AccentColors.c700)),
+                ),
+              ]),
+            ),
+          _Composer(controller: _input, onSend: _send, onChanged: _onInputChanged),
         ],
       ),
     );
@@ -277,9 +363,10 @@ class _Bubble extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.onSend});
+  const _Composer({required this.controller, required this.onSend, this.onChanged});
   final TextEditingController controller;
   final VoidCallback onSend;
+  final VoidCallback? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -303,6 +390,7 @@ class _Composer extends StatelessWidget {
                 minLines: 1,
                 maxLines: 4,
                 textInputAction: TextInputAction.send,
+                onChanged: onChanged == null ? null : (_) => onChanged!(),
                 onSubmitted: (_) => onSend(),
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: dark ? Colors.white : InkColors.c900),
                 decoration: InputDecoration(
