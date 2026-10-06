@@ -35,7 +35,9 @@ class AccentColors {
 }
 
 class InkColors {
-  static const c50 = Color(0xFFFAFAF9);
+  // Warm single light background (inDrive/wb style) — app ships light-only, so
+  // this is the one page background everywhere. Was #FAFAF9 (near-white).
+  static const c50 = Color(0xFFF1F0EC);
   static const c100 = Color(0xFFF5F5F4);
   static const c200 = Color(0xFFE7E5E4);
   static const c300 = Color(0xFFD6D3D1);

@@ -7,7 +7,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
-import '../providers/core_providers.dart';
 import '../providers/data_providers.dart';
 import '../providers/presence_provider.dart';
 import '../theme/app_theme.dart';
@@ -24,7 +23,6 @@ class TermeApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    final themeMode = ref.watch(themeModeProvider);
     ref.watch(apiBootstrapProvider); // attach dio refresh → auth/token store
     ref.watch(socketBootstrapProvider); // live socket (notifications/chat/bookings)
     ref.watch(presenceBootstrapProvider); // presence heartbeat (online counter)
@@ -34,8 +32,8 @@ class TermeApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: themeMode,
+      // Dark theme retired — the app ships light-only (inDrive / wb style).
+      themeMode: ThemeMode.light,
       // Kyrgyz: the app (mirroring the web) uses the code `kg`, but Flutter's
       // bundled localizations register Kyrgyz as `ky`. Without these shims,
       // MaterialLocalizations.of() has no data for `kg` and any widget that needs
@@ -78,20 +76,29 @@ class _StartupGate extends ConsumerWidget {
     if (status != AuthStatus.idle && status != AuthStatus.loading) {
       return const SizedBox.shrink();
     }
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Positioned.fill(
+    // Full-screen branded splash on cold start (inDrive / wb style): solid brand
+    // teal with the white logo + wordmark until the session resolves.
+    return const Positioned.fill(
       child: ColoredBox(
-        color: dark ? InkColors.c950 : InkColors.c50,
-        child: const Center(
+        color: BrandColors.c600,
+        child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              LogoMark(size: 72),
-              SizedBox(height: 22),
+              LogoMark(size: 88, plain: true),
+              SizedBox(height: 18),
+              Text('Terme',
+                  style: TextStyle(
+                      fontFamily: 'Manrope',
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.5)),
+              SizedBox(height: 28),
               SizedBox(
-                width: 26,
-                height: 26,
-                child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c600),
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
               ),
             ],
           ),

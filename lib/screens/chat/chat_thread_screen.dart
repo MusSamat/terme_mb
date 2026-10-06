@@ -200,6 +200,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               bookingStatus: booking.status)
           : _fallbackChat(),
     );
+    // Departure date + time for the pinned trip header (shown when known).
+    final dep = booking?.departureAt;
+    final whenText = dep != null
+        ? '${dep.day.toString().padLeft(2, '0')}.${dep.month.toString().padLeft(2, '0')} · '
+            '${dep.hour.toString().padLeft(2, '0')}:${dep.minute.toString().padLeft(2, '0')}'
+        : '';
+
     final threadAsync = ref.watch(chatThreadProvider(widget.bookingId));
 
     // Seed the mutable list once from the loaded history — synchronously during
@@ -256,10 +263,21 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 Icon(Icons.directions_car_filled, size: 16, color: dark ? BrandColors.c300 : BrandColors.c600),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(chat.route,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: dark ? BrandColors.c200 : BrandColors.c800)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(chat.route,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: dark ? BrandColors.c200 : BrandColors.c800)),
+                      if (whenText.isNotEmpty)
+                        Text(whenText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: dark ? BrandColors.c300 : BrandColors.c600)),
+                    ],
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

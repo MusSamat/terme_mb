@@ -156,47 +156,34 @@ class _NotifCard extends StatelessWidget {
   final VoidCallback onTap;
 
   // Per-type icon + colour — 1:1 port of the web `TYPE_CONFIG`, so each
-  // notification gets its own medallion (blue clock for reminders, red warning
-  // for rejections, amber star for ratings…) instead of a generic kind icon.
+  // One colour for every medallion (calm, not chaotic) — the ICON carries the
+  // meaning (check / car / clock / star / warning), the colour is just the brand
+  // tint. Unread state is shown by the tinted card + the dot, not by colour.
+  static const _c = BrandColors.c600; // teal — the single medallion colour
   static const _typeVisual = <String, ({IconData icon, Color color})>{
-    'new_booking_request': (
-      icon: Icons.directions_car,
-      color: BrandColors.c600
-    ),
-    'booking_accepted': (icon: Icons.check_circle, color: BrandColors.c600),
-    'booking_request_confirmed': (
-      icon: Icons.check_circle,
-      color: BrandColors.c600
-    ),
-    'booking_rejected': (icon: Icons.error, color: CoralColors.c500),
-    'booking_expired': (icon: Icons.error, color: CoralColors.c500),
-    'booking_cancelled_by_passenger': (
-      icon: Icons.error,
-      color: CoralColors.c500
-    ),
-    'booking_cancelled_by_driver': (icon: Icons.error, color: CoralColors.c500),
-    'trip_cancelled': (icon: Icons.directions_car, color: CoralColors.c500),
-    'trip_reminder': (icon: Icons.schedule, color: SkyColors.c600),
-    'trip_completed_rate': (icon: Icons.star, color: AccentColors.c500),
-    'request_response_received': (icon: Icons.group, color: SkyColors.c600),
-    'request_response_accepted': (
-      icon: Icons.check_circle,
-      color: BrandColors.c600
-    ),
-    'request_response_declined': (icon: Icons.error, color: CoralColors.c500),
-    'request_cancelled_admin': (icon: Icons.error, color: CoralColors.c500),
-    'new_message': (icon: Icons.chat_bubble, color: BrandColors.c600),
-    'rating_received': (icon: Icons.star, color: AccentColors.c500),
-    'rating_warning': (icon: Icons.error, color: CoralColors.c500),
-    'verification_approved': (
-      icon: Icons.check_circle,
-      color: BrandColors.c600
-    ),
-    'verification_rejected': (icon: Icons.error, color: CoralColors.c500),
-    'verification_need_docs': (icon: Icons.error, color: AccentColors.c500),
-    'account_blocked': (icon: Icons.error, color: CoralColors.c500),
-    'loyalty_tier_changed': (icon: Icons.star, color: AccentColors.c500),
-    'security_alert_reuse': (icon: Icons.error, color: CoralColors.c500),
+    'new_booking_request': (icon: Icons.directions_car, color: _c),
+    'booking_accepted': (icon: Icons.check_circle, color: _c),
+    'booking_request_confirmed': (icon: Icons.check_circle, color: _c),
+    'booking_rejected': (icon: Icons.cancel, color: _c),
+    'booking_expired': (icon: Icons.timer_off, color: _c),
+    'booking_cancelled_by_passenger': (icon: Icons.cancel, color: _c),
+    'booking_cancelled_by_driver': (icon: Icons.cancel, color: _c),
+    'trip_cancelled': (icon: Icons.directions_car, color: _c),
+    'trip_reminder': (icon: Icons.schedule, color: _c),
+    'trip_completed_rate': (icon: Icons.star, color: _c),
+    'request_response_received': (icon: Icons.group, color: _c),
+    'request_response_accepted': (icon: Icons.check_circle, color: _c),
+    'request_response_declined': (icon: Icons.cancel, color: _c),
+    'request_cancelled_admin': (icon: Icons.cancel, color: _c),
+    'new_message': (icon: Icons.chat_bubble, color: _c),
+    'rating_received': (icon: Icons.star, color: _c),
+    'rating_warning': (icon: Icons.warning_amber, color: _c),
+    'verification_approved': (icon: Icons.check_circle, color: _c),
+    'verification_rejected': (icon: Icons.cancel, color: _c),
+    'verification_need_docs': (icon: Icons.description, color: _c),
+    'account_blocked': (icon: Icons.block, color: _c),
+    'loyalty_tier_changed': (icon: Icons.star, color: _c),
+    'security_alert_reuse': (icon: Icons.security, color: _c),
   };
 
   ({IconData icon, Color color}) _visual() {
@@ -207,7 +194,7 @@ class _NotifCard extends StatelessWidget {
         : (notif.typeKey.startsWith('notif.type_')
             ? notif.typeKey.substring('notif.type_'.length)
             : '');
-    return _typeVisual[type] ?? (icon: Icons.info, color: InkColors.c600);
+    return _typeVisual[type] ?? (icon: Icons.notifications, color: _c);
   }
 
   @override

@@ -168,13 +168,16 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   // My active trips/requests — a compact block (no header label) between
   // «Популярные» and «История»; tap opens the «Мои» list on the right tab.
   Widget _mineBlock(bool dark) {
+    // Active = live status AND departure still in the future. A trip whose time
+    // has passed (but the auto-complete cron hasn't closed it yet) is NOT active.
+    final now = DateTime.now();
     final trips =
         (ref.watch(myTripsProvider).valueOrNull ?? const <TripCardItem>[])
-            .where((t) => t.status == 'active')
+            .where((t) => t.status == 'active' && t.departureAt.isAfter(now))
             .toList();
     final reqs = (ref.watch(myRequestsProvider).valueOrNull ??
             const <PassengerRequestItem>[])
-        .where((r) => r.status == 'open')
+        .where((r) => r.status == 'open' && !(r.departureDate?.isBefore(now) ?? false))
         .toList();
     if (trips.isEmpty && reqs.isEmpty) return const SizedBox.shrink();
     final isTrip = trips.isNotEmpty;
@@ -528,15 +531,16 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   Widget _entryHints(bool dark, bool driver, bool authed) {
     final recent = _recentRoutes();
     final hasHistory = recent.isNotEmpty;
+    final now = DateTime.now();
     final activeTrips = authed
         ? (ref.watch(myTripsProvider).valueOrNull ?? const <TripCardItem>[])
-            .where((t) => t.status == 'active')
+            .where((t) => t.status == 'active' && t.departureAt.isAfter(now))
             .length
         : 0;
     final activeReqs = authed
         ? (ref.watch(myRequestsProvider).valueOrNull ??
                 const <PassengerRequestItem>[])
-            .where((r) => r.status == 'open')
+            .where((r) => r.status == 'open' && !(r.departureDate?.isBefore(now) ?? false))
             .length
         : 0;
     final hasActive = activeTrips > 0 || activeReqs > 0;

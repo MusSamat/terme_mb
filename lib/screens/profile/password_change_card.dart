@@ -12,9 +12,12 @@ import '../auth/auth_fields.dart';
 /// Change-password form for profile settings — current + new + repeat, wired to
 /// PATCH /users/me/password. Mirrors the web PasswordForm.
 class PasswordChangeCard extends ConsumerStatefulWidget {
-  const PasswordChangeCard({super.key, required this.dark});
+  const PasswordChangeCard({super.key, required this.dark, this.showHeader = true});
 
   final bool dark;
+  // When hosted inside a collapsible panel the header is the tap target, so the
+  // card's own section label is redundant.
+  final bool showHeader;
 
   @override
   ConsumerState<PasswordChangeCard> createState() => _PasswordChangeCardState();
@@ -64,11 +67,12 @@ class _PasswordChangeCardState extends ConsumerState<PasswordChangeCard> {
   Widget build(BuildContext context) {
     final dark = widget.dark;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text('profile.password_section'.tr().toUpperCase(),
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: InkColors.c400)),
-      ),
+      if (widget.showHeader)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text('profile.password_section'.tr().toUpperCase(),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: InkColors.c400)),
+        ),
       PasswordField(
         controller: _current,
         dark: dark,

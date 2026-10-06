@@ -58,8 +58,8 @@ enum _MyFilter { bookings, trips, requests, liked }
 
 class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
   late _MyFilter _filter = _filterFor(widget.tab);
-  bool _history =
-      false; // Активные ↔ История sub-toggle (not shown on «Избранное»)
+  // История lives in Profile now; «Мои» is active-only, so this stays false.
+  final bool _history = false;
   // Dynamic default: with no explicit ?tab, open the tab the user has content in
   // (trips first, then requests, else bookings). True while we're deciding.
   bool _deciding = false;
@@ -148,7 +148,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
             ),
             _attentionStrip(dark),
             _filterChips(dark),
-            if (_filter != _MyFilter.liked && !_deciding) _activeHistoryToggle(dark),
+            // История moved to Profile → «История поездок»; «Мои» shows only
+            // active items now (no Активные/История toggle).
             Expanded(
               child: _deciding
                   ? const Center(child: CircularProgressIndicator(color: BrandColors.c600))
@@ -286,50 +287,6 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     );
   }
 
-  // Активные ↔ История segmented toggle — terminal/expired items live under История.
-  Widget _activeHistoryToggle(bool dark) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        child: Container(
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-              color: dark ? InkColors.c800 : InkColors.c100,
-              borderRadius: BorderRadius.circular(12)),
-          child: Row(children: [
-            _segItem('my.sub_active'.tr(), !_history,
-                () => setState(() => _history = false), dark),
-            _segItem('my.sub_history'.tr(), _history,
-                () => setState(() => _history = true), dark),
-          ]),
-        ),
-      );
-
-  Widget _segItem(String label, bool on, VoidCallback onTap, bool dark) =>
-      Expanded(
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: on
-                  ? (dark ? InkColors.c950 : Colors.white)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-              boxShadow: on ? AppShadows.xs : null,
-            ),
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: on
-                        ? (dark ? Colors.white : InkColors.c900)
-                        : InkColors.c400)),
-          ),
-        ),
-      );
-
   // Owner actions for the driver's own trip (long-press): edit / complete / cancel.
   Future<void> _ownerActions(TripCardItem trip) async {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -465,6 +422,38 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                 color: InkColors.c400)),
       );
 
+  // ── История — простым текстом (маршрут + дата · статус · роль), без карточек ──
+  Widget _historyRow(bool dark,
+          {required String from,
+          required String to,
+          required String date,
+          required String status,
+          String? role}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$from → $to',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900)),
+          const SizedBox(height: 3),
+          Text([date, 'status.$status'.tr(), if (role != null) role].join(' · '),
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: InkColors.c500)),
+        ]),
+      );
+
+  Widget _historyList(List<Widget> rows, Future<void> Function() refresh) => _refreshable(
+        ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: _pad,
+          itemCount: rows.length,
+          separatorBuilder: (_, __) => const Divider(height: 1, color: InkColors.c200),
+          itemBuilder: (_, i) => rows[i],
+        ),
+        refresh,
+      );
+
   // ── «Поездки» — incoming requests (needs action) on top, then published ──────
   Future<void> _refreshTrips() async {
     ref.invalidate(myTripsProvider);
@@ -483,11 +472,13 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       data: (list) {
         // 'direct' = a live trip created from an accepted passenger-request
         // response — it belongs with the active tab, not history.
-        final shown = list
-            .where((t) => _history
-                ? (t.status != 'active' && t.status != 'direct')
-                : (t.status == 'active' || t.status == 'direct'))
-            .toList();
+        // Active = live status AND departure still ahead; past-time trips move
+        // to История even if the auto-complete cron hasn't closed them yet.
+        final now = DateTime.now();
+        bool isActive(TripCardItem t) =>
+            (t.status == 'active' || t.status == 'direct') && t.departureAt.isAfter(now);
+        final shown = list.where((t) => _history ? !isActive(t) : isActive(t)).toList();
+        if (_history) shown.sort((a, b) => b.departureAt.compareTo(a.departureAt));
         final showIncoming = !_history && incoming.isNotEmpty;
         if (shown.isEmpty && !showIncoming) {
           return _refreshableEmpty(
@@ -500,6 +491,22 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                     icon: Icons.directions_car_outlined,
                     title: 'empty.driver_trips.title'.tr(),
                     description: 'empty.driver_trips.description'.tr()),
+            _refreshTrips,
+          );
+        }
+        if (_history) {
+          return _historyList(
+            [
+              for (final t in shown)
+                _historyRow(dark,
+                    from: t.originCity,
+                    to: t.destinationCity,
+                    date: _dmt(t.departureAt),
+                    // A still-'active' trip that's in history only because its
+                    // time passed reads as finished, not «Активна».
+                    status: (t.status == 'active' || t.status == 'direct') ? 'completed' : t.status,
+                    role: 'profile.history_as_driver'.tr()),
+            ],
             _refreshTrips,
           );
         }
@@ -611,10 +618,15 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
           error: (e, _) => QueryError(
               error: e, onRetry: () => ref.invalidate(myBookingsProvider)),
           data: (all) {
-            final bookings = all
-                .where((b) =>
-                    _terminalBookingStatuses.contains(b.status) == _history)
-                .toList();
+            final now = DateTime.now();
+            bool isPast(MockBooking b) =>
+                _terminalBookingStatuses.contains(b.status) ||
+                (b.departureAt?.isBefore(now) ?? false);
+            final bookings = all.where((b) => isPast(b) == _history).toList();
+            if (_history) {
+              bookings.sort((a, b) =>
+                  (b.departureAt ?? DateTime(0)).compareTo(a.departureAt ?? DateTime(0)));
+            }
             if (bookings.isEmpty) {
               return _refreshableEmpty(
                 _history
@@ -627,6 +639,20 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                         title: 'empty.passenger_bookings.title'.tr(),
                         description:
                             'empty.passenger_bookings.description'.tr()),
+                _refreshBookings,
+              );
+            }
+            if (_history) {
+              return _historyList(
+                [
+                  for (final b in bookings)
+                    _historyRow(dark,
+                        from: b.origin,
+                        to: b.destination,
+                        date: b.dateLabel,
+                        status: _terminalBookingStatuses.contains(b.status) ? b.status : 'completed',
+                        role: 'profile.history_as_passenger'.tr()),
+                ],
                 _refreshBookings,
               );
             }
@@ -659,8 +685,14 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
         error: (e, _) => QueryError(
             error: e, onRetry: () => ref.invalidate(myRequestsProvider)),
         data: (all) {
-          final reqs =
-              all.where((r) => (r.status != 'open') == _history).toList();
+          final now = DateTime.now();
+          bool isPast(PassengerRequestItem r) =>
+              r.status != 'open' || (r.departureDate?.isBefore(now) ?? false);
+          final reqs = all.where((r) => isPast(r) == _history).toList();
+          if (_history) {
+            reqs.sort((a, b) =>
+                (b.departureDate ?? DateTime(0)).compareTo(a.departureDate ?? DateTime(0)));
+          }
           if (reqs.isEmpty) {
             return _refreshableEmpty(
               _history
@@ -672,6 +704,21 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                       icon: Icons.article_outlined,
                       title: 'empty.passenger_requests.title'.tr(),
                       description: 'empty.passenger_requests.description'.tr()),
+              _refreshRequests,
+            );
+          }
+          if (_history) {
+            return _historyList(
+              [
+                for (final r in reqs)
+                  _historyRow(dark,
+                      from: r.originCity,
+                      to: r.destinationCity,
+                      date: r.dateLabel,
+                      // A still-'open' request in history (its date passed) reads
+                      // as «Истекла», not «Открыта».
+                      status: r.status == 'open' ? 'expired' : r.status),
+              ],
               _refreshRequests,
             );
           }
@@ -689,8 +736,9 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       );
 
   // ── «Избранное» — liked trips AND liked requests together ────────────────────
-  // Expired/closed favourites are NOT hidden — they stay in the list under a
-  // grey «Истёк» ribbon so the user sees what they saved even after it timed out.
+  // Only live-and-upcoming favourites are shown; once a liked trip/request is
+  // over (departed or terminal) it drops out of the list. The backend
+  // cleanup_stale_likes cron then removes the like row itself.
   Future<void> _refreshLiked() async {
     ref.invalidate(likedTripsProvider);
     ref.invalidate(likedRequestsProvider);
@@ -704,9 +752,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     final now = DateTime.now();
     final items = <Widget>[
       for (final t in trips.valueOrNull ?? const <TripCardItem>[])
-        () {
-          final expired = t.status != 'active' || t.departureAt.isBefore(now);
-          return ListCard(
+        if (t.status == 'active' && t.departureAt.isAfter(now))
+          ListCard(
             grape: false,
             when: _dmt(t.departureAt),
             status: t.status,
@@ -722,15 +769,10 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                 : null,
             trailing: _priceTag(t.pricePerSeat),
             onTap: () => showTripDetailSheet(context, t.id),
-            dimmed: expired,
-            ribbon: expired ? 'my.expired'.tr() : null,
-          );
-        }(),
+          ),
       for (final r in requests.valueOrNull ?? const <PassengerRequestItem>[])
-        () {
-          final expired =
-              r.status != 'open' || (r.departureDate?.isBefore(now) ?? false);
-          return ListCard(
+        if (r.status == 'open' && !(r.departureDate?.isBefore(now) ?? false))
+          ListCard(
             grape: true,
             when: r.departureDate != null ? _dm(r.departureDate) : r.dateLabel,
             status: r.status,
@@ -748,10 +790,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                     fontWeight: FontWeight.w700,
                     color: InkColors.c500)),
             onTap: () => context.push('/requests/${r.id}'),
-            dimmed: expired,
-            ribbon: expired ? 'my.expired'.tr() : null,
-          );
-        }(),
+          ),
     ];
     if (items.isEmpty) {
       if (trips.isLoading || requests.isLoading) return _loading();

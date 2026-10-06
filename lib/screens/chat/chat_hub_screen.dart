@@ -19,7 +19,8 @@ class ChatHubScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final chatsAsync = ref.watch(chatSummariesProvider);
-    final activeCount = chatsAsync.asData?.value.length ?? 0;
+    final activeCount =
+        chatsAsync.asData?.value.where((c) => c.isActive).length ?? 0;
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
@@ -135,17 +136,23 @@ class ChatHubScreen extends ConsumerWidget {
                   error: (e, _) => QueryError(
                       error: e,
                       onRetry: () => ref.invalidate(chatSummariesProvider)),
-                  data: (chats) => RefreshIndicator(
-                    color: BrandColors.c500,
-                    onRefresh: () async {
-                      ref.invalidate(chatSummariesProvider);
-                      ref.invalidate(unreadNotifProvider);
-                      await ref.read(chatSummariesProvider.future);
-                    },
-                    child: chats.isEmpty
-                        ? _empty(context, dark)
-                        : _list(context, dark, chats),
-                  ),
+                  data: (chats) {
+                    // Only ACTIVE chats are listed (Uber / Yandex style): a chat
+                    // lives with its trip; once the trip is over it leaves the
+                    // list instead of piling up in an archive.
+                    final active = chats.where((c) => c.isActive).toList();
+                    return RefreshIndicator(
+                      color: BrandColors.c500,
+                      onRefresh: () async {
+                        ref.invalidate(chatSummariesProvider);
+                        ref.invalidate(unreadNotifProvider);
+                        await ref.read(chatSummariesProvider.future);
+                      },
+                      child: active.isEmpty
+                          ? _empty(context, dark)
+                          : _list(context, dark, active),
+                    );
+                  },
                 ),
               ),
             ),
@@ -155,46 +162,19 @@ class ChatHubScreen extends ConsumerWidget {
     );
   }
 
-  /// Active chats first, then an «АРХИВ» divider + closed ones — 1:1 with the
-  /// web chat-hub (active/closed split on ACTIVE_CHAT_STATUSES).
+  /// Active conversations only — closed chats are not shown (they live with the
+  /// trip, not as a persistent archive).
   Widget _list(BuildContext context, bool dark, List<MockChat> chats) {
-    final active = chats.where((c) => c.isActive).toList();
-    final closed = chats.where((c) => !c.isActive).toList();
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.only(
           bottom: AppLayout.pillNavClearance +
               MediaQuery.of(context).padding.bottom),
       children: [
-        for (final c in active) _ChatRow(chat: c),
-        if (closed.isNotEmpty) ...[
-          _archiveDivider(dark),
-          for (final c in closed) _ChatRow(chat: c),
-        ],
+        for (final c in chats) _ChatRow(chat: c),
       ],
     );
   }
-
-  Widget _archiveDivider(bool dark) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(children: [
-          Expanded(
-              child: Container(
-                  height: 1, color: dark ? InkColors.c800 : InkColors.c100)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text('chat.archive'.tr().toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
-                    color: InkColors.c400)),
-          ),
-          Expanded(
-              child: Container(
-                  height: 1, color: dark ? InkColors.c800 : InkColors.c100)),
-        ]),
-      );
 
   Widget _empty(BuildContext context, bool dark) => ListView(
         physics: const AlwaysScrollableScrollPhysics(),
