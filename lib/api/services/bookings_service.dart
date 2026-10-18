@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../../data/mock_app_data.dart';
+import '../../models/booking.dart';
 import '../../utils/uuid.dart';
 import '../paged_result.dart';
 
@@ -9,20 +9,20 @@ class BookingsService {
   BookingsService(this._dio);
   final Dio _dio;
 
-  Future<PagedResult<MockBooking>> mine({String? status, String? cursor}) async {
+  Future<PagedResult<Booking>> mine({String? status, String? cursor}) async {
     final res = await _dio.get<Map<String, dynamic>>('/bookings/my', queryParameters: {
       if (status != null) 'status': status,
       if (cursor != null) 'cursor': cursor,
     });
-    return PagedResult.fromJson(res.data!, MockBooking.fromJson);
+    return PagedResult.fromJson(res.data!, Booking.fromJson);
   }
 
-  Future<PagedResult<MockBooking>> incoming({String? tripId, String? cursor}) async {
+  Future<PagedResult<Booking>> incoming({String? tripId, String? cursor}) async {
     final res = await _dio.get<Map<String, dynamic>>('/bookings/incoming', queryParameters: {
       if (tripId != null) 'tripId': tripId,
       if (cursor != null) 'cursor': cursor,
     });
-    return PagedResult.fromJson(res.data!, MockBooking.fromJson);
+    return PagedResult.fromJson(res.data!, (j) => Booking.fromJson(j, incoming: true));
   }
 
   /// Returns the created booking's id so the UI can link straight to it
@@ -35,9 +35,9 @@ class BookingsService {
   }
 
   /// GET /bookings/{id} — a single booking's full detail.
-  Future<MockBooking> get(String id) async {
+  Future<Booking> get(String id, {String? selfId}) async {
     final res = await _dio.get<Map<String, dynamic>>('/bookings/$id');
-    return MockBooking.fromJson(res.data!);
+    return Booking.fromJson(res.data!, selfId: selfId);
   }
 
   Future<void> accept(String id) => _dio.patch('/bookings/$id/accept');

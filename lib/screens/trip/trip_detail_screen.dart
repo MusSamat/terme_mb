@@ -1,7 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/friendly_error.dart';
@@ -18,12 +18,22 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/listing_metrics.dart';
 import '../../widgets/verified_badge.dart';
+import '../../utils/config.dart';
+import '../../utils/locale.dart';
+import '../../widgets/contact_actions.dart';
+import '../../widgets/route_map.dart';
+import '../create/create_screen.dart' show CreatePrefill;
 
-/// Resolves the current viewer role (guest/passenger/driver) from auth.
-String _roleOf(WidgetRef ref) {
-  final auth = ref.read(authProvider);
-  if (!auth.isAuthenticated) return 'guest';
-  return auth.activeMode == ActiveMode.driver ? 'driver' : 'passenger';
+/// What the viewer can do with this trip — decided by ownership, never by the
+/// app mode: owner → manage / «create similar», guest → sign in, anyone else
+/// → book + contact.
+String _roleOf(WidgetRef ref) =>
+    ref.read(authProvider).isAuthenticated ? 'passenger' : 'guest';
+
+/// Counts a unique view once per open (deduped server-side, owners ignored).
+void _recordView(WidgetRef ref, TripCardItem trip) {
+  if (ref.read(authProvider).user?.id == trip.driver.id) return;
+  ref.read(tripsServiceProvider).recordView(trip.id).catchError((_) {});
 }
 
 /// Opens the trip detail as a bottom sheet — the feed's «Подробнее» behavior
@@ -48,7 +58,9 @@ void showTripDetailSheet(BuildContext context, String id) {
           child: ref.watch(tripDetailProvider(id)).when(
                 loading: () => const SizedBox(height: 240, child: Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500))),
                 error: (e, _) => SizedBox(height: 240, child: QueryError(error: e, onRetry: () => ref.invalidate(tripDetailProvider(id)))),
-                data: (trip) => SingleChildScrollView(
+                data: (trip) {
+                  _recordViewOnce(ref, trip);
+                  return SingleChildScrollView(
                   child: Column(
                     children: [
                       tripHeader(ctx, trip, onClose: () => Navigator.of(ctx).pop(), isOwner: ref.read(authProvider).user?.id == trip.driver.id),
@@ -59,7 +71,8 @@ void showTripDetailSheet(BuildContext context, String id) {
                       ),
                     ],
                   ),
-                ),
+                );
+                },
               ),
         );
       },
@@ -85,6 +98,7 @@ class TripDetailScreen extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500)),
             error: (e, _) => Center(child: QueryError(error: e, onRetry: () => ref.invalidate(tripDetailProvider(id)))),
             data: (trip) {
+              _recordViewOnce(ref, trip);
               final isOwner = ref.read(authProvider).user?.id == trip.driver.id;
               if (autoBook && !isOwner) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -118,11 +132,18 @@ class TripDetailScreen extends ConsumerWidget {
   }
 }
 
+final _viewed = <String>{};
+void _recordViewOnce(WidgetRef ref, TripCardItem trip) {
+  if (_viewed.add(trip.id)) _recordView(ref, trip);
+}
+
 // ── Shared pieces (used by both the page and the sheet) ──────────────────────
 
 /// Teal gradient header: back/close, share, like, route spine + price.
 Widget tripHeader(BuildContext context, TripCardItem trip, {VoidCallback? onBack, VoidCallback? onClose, bool isOwner = false}) {
-  final stops = trip.pickupCities.isNotEmpty ? trip.pickupCities.join(' · ') : null;
+  final kg = isKg(context);
+  final pickups = trip.pickupNames(kg);
+  final stops = pickups.isNotEmpty ? pickups.join(' · ') : null;
 
   Widget circleBtn(IconData icon, VoidCallback onTap) => GestureDetector(
         onTap: onTap,
@@ -148,7 +169,10 @@ Widget tripHeader(BuildContext context, TripCardItem trip, {VoidCallback? onBack
           children: [
             if (onBack != null) circleBtn(Icons.arrow_back, onBack) else const SizedBox(width: 36),
             Row(children: [
-              circleBtn(Icons.ios_share, () => Toasts.info('detail.share_copied'.tr())),
+              circleBtn(Icons.ios_share, () async {
+                await Clipboard.setData(ClipboardData(text: '${AppConfig.webUrl}/trips/${trip.id}'));
+                Toasts.info('detail.share_copied'.tr());
+              }),
               // Owner can't like their own listing (backend own_listing); a
               // finished/cancelled trip is read-only so its like is hidden too.
               if (!isOwner && !trip.inactive) ...[const SizedBox(width: 8), _LikeCircle(id: trip.id, liked: trip.liked)],
@@ -168,10 +192,10 @@ Widget tripHeader(BuildContext context, TripCardItem trip, {VoidCallback? onBack
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(trip.originCity, style: const TextStyle(fontSize: 20, height: 1.1, fontWeight: FontWeight.w900, color: Colors.white)),
+                    Text(trip.originName(kg), style: const TextStyle(fontSize: 20, height: 1.1, fontWeight: FontWeight.w900, color: Colors.white)),
                     if (stops != null)
                       Text(stops, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.7))),
-                    Text(trip.destinationCity, style: const TextStyle(fontSize: 20, height: 1.1, fontWeight: FontWeight.w900, color: Colors.white)),
+                    Text(trip.destinationName(kg), style: const TextStyle(fontSize: 20, height: 1.1, fontWeight: FontWeight.w900, color: Colors.white)),
                   ],
                 ),
               ),
@@ -272,6 +296,23 @@ Widget tripBody(BuildContext context, TripCardItem trip) {
           const SizedBox(width: 10),
           tile(Icons.work_outline, 'detail.tile_luggage_title'.tr(), luggage),
         ]),
+        // Where exactly to board — pin + area, and the route on a small map.
+        if (trip.originPoint != null) ...[
+          const SizedBox(height: 12),
+          _pointRow(context, Icons.location_on_rounded, 'point.label_driver'.tr(), trip.originPoint!.label(isKg(context))),
+        ],
+        if (trip.destinationPoint != null) ...[
+          const SizedBox(height: 8),
+          _pointRow(context, Icons.flag_rounded, 'point.label_drop'.tr(), trip.destinationPoint!.label(isKg(context))),
+        ],
+        const SizedBox(height: 12),
+        RouteMap(
+          origin: trip.origin,
+          destination: trip.destination,
+          originPoint: trip.originPoint,
+          destinationPoint: trip.destinationPoint,
+          stops: [for (final s in trip.stops) s.place],
+        ),
         if ((trip.comment ?? '').isNotEmpty) ...[
           const SizedBox(height: 12),
           Container(
@@ -286,7 +327,21 @@ Widget tripBody(BuildContext context, TripCardItem trip) {
   );
 }
 
-/// Role-aware CTA + contact reveal.
+Widget _pointRow(BuildContext context, IconData icon, String title, String value) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return Row(children: [
+    Icon(icon, size: 18, color: dark ? BrandColors.c300 : BrandColors.c600),
+    const SizedBox(width: 8),
+    Text('$title: ', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: InkColors.c400)),
+    Expanded(
+      child: Text(value.isEmpty ? 'point.on_map'.tr() : value,
+          maxLines: 2,
+          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+    ),
+  ]);
+}
+
+/// Ownership-aware CTA + contacts.
 Widget tripCta(BuildContext context, TripCardItem trip, String role, {bool isOwner = false, WidgetRef? ref}) {
   // Own trip: the passenger-mode viewer must NOT see «book» / «reveal contact»
   // (both 400 on the backend — cannot_book_own_trip / own_listing). Show the
@@ -316,7 +371,8 @@ Widget tripCta(BuildContext context, TripCardItem trip, String role, {bool isOwn
     icon = Icons.directions_car_filled;
     label = 'detail.cta_create_similar'.tr();
     shadow = AppShadows.brandCta;
-    onTap = () => context.push('/trips/create');
+    onTap = () => context.push('/trips/create?kind=trip',
+        extra: CreatePrefill(from: trip.origin, to: trip.destination));
   } else if (role == 'guest') {
     bg = InkColors.c700;
     fg = Colors.white;
@@ -359,7 +415,12 @@ Widget tripCta(BuildContext context, TripCardItem trip, String role, {bool isOwn
       ),
       if (role != 'driver') ...[
         const SizedBox(height: 8),
-        Consumer(builder: (ctx, ref, _) => _ContactReveal(onReveal: () => ref.read(tripsServiceProvider).revealContact(trip.id))),
+        Consumer(
+          builder: (ctx, ref, _) => ContactActions(
+            reveal: () => ref.read(tripsServiceProvider).revealContact(trip.id),
+            onGuest: role == 'guest' ? onTap : null,
+          ),
+        ),
       ],
     ],
   );
@@ -429,64 +490,6 @@ class _LikeCircleState extends ConsumerState<_LikeCircle> {
         alignment: Alignment.center,
         decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
         child: Icon(_liked ? Icons.favorite : Icons.favorite_border, size: 18, color: _liked ? CoralColors.c400 : Colors.white),
-      ),
-    );
-  }
-}
-
-/// Reveal-contact button — calls the audited reveal endpoint on tap and shows
-/// the real phone (tap again to dial). Used for both trips and requests.
-class _ContactReveal extends StatefulWidget {
-  const _ContactReveal({required this.onReveal});
-  final Future<String?> Function() onReveal;
-  @override
-  State<_ContactReveal> createState() => _ContactRevealState();
-}
-
-class _ContactRevealState extends State<_ContactReveal> {
-  String? _phone;
-  bool _busy = false;
-
-  Future<void> _tap() async {
-    if (_busy) return;
-    if (_phone != null) {
-      await launchUrl(Uri.parse('tel:$_phone'));
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      final p = await widget.onReveal();
-      if (mounted) setState(() => _phone = p);
-    } catch (e) {
-      Toasts.error(friendlyError(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final revealed = _phone != null;
-    return GestureDetector(
-      onTap: _tap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        height: 46,
-        width: double.infinity,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: dark ? InkColors.c900 : Colors.white,
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          border: Border.all(color: dark ? BrandColors.c500.withValues(alpha: 0.4) : BrandColors.c200),
-        ),
-        child: _busy
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: BrandColors.c500))
-            : Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(revealed ? Icons.call : Icons.phone_outlined, size: 18, color: dark ? BrandColors.c300 : BrandColors.c600),
-                const SizedBox(width: 8),
-                Text(revealed ? _phone! : 'contact.call'.tr(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? BrandColors.c300 : BrandColors.c700)),
-              ]),
       ),
     );
   }

@@ -6,14 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/friendly_error.dart';
-import '../../data/mock_app_data.dart';
+import '../../models/chat.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
-import '../../utils/config.dart';
 import '../../utils/date_format.dart';
+import '../../widgets/contact_actions.dart' show callPhone, openWhatsapp;
 import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/query_error.dart';
@@ -31,7 +31,7 @@ class ChatThreadScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
-  final List<MockMessage> _messages = [];
+  final List<ChatMessage> _messages = [];
   final _input = TextEditingController();
   bool _loaded = false;
   bool _sending = false;
@@ -52,7 +52,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   @override
   void initState() {
     super.initState();
-    if (AppConfig.useMock) return;
     _myId = ref.read(authProvider).user?.id;
     // Mark the whole thread read on open (web chat-panel behavior), then refresh
     // the unread badges.
@@ -81,7 +80,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         if (!mounted) return;
         setState(() {
           _otherTyping = false; // a real message supersedes the typing hint
-          _messages.insert(0, MockMessage(
+          _messages.insert(0, ChatMessage(
             text: (m['text'] ?? '') as String,
             mine: false,
             timeLabel: created != null ? hhmm(created) : 'chat.now'.tr(),
@@ -115,7 +114,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       for (var i = 0; i < _messages.length; i++) {
         final msg = _messages[i];
         if (msg.mine && !msg.read) {
-          _messages[i] = MockMessage(text: msg.text, mine: true, timeLabel: msg.timeLabel, read: true);
+          _messages[i] = ChatMessage(text: msg.text, mine: true, timeLabel: msg.timeLabel, read: true);
           changed = true;
         }
       }
@@ -138,20 +137,17 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   void dispose() {
     _input.dispose();
     _typingHideTimer?.cancel();
-    if (!AppConfig.useMock) {
-      final socket = ref.read(socketClientProvider);
-      socket.emit('chat:leave', {'booking_id': widget.bookingId});
-      if (_onSocketMessage != null) socket.off('chat:message', _onSocketMessage);
-      if (_onSocketTyping != null) socket.off('chat:typing', _onSocketTyping);
-      if (_onSocketRead != null) socket.off('chat:read', _onSocketRead);
-      if (_onSocketLimit != null) socket.off('chat:limit_warning', _onSocketLimit);
-    }
+    final socket = ref.read(socketClientProvider);
+    socket.emit('chat:leave', {'booking_id': widget.bookingId});
+    if (_onSocketMessage != null) socket.off('chat:message', _onSocketMessage);
+    if (_onSocketTyping != null) socket.off('chat:typing', _onSocketTyping);
+    if (_onSocketRead != null) socket.off('chat:read', _onSocketRead);
+    if (_onSocketLimit != null) socket.off('chat:limit_warning', _onSocketLimit);
     super.dispose();
   }
 
   /// Throttled typing signal — at most one chat:typing emit per 2s while typing.
   void _onInputChanged() {
-    if (AppConfig.useMock) return;
     final now = DateTime.now();
     if (_lastTypingSent != null && now.difference(_lastTypingSent!) < const Duration(seconds: 2)) return;
     _lastTypingSent = now;
@@ -162,14 +158,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final text = _input.text.trim();
     if (text.isEmpty || _sending) return;
     setState(() {
-      _messages.insert(0, MockMessage(text: text, mine: true, timeLabel: 'chat.now'.tr(), read: false));
+      _messages.insert(0, ChatMessage(text: text, mine: true, timeLabel: 'chat.now'.tr(), read: false));
       _input.clear();
       _sending = true;
     });
     try {
-      if (!AppConfig.useMock) {
-        await ref.read(chatServiceProvider).sendMessage(widget.bookingId, text);
-      }
+      await ref.read(chatServiceProvider).sendMessage(widget.bookingId, text);
     } catch (e) {
       Toasts.error(friendlyError(e));
     } finally {
@@ -177,20 +171,20 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     }
   }
 
-  MockChat _fallbackChat() =>
-      MockChat(bookingId: widget.bookingId, otherName: '—', route: '', lastMessage: '', timeLabel: '', unread: 0);
+  ChatSummary _fallbackChat() =>
+      ChatSummary(bookingId: widget.bookingId, otherName: '—', route: '', lastMessage: '', timeLabel: '', unread: 0);
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final summaries = ref.watch(chatSummariesProvider).valueOrNull ?? const <MockChat>[];
+    final summaries = ref.watch(chatSummariesProvider).valueOrNull ?? const <ChatSummary>[];
     // Prefer the summary; when the thread was deep-linked and isn't in the list
     // yet, fall back to the booking fetched by id (web getBooking behavior).
     final booking = ref.watch(bookingDetailProvider(widget.bookingId)).valueOrNull;
     final chat = summaries.firstWhere(
       (c) => c.bookingId == widget.bookingId,
       orElse: () => booking != null
-          ? MockChat(
+          ? ChatSummary(
               bookingId: widget.bookingId,
               otherName: booking.otherName,
               route: '${booking.origin} → ${booking.destination}',
@@ -245,6 +239,21 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             ),
           ),
         ]),
+        // Phone is in the DTO only once the booking is accepted.
+        actions: [
+          if (booking?.phone != null) ...[
+            IconButton(
+              tooltip: 'contact.call'.tr(),
+              icon: const Icon(Icons.call, color: BrandColors.c600),
+              onPressed: () => callPhone(booking!.phone!),
+            ),
+            IconButton(
+              tooltip: 'contact.whatsapp'.tr(),
+              icon: const Icon(Icons.chat_rounded, color: Color(0xFF1FAF55)),
+              onPressed: () => openWhatsapp(booking!.phone!),
+            ),
+          ],
+        ],
       ),
       body: Column(
         children: [
@@ -332,7 +341,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
 class _Bubble extends StatelessWidget {
   const _Bubble({required this.msg, required this.otherName});
-  final MockMessage msg;
+  final ChatMessage msg;
   final String otherName;
 
   @override

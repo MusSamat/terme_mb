@@ -8,6 +8,7 @@ import '../models/self_user.dart';
 import '../theme/role_theme.dart';
 import '../utils/config.dart';
 import 'core_providers.dart';
+import 'data_providers.dart' show profileServiceProvider;
 
 enum AuthStatus { idle, loading, authenticated, anonymous }
 
@@ -55,9 +56,18 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void setStatus(AuthStatus status) => state = state.copyWith(status: status);
 
+  /// The one place the mode changes. Signed in → saved as users.preferredMode
+  /// (same mode on web, mobile and the Telegram bot); guests keep it locally.
   void setActiveMode(ActiveMode mode) {
-    state = state.copyWith(activeMode: mode);
+    if (mode == state.activeMode) return;
+    state = state.copyWith(activeMode: mode, user: state.user?.copyWith(preferredMode: mode.name));
     _box.put(StorageKeys.activeMode, mode.name);
+    if (state.isAuthenticated) {
+      unawaited(ref
+          .read(profileServiceProvider)
+          .update(preferredMode: mode.name)
+          .then<void>((_) {}, onError: (_) {/* local choice stands; next save retries */}));
+    }
   }
 
   /// Called after a successful login/refresh once the SelfUser is loaded.
@@ -99,11 +109,11 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AuthState(status: AuthStatus.anonymous, activeMode: state.activeMode);
   }
 
+  // The server-side preference wins once signed in (it's shared across clients).
   ActiveMode _resolveMode(SelfUser user) {
-    // Keep stored preference if the user can act in that mode, else fall back.
-    if (state.activeMode == ActiveMode.driver && user.isDriver) return ActiveMode.driver;
-    if (user.isDriver && !user.isPassenger) return ActiveMode.driver;
-    return ActiveMode.passenger;
+    final mode = _parseMode(user.preferredMode);
+    _box.put(StorageKeys.activeMode, mode.name);
+    return mode;
   }
 
   static ActiveMode _parseMode(String? v) =>

@@ -34,9 +34,11 @@ class RootShell extends ConsumerWidget {
               // tab must still switch, otherwise «Мои» silently no-ops / bounces
               // to login for a logged-in user.
               onSelect: (i) => _onSelect(context, i, status == AuthStatus.anonymous),
-              // One «+», two outcomes — ask «поездка (водитель) / заявка
-              // (пассажир)», set the mode, then open the create form.
-              onCreate: () => showRoleSelectSheet(context, ref, create: true),
+              // One «+», two outcomes — «поездка / заявка»; the pick opens the
+              // matching form and never flips the global mode.
+              onCreate: () => status == AuthStatus.anonymous
+                  ? context.push('/auth/login')
+                  : showCreateSheet(context, ref),
               chatUnread: chatUnread,
             ),
     );

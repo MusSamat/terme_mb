@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_app_data.dart';
+import '../../models/booking.dart';
 import '../../models/passenger_request.dart';
 import '../../models/pending_rating.dart';
 import '../../models/request_response.dart';
@@ -13,9 +13,11 @@ import '../../api/friendly_error.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../utils/locale.dart';
 import '../../widgets/action_modal.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/contact_actions.dart' show callPhone, openWhatsapp;
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/list_card.dart';
@@ -356,7 +358,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       context,
       icon: Icons.cancel_outlined,
       title: 'my.trip_cancel'.tr(),
-      body: '${trip.originCity} → ${trip.destinationCity}',
+      body: '${trip.originName(isKg(context))} → ${trip.destinationName(isKg(context))}',
       confirmLabel: 'my.trip_cancel'.tr(),
       cancelLabel: 'book_form.cancel'.tr(),
       danger: true,
@@ -464,7 +466,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
   Widget _tripsSection(bool dark) {
     final trips = ref.watch(myTripsProvider);
     final incoming = ref.watch(incomingBookingsProvider).valueOrNull ??
-        const <MockBooking>[];
+        const <Booking>[];
     return trips.when(
       loading: _loading,
       error: (e, _) =>
@@ -499,8 +501,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
             [
               for (final t in shown)
                 _historyRow(dark,
-                    from: t.originCity,
-                    to: t.destinationCity,
+                    from: t.originName(isKg(context)),
+                    to: t.destinationName(isKg(context)),
                     date: _dmt(t.departureAt),
                     // A still-'active' trip that's in history only because its
                     // time passed reads as finished, not «Активна».
@@ -577,8 +579,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       when: _dmt(t.departureAt),
       role: 'profile.history_as_driver'.tr(),
       status: t.status,
-      origin: t.originCity,
-      destination: t.destinationCity,
+      origin: t.originName(isKg(context)),
+      destination: t.destinationName(isKg(context)),
       avatar: _iconAvatar(Icons.directions_car_filled, BrandColors.c600, dark),
       actorName: carLabel,
       actorSub:
@@ -619,7 +621,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
               error: e, onRetry: () => ref.invalidate(myBookingsProvider)),
           data: (all) {
             final now = DateTime.now();
-            bool isPast(MockBooking b) =>
+            bool isPast(Booking b) =>
                 _terminalBookingStatuses.contains(b.status) ||
                 (b.departureAt?.isBefore(now) ?? false);
             final bookings = all.where((b) => isPast(b) == _history).toList();
@@ -712,8 +714,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
               [
                 for (final r in reqs)
                   _historyRow(dark,
-                      from: r.originCity,
-                      to: r.destinationCity,
+                      from: r.originName(isKg(context)),
+                      to: r.destinationName(isKg(context)),
                       date: r.dateLabel,
                       // A still-'open' request in history (its date passed) reads
                       // as «Истекла», not «Открыта».
@@ -757,8 +759,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
             grape: false,
             when: _dmt(t.departureAt),
             status: t.status,
-            origin: t.originCity,
-            destination: t.destinationCity,
+            origin: t.originName(isKg(context)),
+            destination: t.destinationName(isKg(context)),
             avatar: DriverAvatar(
                 name: t.driver.name,
                 imageUrl: t.driver.avatarUrl,
@@ -776,8 +778,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
             grape: true,
             when: r.departureDate != null ? _dm(r.departureDate) : r.dateLabel,
             status: r.status,
-            origin: r.originCity,
-            destination: r.destinationCity,
+            origin: r.originName(isKg(context)),
+            destination: r.destinationName(isKg(context)),
             avatar: DriverAvatar(
                 name: r.passengerName, verified: r.passengerVerified),
             actorName: r.passengerName,
@@ -819,7 +821,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
 /// Driver's incoming request card with accept / reject actions.
 class _IncomingCard extends ConsumerStatefulWidget {
   const _IncomingCard({required this.booking});
-  final MockBooking booking;
+  final Booking booking;
   @override
   ConsumerState<_IncomingCard> createState() => _IncomingCardState();
 }
@@ -1209,7 +1211,7 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
 class _BookingCard extends ConsumerWidget {
   const _BookingCard({required this.booking, this.pendingRating});
   final PendingRating? pendingRating;
-  final MockBooking booking;
+  final Booking booking;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1290,6 +1292,18 @@ class _BookingCard extends ConsumerWidget {
                 color: accepted ? BrandColors.c700 : InkColors.c400),
           ),
         ),
+        if (accepted && b.phone != null) ...[
+          _ContactIcon(
+              icon: Icons.call,
+              color: BrandColors.c600,
+              tooltip: 'contact.call'.tr(),
+              onTap: () => callPhone(b.phone!)),
+          _ContactIcon(
+              icon: Icons.chat_rounded,
+              color: const Color(0xFF1FAF55),
+              tooltip: 'contact.whatsapp'.tr(),
+              onTap: () => openWhatsapp(b.phone!)),
+        ],
       ]),
       trailing: Text('${b.seats} ${'booking_card.seats_word'.tr()}',
           style: const TextStyle(
@@ -1353,8 +1367,8 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
           when: r.departureDate != null ? _dm(r.departureDate) : r.dateLabel,
           role: 'requests.request_label'.tr(),
           status: r.status,
-          origin: r.originCity,
-          destination: r.destinationCity,
+          origin: r.originName(isKg(context)),
+          destination: r.destinationName(isKg(context)),
           avatar: Container(
             width: 34,
             height: 34,
@@ -1669,4 +1683,33 @@ class _OfferCardState extends ConsumerState<_OfferCard> {
       ),
     );
   }
+}
+
+/// Small round call / WhatsApp target next to an accepted booking's phone.
+class _ContactIcon extends StatelessWidget {
+  const _ContactIcon(
+      {required this.icon, required this.color, required this.tooltip, required this.onTap});
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: Tooltip(
+          message: tooltip,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle, color: color.withValues(alpha: 0.12)),
+              child: Icon(icon, size: 15, color: color),
+            ),
+          ),
+        ),
+      );
 }

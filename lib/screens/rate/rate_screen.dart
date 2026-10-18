@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/friendly_error.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
@@ -27,14 +26,18 @@ class _RateScreenState extends ConsumerState<RateScreen> {
   final _comment = TextEditingController();
   final Set<String> _tags = {};
 
-  // Tag sets differ by who you're rating (backend DRIVER_TAGS / PASSENGER_TAGS).
-  // A driver (active mode) rates a passenger → passenger tags; else driver tags.
+  // Tag sets differ by who you're rating (backend DRIVER_TAGS / PASSENGER_TAGS):
+  // decided by this trip's roles — the ratee is the trip's driver or not —
+  // never by the app mode.
   static const _driverPos = ['on_time', 'clean_car', 'safe_driving', 'pleasant_chat', 'comfortable_ride'];
   static const _driverNeg = ['late', 'dirty_car', 'dangerous_driving', 'rudeness', 'car_mismatch'];
   static const _passengerPos = ['arrived_on_time', 'polite', 'no_heavy_luggage', 'pleasant_chat'];
   static const _passengerNeg = ['late', 'too_much_luggage', 'rudeness', 'no_show'];
 
-  bool get _ratingPassenger => ref.read(authProvider).activeMode == ActiveMode.driver;
+  bool get _ratingPassenger {
+    final driverId = ref.watch(tripDetailProvider(widget.tripId)).valueOrNull?.driver.id;
+    return driverId != null && driverId != widget.rateeId;
+  }
   List<String> get _positiveTags => _ratingPassenger ? _passengerPos : _driverPos;
   List<String> get _negativeTags => _ratingPassenger ? _passengerNeg : _driverNeg;
 

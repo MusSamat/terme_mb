@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/friendly_error.dart';
 import '../../providers/auth_provider.dart';
@@ -18,7 +19,6 @@ import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/query_error.dart';
 import 'cars_card.dart';
-import 'password_change_card.dart';
 import 'trip_history_screen.dart';
 import 'phone_change_card.dart';
 import 'profile_edit_card.dart';
@@ -48,8 +48,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
-    final isDriver = user?.isDriver ?? false;
     final phone = user?.phone ?? '';
+    final rating = user?.rating;
+    final verification = (ref.watch(driverStatusProvider).valueOrNull?['status'] ?? 'none') as String;
     final points = user?.loyaltyPoints ?? 0;
     final name = user?.name ?? 'roles.guest'.tr();
 
@@ -81,6 +82,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       const SizedBox(height: 2),
                       Text(phone, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _ink2)),
                     ],
+                    if (rating != null && (user?.ratingCount ?? 0) >= 3) ...[
+                      const SizedBox(height: 3),
+                      Row(children: [
+                        const Icon(Icons.star_rounded, size: 15, color: AccentColors.c400),
+                        const SizedBox(width: 3),
+                        Text('${rating.toStringAsFixed(1)} · ${'profile.reviews_count'.plural(user!.ratingCount)}',
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: _ink2)),
+                      ]),
+                    ],
                   ]),
                 ),
                 const Icon(Icons.chevron_right, size: 22, color: InkColors.c400),
@@ -90,26 +100,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             _Group(rows: [
               _Row(label: 'profile.tab_history'.tr(), onTap: () => _open(const TripHistoryScreen())),
-              if (isDriver) _Row(label: 'profile.menu_cars'.tr(), onTap: () => _open(const _CarsScreen())),
               _Row(label: 'profile.tab_reviews'.tr(), onTap: () => _open(const _ReviewsScreen())),
               _Row(label: 'profile.quick_bonuses'.tr(), value: '$points', onTap: () => context.push('/loyalty')),
-              _Row(label: 'profile.menu_language'.tr(), value: _localeLabel(), onTap: _pickLanguage),
             ]),
-
-            if (!isDriver) ...[
-              const SizedBox(height: 16),
-              GestureDetector(
+            const SizedBox(height: 16),
+            // Driver tools: a car is all you need to publish; verification is an
+            // optional trust badge.
+            _Group(rows: [
+              _Row(label: 'profile.menu_cars'.tr(), onTap: () => _open(const _CarsScreen())),
+              _Row(
+                label: 'profile.verification'.tr(),
+                value: 'profile.verification_status.$verification'.tr(),
                 onTap: () => context.push('/profile/driver'),
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  height: 52,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(16)),
-                  child: Text('profile.become_driver_title'.tr(),
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
-                ),
               ),
-            ],
+            ]),
+            const SizedBox(height: 16),
+            _Group(rows: [
+              _Row(label: 'profile.menu_language'.tr(), value: _localeLabel(), onTap: _pickLanguage),
+              _Row(
+                label: 'profile.telegram_bot'.tr(),
+                value: (user?.telegramLinked ?? false) ? 'profile.telegram_linked'.tr() : 'profile.telegram_connect'.tr(),
+                onTap: _openBot,
+              ),
+            ]),
 
             const SizedBox(height: 16),
             _Group(rows: [
@@ -119,6 +132,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  // The bot links by «Поделиться номером» — nothing to do in the app itself.
+  Future<void> _openBot() async {
+    final ok = await launchUrl(Uri.parse('https://t.me/${AppConfig.telegramBot}'),
+        mode: LaunchMode.externalApplication);
+    if (!ok && mounted) Toasts.error('contact.launch_failed'.tr());
   }
 
   String _localeLabel() => context.locale.languageCode == 'kg' ? 'Кыргызча' : 'Русский';
@@ -273,61 +293,9 @@ Widget _panel(Widget child) => Container(
       child: child,
     );
 
-/// White panel with a tappable title that expands/collapses its child
-/// (used to hide the password form until the user wants it).
-class _Collapsible extends StatefulWidget {
-  const _Collapsible({required this.title, required this.child});
-  final String title;
-  final Widget child;
-
-  @override
-  State<_Collapsible> createState() => _CollapsibleState();
-}
-
-class _CollapsibleState extends State<_Collapsible> {
-  bool _open = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: [
-        InkWell(
-          onTap: () => setState(() => _open = !_open),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Expanded(
-                child: Text(widget.title,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _ink)),
-              ),
-              AnimatedRotation(
-                turns: _open ? 0.25 : 0,
-                duration: const Duration(milliseconds: 180),
-                child: const Icon(Icons.chevron_right, size: 20, color: InkColors.c400),
-              ),
-            ]),
-          ),
-        ),
-        AnimatedCrossFade(
-          firstChild: const SizedBox(width: double.infinity),
-          secondChild: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: widget.child,
-          ),
-          crossFadeState: _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 180),
-        ),
-      ]),
-    );
-  }
-}
-
 // ── Sub-pages ────────────────────────────────────────────────────────────────
 
-/// Настройки профиля — avatar + name/bio + phone + password, each a white panel.
+/// Настройки профиля — avatar + name/bio + phone, each a white panel.
 class _SettingsScreen extends ConsumerStatefulWidget {
   const _SettingsScreen();
 
@@ -403,11 +371,6 @@ class _SettingsScreenState extends ConsumerState<_SettingsScreen> {
           _panel(const ProfileEditCard(dark: false)),
           const SizedBox(height: 14),
           _panel(const PhoneChangeCard(dark: false)),
-          const SizedBox(height: 14),
-          _Collapsible(
-            title: 'profile.password_section'.tr(),
-            child: const PasswordChangeCard(dark: false, showHeader: false),
-          ),
           const SizedBox(height: 22),
           // Rarely-used account & data actions live down here, out of the way.
           _Group(rows: [

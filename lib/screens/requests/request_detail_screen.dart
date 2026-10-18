@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/friendly_error.dart';
@@ -18,6 +17,14 @@ import '../../widgets/listing_metrics.dart';
 import '../../widgets/query_error.dart';
 import '../../widgets/request_edit_sheet.dart';
 import '../../widgets/seat_meter.dart';
+import '../../providers/core_providers.dart';
+import '../../utils/deferred_action.dart';
+import '../../utils/locale.dart';
+import '../../widgets/contact_actions.dart';
+import '../../widgets/route_map.dart';
+import '../profile/cars_card.dart' show showAddCarSheet;
+
+final _viewed = <String>{};
 
 /// Request detail — 1:1 port of request-detail-pane.tsx (grape-themed, symmetric
 /// to the trip detail): passenger header, route spine, details grid, comment,
@@ -32,12 +39,17 @@ class RequestDetailScreen extends ConsumerWidget {
     return ref.watch(requestDetailProvider(id)).when(
       loading: () => Scaffold(backgroundColor: dark ? InkColors.c950 : InkColors.c50, body: const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: GrapeColors.c500))),
       error: (e, _) => Scaffold(backgroundColor: dark ? InkColors.c950 : InkColors.c50, body: Center(child: QueryError(error: e, onRetry: () => ref.invalidate(requestDetailProvider(id))))),
-      data: (r) => Scaffold(
+      data: (r) {
+        // One deduped view per open (owners never count).
+        if (_viewed.add(r.id) && ref.read(authProvider).user?.id != r.passengerId) {
+          ref.read(requestsServiceProvider).recordView(r.id).catchError((_) {});
+        }
+        return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
       appBar: AppBar(
         backgroundColor: dark ? InkColors.c950 : InkColors.c50,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.canPop() ? context.pop() : context.go('/requests')),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.canPop() ? context.pop() : context.go('/')),
         title: Text('requests.request_label'.tr(), style: TextStyle(fontFamily: 'Manrope', fontWeight: FontWeight.w800, fontSize: 20, color: dark ? Colors.white : InkColors.c900)),
       ),
       body: Column(
@@ -54,7 +66,15 @@ class RequestDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _label(dark, 'request_filters.route_label'.tr()),
                 const SizedBox(height: 8),
-                _routeCard(dark, r),
+                _routeCard(context, dark, r),
+                const SizedBox(height: 12),
+                RouteMap(
+                  origin: r.origin,
+                  destination: r.destination,
+                  originPoint: r.originPoint,
+                  destinationPoint: r.destinationPoint,
+                  accent: GrapeColors.c600,
+                ),
                 const SizedBox(height: 16),
                 _details(dark, r),
                 if ((r.comment ?? '').isNotEmpty) ...[
@@ -72,8 +92,13 @@ class RequestDetailScreen extends ConsumerWidget {
             ),
           ),
           Builder(builder: (context) {
+            final authed = ref.watch(authProvider).isAuthenticated;
             final myId = ref.watch(authProvider).user?.id;
             final isOwner = myId != null && r.passengerId == myId;
+            void toLogin() {
+              saveDeferredAction(ref.read(hiveBoxProvider), type: 'respond_request', payload: {'requestId': r.id});
+              context.push('/auth/login');
+            }
             return Container(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
               decoration: BoxDecoration(color: dark ? InkColors.c900 : Colors.white, border: Border(top: BorderSide(color: dark ? InkColors.c800 : InkColors.c100))),
@@ -86,10 +111,20 @@ class RequestDetailScreen extends ConsumerWidget {
                           Expanded(child: _barBtn(Icons.close, 'my.act_cancel'.tr(), CoralColors.c600, filled: false, onTap: () => _confirmCancel(context, ref, r))),
                         ])
                       : Center(child: Text('requests.my.closed'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400))))
-                  // Driver: respond + reveal contact.
+                  // Anyone else: respond (needs a car) + call / WhatsApp. Guests → login.
                   : Column(mainAxisSize: MainAxisSize.min, children: [
                       GestureDetector(
-                        onTap: () => _showRespondSheet(context, r),
+                        onTap: () async {
+                          if (!authed) return toLogin();
+                          final cars = await ref.read(carsProvider.future).catchError((_) => const <Never>[]);
+                          if (!context.mounted) return;
+                          if (cars.isEmpty) {
+                            Toasts.info('requests.need_car_title'.tr(), 'requests.need_car_body'.tr());
+                            showAddCarSheet(context, dark: dark);
+                            return;
+                          }
+                          _showRespondSheet(context, r);
+                        },
                         behavior: HitTestBehavior.opaque,
                         child: Container(
                           height: 50,
@@ -103,13 +138,17 @@ class RequestDetailScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      _ContactReveal(onReveal: () => ref.read(requestsServiceProvider).revealContact(r.id)),
+                      ContactActions(
+                        reveal: () => ref.read(requestsServiceProvider).revealContact(r.id),
+                        onGuest: authed ? null : toLogin,
+                      ),
                     ]),
             );
           }),
         ],
       ),
-      ),
+      );
+      },
     );
   }
 
@@ -156,7 +195,7 @@ class RequestDetailScreen extends ConsumerWidget {
   Widget _passengerHeader(BuildContext context, bool dark, PassengerRequestItem r) {
     final showRating = r.passengerRating != null && r.passengerRatingCount >= 3;
     return GestureDetector(
-      onTap: () => context.push('/drivers/${r.id}'),
+      onTap: r.passengerId == null ? null : () => context.push('/drivers/${r.passengerId}'),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -193,7 +232,10 @@ class RequestDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _routeCard(bool dark, PassengerRequestItem r) {
+  Widget _routeCard(BuildContext context, bool dark, PassengerRequestItem r) {
+    final kg = isKg(context);
+    final wait = r.originPoint?.label(kg) ?? '';
+    final drop = r.destinationPoint?.label(kg) ?? '';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -215,11 +257,22 @@ class RequestDetailScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(r.originCity, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-                Text('requests.origin_point'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c500)),
+                Text(r.originName(kg), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+                Text(wait.isNotEmpty ? '📍 $wait' : 'requests.origin_point'.tr(),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c500)),
                 const SizedBox(height: 16),
-                Text(r.destinationCity, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-                Text('requests.dest_point'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c500)),
+                Text(r.destinationName(kg), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+                Text(drop.isNotEmpty ? '📍 $drop' : 'requests.dest_point'.tr(),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c500)),
+                if (r.flightNumber != null) ...[
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    const Icon(Icons.flight_rounded, size: 16, color: GrapeColors.c600),
+                    const SizedBox(width: 6),
+                    Text('airport.flight_label'.tr(namedArgs: {'n': r.flightNumber!}),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: GrapeColors.c600)),
+                  ]),
+                ],
               ],
             ),
           ),
@@ -267,62 +320,6 @@ class RequestDetailScreen extends ConsumerWidget {
   Widget _label(bool dark, String text) => Text(text.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: InkColors.c500));
 }
 
-class _ContactReveal extends StatefulWidget {
-  const _ContactReveal({required this.onReveal});
-  final Future<String?> Function() onReveal;
-  @override
-  State<_ContactReveal> createState() => _ContactRevealState();
-}
-
-class _ContactRevealState extends State<_ContactReveal> {
-  String? _phone;
-  bool _busy = false;
-
-  Future<void> _tap() async {
-    if (_busy) return;
-    if (_phone != null) {
-      await launchUrl(Uri.parse('tel:$_phone'));
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      final p = await widget.onReveal();
-      if (mounted) setState(() => _phone = p);
-    } catch (e) {
-      Toasts.error(friendlyError(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final revealed = _phone != null;
-    return GestureDetector(
-      onTap: _tap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        height: 46,
-        width: double.infinity,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: dark ? InkColors.c900 : Colors.white,
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          border: Border.all(color: dark ? GrapeColors.c500.withValues(alpha: 0.4) : GrapeColors.c200),
-        ),
-        child: _busy
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: GrapeColors.c500))
-            : Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(revealed ? Icons.call : Icons.phone_outlined, size: 18, color: dark ? GrapeColors.c300 : GrapeColors.c600),
-                const SizedBox(width: 8),
-                Text(revealed ? _phone! : 'contact.call'.tr(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? GrapeColors.c300 : GrapeColors.c700)),
-              ]),
-      ),
-    );
-  }
-}
-
 // ── Respond sheet ────────────────────────────────────────────────────────────
 
 void _showRespondSheet(BuildContext context, PassengerRequestItem r) {
@@ -357,7 +354,7 @@ class _RespondSheetState extends ConsumerState<_RespondSheet> {
   Future<void> _submit() async {
     if (_loading) return;
     final price = int.tryParse(_price.text.trim());
-    if (price == null || price < 1 || price > 100000) {
+    if (price == null || price < 50 || price > 10000) {
       Toasts.error('requests.err_price_range'.tr());
       return;
     }
