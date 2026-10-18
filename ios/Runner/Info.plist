@@ -66,6 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Чтобы подставить ваш город и место посадки и показать ближайшие поездки.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>whatsapp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Нужен доступ к камере, чтобы сфотографировать документы для верификации водителя.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

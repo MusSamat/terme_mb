@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/feed_filters.dart';
+import '../models/place.dart';
 import '../providers/auth_provider.dart';
 import '../screens/screens.dart';
 import 'root_shell.dart';
@@ -44,9 +45,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, shell) => RootShell(navigationShell: shell),
         branches: [
           StatefulShellBranch(routes: [
-            GoRoute(path: '/', builder: (c, s) => const HomeFeedScreen(), routes: [
-              GoRoute(path: 'requests', builder: (c, s) => const RequestsFeedScreen()),
-            ]),
+            GoRoute(path: '/', builder: (c, s) => const HomeFeedScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
@@ -67,7 +66,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/trips/create',
-        builder: (c, s) => const CreateScreen(),
+        // ?kind=trip|request comes from the entry point («+», airport screen…);
+        // without it the form follows the current mode. Optional prefill:
+        // extra = CreatePrefill.
+        builder: (c, s) => CreateScreen(
+          kind: s.uri.queryParameters['kind'],
+          prefill: s.extra is CreatePrefill ? s.extra as CreatePrefill : null,
+        ),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,
@@ -89,19 +94,30 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/results',
+        // Filters travel as `extra` (places are objects, not query strings).
         builder: (c, s) {
           final q = s.uri.queryParameters;
           return SearchResultsScreen(
             driver: q['mode'] == 'requests',
             openFilters: q['filters'] == '1',
-            initial: FeedFilters(
-              from: q['from'] ?? '',
-              to: q['to'] ?? '',
-              date: q['date'] ?? '',
-              seats: int.tryParse(q['seats'] ?? ''),
-            ),
+            initial: s.extra is FeedFilters ? s.extra as FeedFilters : const FeedFilters(),
           );
         },
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/map',
+        // ?kind=trips|requests&ride=airport; extra = destination Place.
+        builder: (c, s) => MapScreen(
+          requests: s.uri.queryParameters['kind'] == 'requests',
+          ride: s.uri.queryParameters['ride'],
+          to: s.extra is Place ? s.extra as Place : null,
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/airport',
+        builder: (c, s) => const AirportScreen(),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,
@@ -150,23 +166,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootKey,
         path: '/auth/login',
         builder: (c, s) => const LoginScreen(),
-      ),
-      GoRoute(
-        parentNavigatorKey: _rootKey,
-        path: '/auth/forgot-password',
-        builder: (c, s) => const ForgotPasswordScreen(),
-      ),
-      GoRoute(
-        parentNavigatorKey: _rootKey,
-        path: '/auth/register',
-        // Auth is unified & passwordless — registration happens inside the login
-        // flow (new number → name+surname). Keep the path as a redirect.
-        redirect: (c, s) => '/auth/login',
-      ),
-      GoRoute(
-        parentNavigatorKey: _rootKey,
-        path: '/onboarding',
-        builder: (c, s) => const OnboardingScreen(),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,

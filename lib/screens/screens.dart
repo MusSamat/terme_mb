@@ -11,13 +11,12 @@ export 'profile/delete_account_screen.dart';
 export 'notifications/notifications_screen.dart';
 export 'loyalty/loyalty_screen.dart';
 export 'auth/login_screen.dart';
-export 'auth/forgot_password_screen.dart';
-export 'requests/requests_feed_screen.dart';
 export 'search/search_results_screen.dart';
 export 'requests/request_detail_screen.dart';
 export 'rate/rate_screen.dart';
 export 'complaint/complaint_screen.dart';
 export 'drivers/public_profile_screen.dart';
-export 'onboarding/onboarding_screen.dart';
 export 'legal/legal_screen.dart';
 
+export 'map/map_screen.dart';
+export 'airport/airport_screen.dart';

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../api/friendly_error.dart';
 import '../../models/car.dart';
+import '../../models/place.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
@@ -14,16 +15,28 @@ import '../../utils/api_format.dart';
 import '../../widgets/action_modal.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
+import '../../utils/locale.dart';
+import '../../utils/location.dart';
 import '../../widgets/city_picker.dart';
-import '../../widgets/intent_toggle.dart';
+import '../../widgets/meeting_point_field.dart';
 import '../../widgets/seats_stepper.dart';
 import '../profile/cars_card.dart' show showAddCarSheet;
 
-/// Unified create screen — port of terme_ft create-screen. Drivers publish a
-/// trip, passengers post a ride request; the intent toggle switches copy and
-/// accent. Mock (no backend) — submit shows a success toast.
+/// Optional prefill for the create form (airport screen, «create similar»…).
+class CreatePrefill {
+  const CreatePrefill({this.from, this.to});
+  final Place? from;
+  final Place? to;
+}
+
+/// Unified create screen: drivers publish a trip, passengers post a ride
+/// request. Which one comes from the entry point (`kind` = trip | request);
+/// without it the form follows the current mode. It never changes the mode.
 class CreateScreen extends ConsumerStatefulWidget {
-  const CreateScreen({super.key});
+  const CreateScreen({super.key, this.kind, this.prefill});
+
+  final String? kind;
+  final CreatePrefill? prefill;
 
   @override
   ConsumerState<CreateScreen> createState() => _CreateScreenState();
@@ -31,8 +44,11 @@ class CreateScreen extends ConsumerStatefulWidget {
 
 class _CreateScreenState extends ConsumerState<CreateScreen> {
   late bool _asDriver;
-  final _from = TextEditingController();
-  final _to = TextEditingController();
+  Place? _from;
+  Place? _to;
+  MeetingPoint? _fromPoint; // driver: boarding spot · passenger: where I wait
+  MeetingPoint? _toPoint;
+  final _flight = TextEditingController(); // passenger ↔ airport only
   final _price = TextEditingController();
   final _priceFocus = FocusNode();
   final _comment = TextEditingController();
@@ -47,8 +63,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   bool _priceNegotiable = false; // driver: allow passengers to haggle
   TimeOfDay? _timeEnd; // driver: optional end of the departure window
   bool _more = false; // «Дополнительно» accordion — collapsed by default
-  final List<String> _pickup = []; // driver: intermediate pickup cities
-  final List<String> _dropoff = []; // driver: intermediate dropoff cities
+  final List<Place> _pickup = []; // driver: intermediate pickup places
+  final List<Place> _dropoff = []; // driver: intermediate dropoff places
   final Set<String> _prefs = {};
 
   /// Selected car id, defaulting to the last car in the garage (web parity).
@@ -57,16 +73,16 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     return cars.any((c) => c.id == _carId) ? _carId : cars.last.id;
   }
 
-  // Mobile pref keys → backend preferences keys (mirrors web mapping).
-  static const _prefApiKey = {
-    'create.pref_clean': 'clean',
-    'create.pref_music': 'music',
-    'create.pref_no_smoking': 'no_smoking',
-    'create.pref_ac': 'ac',
-    'create.pref_pets': 'animals',
-    'create.pref_quiet': 'quiet',
-    'create.pref_chat': 'chat',
-    'create.pref_women_only': 'women_only',
+  // Pref chips → backend TripPreferences (no smoking = smoking:false).
+  static const _prefApi = <String, (String, bool)>{
+    'create.pref_clean': ('clean', true),
+    'create.pref_music': ('music', true),
+    'create.pref_no_smoking': ('smoking', false),
+    'create.pref_ac': ('ac', true),
+    'create.pref_pets': ('animals', true),
+    'create.pref_quiet': ('quiet', true),
+    'create.pref_chat': ('chat', true),
+    'create.pref_women_only': ('women_only', true),
   };
 
   static const _dateKeys = [
@@ -89,13 +105,31 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   @override
   void initState() {
     super.initState();
-    _asDriver = ref.read(authProvider).activeMode == ActiveMode.driver;
+    _asDriver = switch (widget.kind) {
+      'trip' => true,
+      'request' => false,
+      _ => ref.read(authProvider).activeMode == ActiveMode.driver,
+    };
+    _from = widget.prefill?.from;
+    _to = widget.prefill?.to;
+    if (_from == null) _prefillOrigin();
   }
+
+  // «Откуда» = where the user is (best effort, never blocks the form).
+  Future<void> _prefillOrigin() async {
+    final me = await ref.read(locationServiceProvider).current(ask: false);
+    if (me == null || !inKyrgyzstan(me) || !mounted || _from != null) return;
+    try {
+      final place = await ref.read(citiesServiceProvider).nearest(me.lat, me.lng);
+      if (mounted && _from == null && place != null && place.id != _to?.id) setState(() => _from = place);
+    } catch (_) {/* the user picks it */}
+  }
+
+  bool get _airport => (_from?.isAirport ?? false) || (_to?.isAirport ?? false);
 
   @override
   void dispose() {
-    _from.dispose();
-    _to.dispose();
+    _flight.dispose();
     _price.dispose();
     _priceFocus.dispose();
     _comment.dispose();
@@ -161,10 +195,6 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         padding: EdgeInsets.fromLTRB(
             16, 8, 16, 24 + MediaQuery.of(context).padding.bottom),
         children: [
-          IntentToggle(
-              driver: _asDriver,
-              onChanged: (d) => setState(() => _asDriver = d)),
-          const SizedBox(height: 8),
           Text(
               _asDriver
                   ? 'create.intro_driver'.tr()
@@ -176,6 +206,19 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           const SizedBox(height: 16),
           // ── Essentials — the minimal happy path ──────────────────────────
           _routeCard(dark),
+          const SizedBox(height: 10),
+          MeetingPointField(
+            place: _from,
+            value: _fromPoint,
+            accent: _accent,
+            label: (_asDriver ? 'point.label_driver' : 'point.label_passenger').tr(),
+            pickerTitle: (_asDriver ? 'point.title_driver' : 'point.title_passenger').tr(),
+            onChanged: (p) => setState(() => _fromPoint = p),
+          ),
+          if (!_asDriver && _airport) ...[
+            const SizedBox(height: 10),
+            _flightField(dark),
+          ],
           const SizedBox(height: 16),
           _sectionLabel('create.time_label'.tr(), dark),
           const SizedBox(height: 8),
@@ -266,8 +309,11 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   void _resetForm() {
     if (!mounted) return;
     setState(() {
-      _from.clear();
-      _to.clear();
+      _from = null;
+      _to = null;
+      _fromPoint = null;
+      _toPoint = null;
+      _flight.clear();
       _price.clear();
       _comment.clear();
       _dateIndex = 0;
@@ -285,13 +331,13 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
 
   Future<void> _submit() async {
     if (_submitting) return;
-    final from = _from.text.trim();
-    final to = _to.text.trim();
-    if (from.isEmpty || to.isEmpty) {
+    final from = _from;
+    final to = _to;
+    if (from == null || to == null) {
       Toasts.error('create.err_route'.tr());
       return;
     }
-    if (from == to) {
+    if (from.id == to.id) {
       Toasts.error('create.err_same_city'.tr());
       return;
     }
@@ -317,12 +363,13 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       if (_asDriver) {
         final prefs = <String, bool>{
           for (final k in _prefs)
-            if (_prefApiKey[k] != null) _prefApiKey[k]!: true,
+            if (_prefApi[k] != null) _prefApi[k]!.$1: _prefApi[k]!.$2,
         };
         await ref.read(tripsServiceProvider).create({
-          'originCity': from,
-          'destinationCity': to,
-          'originAddress': from,
+          'originCityId': from.id,
+          'destinationCityId': to.id,
+          if (_fromPoint != null) 'originPoint': _fromPoint!.toBody(),
+          if (_toPoint != null) 'destinationPoint': _toPoint!.toBody(),
           'departureAt': dep.iso,
           'departureFlexible': dep.flexible,
           'seatsTotal': _seats,
@@ -331,8 +378,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           'luggage': _luggage,
           'carId': carId,
           'preferences': prefs,
-          if (_pickup.isNotEmpty) 'pickupCities': _pickup,
-          if (_dropoff.isNotEmpty) 'dropoffCities': _dropoff,
+          if (_pickup.isNotEmpty) 'pickupCityIds': [for (final p in _pickup) p.id],
+          if (_dropoff.isNotEmpty) 'dropoffCityIds': [for (final p in _dropoff) p.id],
           if (_windowEndIso() != null) 'departureWindowEnd': _windowEndIso(),
           if (_comment.text.trim().isNotEmpty) 'comment': _comment.text.trim(),
         });
@@ -340,29 +387,28 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         ref.invalidate(
             myTripsProvider); // show the new trip in «Мои поездки» at once
       } else {
-        final budgetNote = price > 0
-            ? 'create.budget_note'.tr(namedArgs: {'n': '$price'})
-            : '';
+        // Requests carry no price field — an optional budget rides in the
+        // comment, after whatever the passenger wrote.
+        final comment = [
+          _comment.text.trim(),
+          if (price > 0) 'create.budget_note'.tr(namedArgs: {'n': '$price'}),
+        ].where((s) => s.isNotEmpty).join('\n');
         await ref.read(requestsServiceProvider).create({
-          'originCity': from,
-          'destinationCity': to,
+          'originCityId': from.id,
+          'destinationCityId': to.id,
+          if (_fromPoint != null) 'originPoint': _fromPoint!.toBody(),
+          if (_toPoint != null) 'destinationPoint': _toPoint!.toBody(),
+          if (_airport && _flight.text.trim().isNotEmpty) 'flightNumber': _flight.text.trim(),
           'seatsNeeded': _seats,
           'departureDate': dep.iso,
           'flexible': dep.flexible,
-          if (budgetNote.isNotEmpty) 'comment': budgetNote,
+          if (comment.isNotEmpty) 'comment': comment,
         });
         ref.invalidate(requestsFeedProvider);
         ref.invalidate(
             myRequestsProvider); // show the new request in «Мои заявки» at once
       }
       if (!mounted) return;
-      // Publishing as a driver/passenger IS choosing that mode — sync the global
-      // active mode so «Мои» shows the matching tab set. Without this, a trip
-      // created while the app is in passenger mode is hidden (passenger tabs have
-      // no «Поездки»). Then land the user right on their new listing.
-      ref
-          .read(authProvider.notifier)
-          .setActiveMode(_asDriver ? ActiveMode.driver : ActiveMode.passenger);
       final wasDriver = _asDriver;
       showSuccessModal(
         context,
@@ -551,6 +597,15 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       ),
       if (_more) ...[
         const SizedBox(height: 12),
+        MeetingPointField(
+          place: _to,
+          value: _toPoint,
+          accent: _accent,
+          label: 'point.label_drop'.tr(),
+          pickerTitle: 'point.title_drop'.tr(),
+          onChanged: (p) => setState(() => _toPoint = p),
+        ),
+        const SizedBox(height: 12),
         if (_asDriver) ...[
           _zonesSection(dark),
           if (_time != null) ...[const SizedBox(height: 12), _windowRow(dark)],
@@ -625,19 +680,30 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         children: [
           Column(
             children: [
-              _field(dark, Icons.trip_origin, _from,
-                  'create.from_placeholder'.tr()),
+              _field(dark, Icons.trip_origin, _from, 'create.from_placeholder'.tr(), (p) {
+                setState(() {
+                  _from = p;
+                  _fromPoint = null; // a pin belongs to its place
+                });
+              }),
               Divider(height: 1, color: dark ? InkColors.c800 : InkColors.c100),
-              _field(dark, Icons.place, _to, 'create.to_placeholder'.tr()),
+              _field(dark, Icons.place, _to, 'create.to_placeholder'.tr(), (p) {
+                setState(() {
+                  _to = p;
+                  _toPoint = null;
+                });
+              }),
             ],
           ),
           GestureDetector(
-            onTap: () {
-              final t = _from.text;
-              _from.text = _to.text;
-              _to.text = t;
-              setState(() {});
-            },
+            onTap: () => setState(() {
+              final t = _from;
+              _from = _to;
+              _to = t;
+              final tp = _fromPoint;
+              _fromPoint = _toPoint;
+              _toPoint = tp;
+            }),
             child: Container(
               width: 34,
               height: 34,
@@ -657,30 +723,36 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     );
   }
 
-  Widget _field(
-      bool dark, IconData icon, TextEditingController c, String hint) {
+  Widget _field(bool dark, IconData icon, Place? value, String hint, ValueChanged<Place> onPick) {
+    final kg = isKg(context);
+    final sub = value?.subtitle(kg) ?? '';
     return GestureDetector(
       onTap: () async {
-        final city = await showCityPicker(context);
-        if (city != null) setState(() => c.text = city);
+        final place = await showCityPicker(context, nearMe: true);
+        if (place != null) onPick(place);
       },
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: InkColors.c400),
+            Icon(value == null ? icon : placeIcon(value.type), size: 18, color: InkColors.c400),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                c.text.isEmpty ? hint : c.text,
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: c.text.isEmpty
-                        ? InkColors.c400
-                        : (dark ? Colors.white : InkColors.c900)),
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  value == null ? hint : value.name(kg),
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: value == null ? InkColors.c400 : (dark ? Colors.white : InkColors.c900)),
+                ),
+                if (sub.isNotEmpty)
+                  Text(sub,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: InkColors.c400)),
+              ]),
             ),
           ],
         ),
@@ -921,7 +993,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     );
   }
 
-  Widget _zoneRow(bool dark, String label, List<String> list) {
+  Widget _zoneRow(bool dark, String label, List<Place> list) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label.toUpperCase(),
           style: const TextStyle(
@@ -942,7 +1014,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: _accent)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(city,
+                Text(city.name(isKg(context)),
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -954,7 +1026,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           ),
         _carChip('+ ${'create.zones_add'.tr()}', false, dark, () async {
           final city = await showCityPicker(context);
-          if (city != null && !list.contains(city)) {
+          if (city != null && !list.contains(city) && city.id != _from?.id && city.id != _to?.id) {
             setState(() => list.add(city));
           }
         }),
@@ -1100,6 +1172,30 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       ]),
     );
   }
+
+  // Arriving / departing flight — lets the driver meet the passenger in time.
+  Widget _flightField(bool dark) => _card(
+        dark,
+        Row(children: [
+          Icon(Icons.flight_rounded, size: 18, color: _accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _flight,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 10,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900),
+              decoration: InputDecoration(
+                counterText: '',
+                isCollapsed: true,
+                border: InputBorder.none,
+                hintText: 'airport.flight_hint'.tr(),
+                hintStyle: const TextStyle(color: InkColors.c400, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ]),
+      );
 
   Widget _sectionLabel(String text, bool dark) {
     return Text(text.toUpperCase(),
