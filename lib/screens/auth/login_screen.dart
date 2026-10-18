@@ -98,8 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _loading = true);
     try {
       final auth = ref.read(authServiceProvider);
-      final info = await auth.checkPhone(_fullPhone);
-      _isNew = !((info['exists'] as bool?) ?? false);
+      _isNew = !await auth.phoneExists(_fullPhone);
       await auth.sendOtp(_fullPhone);
       if (!mounted) return;
       _otp.clear();
@@ -242,15 +241,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         label: 'auth.register.send_code_btn'.tr(),
         loading: _loading,
         onPressed: _phoneValid && !_loading ? _start : null,
-      ),
-      const SizedBox(height: 16),
-      Center(
-        child: GestureDetector(
-          onTap: () => context.push('/auth/forgot-password'),
-          behavior: HitTestBehavior.opaque,
-          child: Text('auth.login.forgot_password'.tr(),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BrandColors.c600)),
-        ),
       ),
     ];
   }

@@ -1,5 +1,4 @@
-/// Minimal hand-written model for the skeleton. Full freezed models (mirroring
-/// terme_ft/src/lib/api/schema.gen.ts) land in step 2 of the ТЗ.
+/// The signed-in user (GET /users/me) — also the public-profile shape.
 class SelfUser {
   const SelfUser({
     required this.id,
@@ -17,6 +16,7 @@ class SelfUser {
     this.loyaltyTier = 'novice',
     this.loyaltyPoints = 0,
     this.notificationsEnabled = true,
+    this.preferredMode = 'passenger',
     this.createdAt,
   });
 
@@ -35,6 +35,7 @@ class SelfUser {
   final String loyaltyTier;
   final int loyaltyPoints;
   final bool notificationsEnabled;
+  final String preferredMode; // passenger | driver — shared by web, mobile and the bot
   final DateTime? createdAt;
 
   int? get joinYear => createdAt?.year;
@@ -42,10 +43,18 @@ class SelfUser {
   bool get isDriver => roles.contains('driver');
   bool get isPassenger => roles.contains('passenger');
 
-  SelfUser copyWith({String? name, String? bio, String? avatarUrl, String? language}) => SelfUser(
+  SelfUser copyWith({
+    String? name,
+    String? surname,
+    String? bio,
+    String? avatarUrl,
+    String? language,
+    String? preferredMode,
+  }) =>
+      SelfUser(
         id: id,
         name: name ?? this.name,
-        surname: surname,
+        surname: surname ?? this.surname,
         roles: roles,
         phone: phone,
         phoneVerified: phoneVerified,
@@ -58,6 +67,7 @@ class SelfUser {
         loyaltyTier: loyaltyTier,
         loyaltyPoints: loyaltyPoints,
         notificationsEnabled: notificationsEnabled,
+        preferredMode: preferredMode ?? this.preferredMode,
         createdAt: createdAt,
       );
 
@@ -77,6 +87,7 @@ class SelfUser {
         loyaltyTier: (j['loyaltyTier'] ?? 'novice') as String,
         loyaltyPoints: (j['loyaltyPoints'] ?? 0) as int,
         notificationsEnabled: (j['notificationsEnabled'] ?? true) as bool,
+        preferredMode: (j['preferredMode'] ?? 'passenger') as String,
         createdAt: j['createdAt'] != null ? DateTime.tryParse(j['createdAt'] as String) : null,
       );
 
@@ -96,6 +107,7 @@ class SelfUser {
         'loyaltyTier': loyaltyTier,
         'loyaltyPoints': loyaltyPoints,
         'notificationsEnabled': notificationsEnabled,
+        'preferredMode': preferredMode,
         'createdAt': createdAt?.toIso8601String(),
       };
 }

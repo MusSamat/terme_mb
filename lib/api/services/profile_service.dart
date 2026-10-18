@@ -9,12 +9,14 @@ class ProfileService {
   ProfileService(this._dio);
   final Dio _dio;
 
-  /// PATCH /users/me — update name / bio / language.
-  Future<SelfUser> update({String? name, String? bio, String? language}) async {
+  /// PATCH /users/me — update name / surname / bio / language / mode.
+  Future<SelfUser> update({String? name, String? surname, String? bio, String? language, String? preferredMode}) async {
     final res = await _dio.patch<Map<String, dynamic>>('/users/me', data: {
       if (name != null) 'name': name,
+      if (surname != null) 'surname': surname,
       if (bio != null) 'bio': bio,
       if (language != null) 'language': language,
+      if (preferredMode != null) 'preferredMode': preferredMode,
     });
     return SelfUser.fromJson(res.data!);
   }
@@ -44,19 +46,15 @@ class ProfileService {
     return res.data ?? const [];
   }
 
-  // ── Phone change (start → OTP → confirm) ─────────────────────────────────
-  /// PATCH /users/me/phone — re-auth with the current password, then OTP is sent.
-  Future<void> startPhoneChange(String newPhone, String currentPassword) =>
-      _dio.patch('/users/me/phone', data: {
-        'newPhone': newPhone,
-        'reAuthProof': {'provider': 'phone', 'password': currentPassword},
-      });
+  // ── Phone change (session + WhatsApp code to the NEW number) ─────────────
+  /// PATCH /users/me/phone — sends a WhatsApp code to [newPhone] (also «resend»).
+  Future<void> startPhoneChange(String newPhone) => _dio.patch('/users/me/phone', data: {'newPhone': newPhone});
 
-  /// POST /users/me/phone/send-otp — (re)send the code to the new number.
-  Future<void> sendPhoneOtp(String phone) =>
-      _dio.post('/users/me/phone/send-otp', data: {'phone': phone});
-
-  /// PATCH /users/me/phone/confirm — confirm with the 6-digit code.
-  Future<void> confirmPhoneChange(String newPhone, String code) =>
-      _dio.patch('/users/me/phone/confirm', data: {'newPhone': newPhone, 'code': code});
+  /// PATCH /users/me/phone/confirm — swaps the number; every other session is
+  /// revoked and a fresh pair is issued (channel 'web' → refresh cookie).
+  Future<String?> confirmPhoneChange(String newPhone, String code) async {
+    final res = await _dio.patch<Map<String, dynamic>>('/users/me/phone/confirm',
+        data: {'newPhone': newPhone, 'code': code, 'channel': 'web'});
+    return res.data?['accessToken'] as String?;
+  }
 }

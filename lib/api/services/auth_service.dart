@@ -9,20 +9,24 @@ class AuthService {
   AuthService(this._dio);
   final Dio _dio;
 
-  /// POST /auth/check-phone → {exists, hasPassword, hasTelegram}.
-  Future<Map<String, dynamic>> checkPhone(String phone) async {
+  // Every call sends channel='web': the backend then puts the refresh token in
+  // an HttpOnly cookie, which the persistent cookie jar keeps across restarts
+  // (Keychain / Keystore). With 'mobile' it would only come back in the body.
+
+  /// POST /auth/check-phone → {exists, hasPassword}. Mobile only needs `exists`
+  /// (new number → registration step).
+  Future<bool> phoneExists(String phone) async {
     final res = await _dio.post<Map<String, dynamic>>('/auth/check-phone', data: {'phone': phone});
-    return res.data!;
+    return (res.data?['exists'] as bool?) ?? false;
   }
 
-  /// POST /auth/phone/send-otp → sends the login/registration code to the user's
-  /// WhatsApp. Returns {expiresInSec}. Canonical OTP-send channel.
+  /// POST /auth/phone/send-otp → WhatsApp code for login / registration.
   Future<Map<String, dynamic>> sendOtp(String phone) async {
     final res = await _dio.post<Map<String, dynamic>>('/auth/phone/send-otp', data: {'phone': phone});
     return res.data!;
   }
 
-  /// POST /auth/phone/verify → AuthResult | ProvisionalAuthResult.
+  /// POST /auth/phone/verify → session for an existing account (mobile login).
   Future<AuthResult> verifyOtp(String phone, String code) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/auth/phone/verify',
@@ -31,69 +35,18 @@ class AuthService {
     return AuthResult.fromJson(res.data!);
   }
 
-  /// POST /auth/phone/login → AuthResult (phone + password).
-  Future<AuthResult> loginPassword(String phone, String password) async {
-    final res = await _dio.post<Map<String, dynamic>>(
-      '/auth/phone/login',
-      data: {'phone': phone, 'password': password, 'channel': 'web'},
-    );
-    return AuthResult.fromJson(res.data!);
-  }
-
-  /// POST /auth/register → verifies the Telegram OTP and creates the account
-  /// with name/surname/password in one call. Returns a full session.
+  /// POST /auth/register → verifies the WhatsApp code and creates the account
+  /// (name + surname, no password on mobile) in one call.
   Future<AuthResult> register({
     required String phone,
     required String code,
     required String name,
     required String surname,
-    String? password, // optional: mobile registers passwordless (phone+OTP only)
   }) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/auth/register',
-      data: {
-        'phone': phone,
-        'code': code,
-        'name': name,
-        'surname': surname,
-        if (password != null) 'password': password,
-        'channel': 'mobile',
-      },
+      data: {'phone': phone, 'code': code, 'name': name, 'surname': surname, 'channel': 'web'},
     );
-    return AuthResult.fromJson(res.data!);
-  }
-
-  /// POST /auth/phone/reset-password → set a new password after verifying a
-  /// WhatsApp OTP. Requires {phone, code, newPassword} (unauthenticated flow).
-  Future<void> resetPassword(String phone, String code, String newPassword) =>
-      _dio.post('/auth/phone/reset-password',
-          data: {'phone': phone, 'code': code, 'newPassword': newPassword, 'channel': 'web'});
-
-  /// PATCH /users/me/password → change password. `currentPassword` required when
-  /// the account already has one.
-  Future<void> setPassword(String newPassword, {String? currentPassword}) => _dio.patch(
-        '/users/me/password',
-        data: {
-          'newPassword': newPassword,
-          if (currentPassword != null) 'currentPassword': currentPassword,
-        },
-      );
-
-  // ── Telegram bot deep-link login ───────────────────────────────────────────
-  Future<Map<String, dynamic>> botLoginInit() async {
-    final res = await _dio.post<Map<String, dynamic>>('/auth/telegram/bot-login/init');
-    return res.data!; // {token, deepLink, expiresInSec}
-  }
-
-  Future<String> botLoginStatus(String token) async {
-    final res = await _dio.get<Map<String, dynamic>>('/auth/telegram/bot-login/status',
-        queryParameters: {'token': token});
-    return res.data!['status'] as String; // waiting | done | expired | not_found
-  }
-
-  Future<AuthResult> botLoginClaim(String token) async {
-    final res = await _dio.post<Map<String, dynamic>>('/auth/telegram/bot-login/claim',
-        data: {'token': token, 'channel': 'web'});
     return AuthResult.fromJson(res.data!);
   }
 
@@ -118,22 +71,15 @@ class AuthService {
   }
 }
 
-/// POST /auth/* result. `kind == 'full'` carries user + tokens; `provisional`
-/// means the client must complete phone verification.
+/// POST /auth/* session result (the refresh token rides the cookie).
 class AuthResult {
-  const AuthResult({required this.kind, this.accessToken, this.user, this.provisionalToken});
+  const AuthResult({this.accessToken, this.user});
 
-  final String kind; // full | provisional
   final String? accessToken;
   final SelfUser? user;
-  final String? provisionalToken;
-
-  bool get isFull => kind == 'full';
 
   factory AuthResult.fromJson(Map<String, dynamic> j) => AuthResult(
-        kind: (j['kind'] ?? 'full') as String,
         accessToken: j['accessToken'] as String?,
-        provisionalToken: j['provisionalToken'] as String?,
         user: j['user'] != null ? SelfUser.fromJson((j['user'] as Map).cast<String, dynamic>()) : null,
       );
 }

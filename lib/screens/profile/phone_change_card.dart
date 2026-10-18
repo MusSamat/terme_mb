@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../api/friendly_error.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
 import '../../utils/phone.dart';
 import '../../theme/colors.dart';
@@ -12,8 +13,8 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
 import '../auth/auth_fields.dart';
 
-/// Shows the current phone with a "change" action that runs the secured phone
-/// change: re-auth with password → OTP to the new number → confirm.
+/// Shows the current phone with a "change" action: new number → WhatsApp code
+/// to it → confirm (the signed-in session authenticates the request).
 class PhoneChangeCard extends ConsumerWidget {
   const PhoneChangeCard({super.key, required this.dark});
   final bool dark;
@@ -57,28 +58,25 @@ class _PhoneChangeSheet extends ConsumerStatefulWidget {
 enum _Step { form, otp }
 
 class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
-  final _password = TextEditingController();
   final _phone = TextEditingController(text: kDefaultDial);
   final _otp = TextEditingController();
   _Step _step = _Step.form;
-  bool _showPass = false;
   bool _loading = false;
 
   String get _fullPhone => _phone.text;
 
   @override
   void dispose() {
-    _password.dispose();
     _phone.dispose();
     _otp.dispose();
     super.dispose();
   }
 
   Future<void> _start() async {
-    if (!isValidPhone(_phone.text) || _password.text.isEmpty || _loading) return;
+    if (!isValidPhone(_phone.text) || _loading) return;
     setState(() => _loading = true);
     try {
-      await ref.read(profileServiceProvider).startPhoneChange(_fullPhone, _password.text);
+      await ref.read(profileServiceProvider).startPhoneChange(_fullPhone);
       if (mounted) setState(() => _step = _Step.otp);
     } catch (e) {
       Toasts.error(friendlyError(e));
@@ -91,12 +89,12 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
     if (_otp.text.length != 6 || _loading) return;
     setState(() => _loading = true);
     try {
-      final profile = ref.read(profileServiceProvider);
-      await profile.confirmPhoneChange(_fullPhone, _otp.text);
-      // Tokens were reissued server-side — refresh the profile so the UI updates.
-      final auth = ref.read(authServiceProvider);
-      final me = await auth.me();
-      ref.read(authProvider.notifier).updateUser(me);
+      final token = await ref.read(profileServiceProvider).confirmPhoneChange(_fullPhone, _otp.text);
+      // The server revoked every other session and issued a fresh pair — keep
+      // the new access token, then reload the profile.
+      if (token != null) ref.read(tokenStoreProvider).set(token);
+      final me = await ref.read(authServiceProvider).me();
+      ref.read(authProvider.notifier).setSession(me, accessToken: token);
       if (mounted) Navigator.of(context).pop();
       Toasts.success('profile.phone_changed'.tr());
     } catch (e) {
@@ -120,25 +118,23 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
           const SizedBox(height: 14),
           if (_step == _Step.form) ...[
             PhoneField(controller: _phone, dark: dark, onChanged: () => setState(() {})),
-            const SizedBox(height: 10),
-            PasswordField(
-              controller: _password,
-              dark: dark,
-              hint: 'password_form.current_label'.tr(),
-              obscure: !_showPass,
-              onToggle: () => setState(() => _showPass = !_showPass),
-              onChanged: () => setState(() {}),
-            ),
             const SizedBox(height: 16),
             AppButton(
               label: 'auth.register.send_code_btn'.tr(),
               loading: _loading,
-              onPressed: (isValidPhone(_phone.text) && _password.text.isNotEmpty) ? _start : null,
+              onPressed: isValidPhone(_phone.text) ? _start : null,
             ),
           ] else ...[
             Text('${'auth.register.otp_dm_hint'.tr()} $_fullPhone', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c500)),
             const SizedBox(height: 12),
             OtpField(controller: _otp, dark: dark, onChanged: (_) => setState(() {})),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _loading ? null : _start,
+              behavior: HitTestBehavior.opaque,
+              child: Text('auth.login.resend_btn'.tr(),
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: BrandColors.c600)),
+            ),
             const SizedBox(height: 16),
             AppButton(
               label: 'auth.login.confirm_btn'.tr(),
