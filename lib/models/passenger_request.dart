@@ -1,4 +1,5 @@
 import 'metrics.dart';
+import 'place.dart';
 
 /// Lean passenger-request model — mirror of terme_ft PassengerRequest card.
 /// Hand-written for the mock phase; freezed model lands in ТЗ step 2.
@@ -21,6 +22,15 @@ class PassengerRequestItem {
     this.responded = false,
     this.departureDate,
     this.metrics,
+    this.kind = 'intercity',
+    this.flightNumber,
+    this.originCityId,
+    this.destinationCityId,
+    this.origin,
+    this.destination,
+    this.originPoint,
+    this.destinationPoint,
+    this.distanceKm,
   });
 
   final String id;
@@ -40,6 +50,19 @@ class PassengerRequestItem {
   final bool liked;
   final bool responded;
   final Metrics? metrics; // creator-only engagement counters
+  final String kind; // intercity | airport
+  final String? flightNumber;
+  final int? originCityId;
+  final int? destinationCityId;
+  final Place? origin;
+  final Place? destination;
+  final MeetingPoint? originPoint; // where the passenger waits
+  final MeetingPoint? destinationPoint;
+  final double? distanceKm; // sort=nearest only
+
+  bool get isAirport => kind == 'airport';
+  String originName(bool kg) => origin?.name(kg) ?? originCity;
+  String destinationName(bool kg) => destination?.name(kg) ?? destinationCity;
 
   factory PassengerRequestItem.fromJson(Map<String, dynamic> j) {
     final p = (j['passenger'] as Map?)?.cast<String, dynamic>() ?? const {};
@@ -55,7 +78,7 @@ class PassengerRequestItem {
       dateLabel: dateLabel,
       budget: ((j['budget'] ?? 0) as num).toInt(),
       passengerName: (p['name'] ?? '') as String,
-      passengerId: p['id'] as String?,
+      passengerId: (j['passengerId'] ?? p['id']) as String?,
       passengerRating: (p['rating'] as num?)?.toDouble(),
       passengerRatingCount: (p['ratingCount'] ?? 0) as int,
       passengerVerified: (p['verified'] ?? false) as bool,
@@ -65,6 +88,15 @@ class PassengerRequestItem {
       responded: j['myResponse'] != null,
       departureDate: date,
       metrics: Metrics.fromJson(j['metrics']),
+      kind: (j['kind'] ?? 'intercity') as String,
+      flightNumber: j['flightNumber'] as String?,
+      originCityId: (j['originCityId'] as num?)?.toInt(),
+      destinationCityId: (j['destinationCityId'] as num?)?.toInt(),
+      origin: Place.maybe(j['origin']),
+      destination: Place.maybe(j['destination']),
+      originPoint: MeetingPoint.maybe(j['originPoint']),
+      destinationPoint: MeetingPoint.maybe(j['destinationPoint']),
+      distanceKm: (j['distanceKm'] as num?)?.toDouble(),
     );
   }
 }

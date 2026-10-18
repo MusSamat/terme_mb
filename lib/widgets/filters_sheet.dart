@@ -4,9 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/feed_filters.dart';
+import '../models/place.dart';
 import '../providers/data_providers.dart';
 import '../theme/colors.dart';
 import '../theme/dimens.dart';
+import '../utils/locale.dart';
 import 'app_chip.dart';
 import 'city_picker.dart';
 import 'date_picker_modal.dart';
@@ -62,7 +64,8 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
   void _reset() {
     _priceFrom.clear();
     _priceTo.clear();
-    _set(const FeedFilters());
+    // Reset the filters, keep the route the user searched.
+    _set(FeedFilters(from: _f.from, to: _f.to, kind: _f.kind));
   }
 
   @override
@@ -122,7 +125,8 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
                   const SizedBox(height: 18),
                   _label(dark, 'search_filters.sort_label'.tr()),
                   Wrap(spacing: 6, runSpacing: 6, children: [
-                    for (final o in const [('time', 'sort_time'), ('price_asc', 'sort_price_asc'), ('rating_desc', 'sort_rating_desc')])
+                    // «Ближайшие» ranks by distance from you to the boarding point.
+                    for (final o in const [('time', 'sort_time'), ('nearest', 'sort_nearest'), ('price_asc', 'sort_price_asc'), ('rating_desc', 'sort_rating_desc')])
                       AppChip(label: 'search_filters.${o.$2}'.tr(), selected: _f.sort == o.$1, accent: acc, onTap: () => _set(_f.copyWith(sort: o.$1))),
                   ]),
                   const SizedBox(height: 18),
@@ -167,9 +171,10 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
       );
 
   Widget _cityRow(bool dark) {
-    Widget field(String value, String hint, ValueChanged<String> onPick) => GestureDetector(
+    final kg = isKg(context);
+    Widget field(Place? place, String hint, ValueChanged<Place> onPick) => GestureDetector(
           onTap: () async {
-            final c = await showCityPicker(context);
+            final c = await showCityPicker(context, nearMe: true);
             if (c != null) onPick(c);
           },
           behavior: HitTestBehavior.opaque,
@@ -182,11 +187,11 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: dark ? InkColors.c700 : InkColors.c200),
             ),
-            child: Text(value.isEmpty ? hint : value,
+            child: Text(place == null ? hint : place.name(kg),
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: value.isEmpty ? InkColors.c400 : (dark ? Colors.white : InkColors.c900))),
+                    color: place == null ? InkColors.c400 : (dark ? Colors.white : InkColors.c900))),
           ),
         );
 
@@ -219,8 +224,8 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
         min: _todayYmd,
         dayCounts: ref.read(calendarCountsProvider((
           kind: widget.accent == ChipAccent.grape ? 'requests' : 'trips',
-          from: _f.from,
-          to: _f.to,
+          from: _f.from?.id,
+          to: _f.to?.id,
         ))).valueOrNull,
         onChange: (v) => _set(_f.copyWith(date: v.isEmpty ? '' : v)),
       ),

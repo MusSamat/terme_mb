@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../models/trip_card_item.dart';
 import '../theme/colors.dart';
+import '../utils/api_format.dart';
 import '../utils/date_format.dart';
+import '../utils/locale.dart';
 import 'driver_avatar.dart';
 import 'ticket.dart';
 
@@ -27,7 +29,14 @@ class TripCard extends StatelessWidget {
     final dimmed = trip.soldOut || trip.inactive;
     final time = hhmm(trip.departureAt);
     final windowEnd = trip.departureWindowEnd != null ? '–${hhmm(trip.departureWindowEnd!)}' : '';
-    final stops = trip.pickupCities.isNotEmpty ? trip.pickupCities.join(' · ') : null;
+    final kg = isKg(context);
+    final pickups = trip.pickupNames(kg);
+    final stops = pickups.isNotEmpty ? pickups.join(' · ') : null;
+    // Boarding spot inside the city («1,2 км · Асанбай») — new data, same layout.
+    final boarding = [
+      if (trip.distanceKm != null) distanceLabel(trip.distanceKm!),
+      if (trip.originPoint != null) trip.originPoint!.label(kg),
+    ].where((s) => s.isNotEmpty).join(' · ');
 
     final ink = dark ? Colors.white : InkColors.c900;
     final muted = dark ? InkColors.c400 : InkColors.c500;
@@ -56,14 +65,29 @@ class TripCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(trip.originCity, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, height: 1.15, color: ink)),
+                  Text(trip.originName(kg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, height: 1.15, color: ink)),
+                  if (boarding.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(children: [
+                        Icon(Icons.place_outlined, size: 11, color: muted),
+                        const SizedBox(width: 2),
+                        Flexible(child: Text(boarding, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: muted))),
+                      ]),
+                    ),
                   if (stops != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text('card.via'.tr(namedArgs: {'stops': stops}), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: muted)),
                     ),
                   const SizedBox(height: 6),
-                  Text(trip.destinationCity, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, height: 1.15, color: ink)),
+                  Row(children: [
+                    if (trip.destination?.isAirport ?? false) ...[
+                      Icon(Icons.flight_takeoff_rounded, size: 14, color: ink),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(child: Text(trip.destinationName(kg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, height: 1.15, color: ink))),
+                  ]),
                 ]),
               ),
               const SizedBox(width: 8),

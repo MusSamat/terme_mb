@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'dart:convert';
+
 import '../../api/services/misc_services.dart' show PopularRoute;
+import '../../models/feed_filters.dart';
+import '../../models/place.dart';
 import '../../models/passenger_request.dart';
 import '../../models/trip_card_item.dart';
 import '../../providers/auth_provider.dart';
@@ -13,11 +17,11 @@ import '../../utils/config.dart' show StorageKeys;
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../widgets/date_picker_modal.dart';
-import '../../widgets/role_select_sheet.dart';
 import '../../widgets/route_search_sheet.dart';
 import '../../widgets/intent_toggle.dart';
 import '../../widgets/logo_mark.dart';
 import '../../widgets/online_badge.dart';
+import '../../utils/locale.dart';
 
 /// Home = the search HUB. Rails on top (destinations · popular · history) and a
 /// docked search bar above the pill nav. Tapping the bar opens the search modal;
@@ -31,11 +35,10 @@ class HomeFeedScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
-  String _from = '';
-  String _to = '';
+  Place? _from;
+  Place? _to;
   bool _whole = false;
   String _date = ''; // '' = today
-  bool _gatePrompted = false; // role gate shown once this mount
 
   static const _monthsShort = [
     'янв', 'фев', 'мар', 'апр', 'май', 'июн',
@@ -82,15 +85,6 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     final authed = ref
         .watch(authProvider.select((s) => s.status == AuthStatus.authenticated));
 
-    // First login / reopen on the hub with no saved choice → open the role gate
-    // once. Runs after auth resolves (post-frame so it doesn't fight the build).
-    if (authed && !_gatePrompted && !hasChosenRole(ref)) {
-      _gatePrompted = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) showRoleSelectSheet(context, ref, create: false);
-      });
-    }
-
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
       body: SafeArea(
@@ -98,6 +92,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
         child: Column(
           children: [
             _header(context, dark),
+            // The one mode switch: it only changes what home leads with.
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
               child: IntentToggle(
@@ -123,6 +118,10 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                      sliver: SliverToBoxAdapter(child: _quickEntries(dark, driver)),
+                    ),
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                       sliver: _entryHints(dark, driver, authed),
@@ -163,6 +162,55 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
           ],
         ),
       );
+
+  // ── Quick entries: airport transfers · map ─────────────────────────────────
+  Widget _quickEntries(bool dark, bool driver) {
+    Widget tile(IconData icon, String title, String sub, Color accent, VoidCallback onTap) => Expanded(
+          child: GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: _chipCard(dark),
+              child: Row(children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: accent.withValues(alpha: dark ? 0.2 : 0.1), borderRadius: BorderRadius.circular(11)),
+                  child: Icon(icon, size: 20, color: accent),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+                    Text(sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: InkColors.c400)),
+                  ]),
+                ),
+              ]),
+            ),
+          ),
+        );
+    final accent = driver ? GrapeColors.c600 : BrandColors.c600;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        tile(Icons.flight_rounded, 'airport.title'.tr(), 'airport.entry_sub'.tr(), accent,
+            () => context.push('/airport')),
+        const SizedBox(width: 10),
+        tile(Icons.map_outlined, 'map.title'.tr(), (driver ? 'map.entry_sub_requests' : 'map.entry_sub_trips').tr(),
+            accent, () => context.push('/map?kind=${driver ? 'requests' : 'trips'}')),
+      ]),
+    );
+  }
 
   // ── Active trip/request status banner (Yandex-style) ───────────────────────
   // My active trips/requests — a compact block (no header label) between
@@ -260,7 +308,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
 
   // ── Docked search card — inline Откуда/Куда inputs; «Найти» → results ───────
   Widget _dockedCard(BuildContext context, bool dark, bool driver) {
-    final ready = _from.isNotEmpty && _to.isNotEmpty;
+    final ready = _from != null && _to != null;
     final ctaColor = driver ? GrapeColors.c600 : AccentColors.c500;
     final ctaText = driver ? Colors.white : AccentColors.ink;
     return Container(
@@ -281,11 +329,11 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
           child: Column(children: [
             Row(children: [
               Expanded(
-                  child: _cityField(context, _from,
+                  child: _cityField(context, _from?.name(isKg(context)) ?? '',
                       'feed.from_placeholder'.tr(), BrandColors.c600, dark,
                       true)),
               GestureDetector(
-                onTap: (_from.isEmpty || _to.isEmpty)
+                onTap: (_from == null || _to == null)
                     ? null
                     : () => setState(() {
                           final t = _from;
@@ -293,7 +341,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                           _to = t;
                         }),
                 child: Opacity(
-                  opacity: (_from.isEmpty || _to.isEmpty) ? 0.4 : 1,
+                  opacity: (_from == null || _to == null) ? 0.4 : 1,
                   child: Container(
                     width: 32,
                     height: 32,
@@ -315,7 +363,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
             ),
             Padding(
               padding: const EdgeInsets.only(right: 42),
-              child: _cityField(context, _to, 'feed.to_placeholder'.tr(),
+              child: _cityField(context, _to?.name(isKg(context)) ?? '', 'feed.to_placeholder'.tr(),
                   AccentColors.c500, dark, false),
             ),
           ]),
@@ -326,7 +374,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
           const SizedBox(width: 8),
           GestureDetector(
             onTap: ready
-                ? () => _goResults(_from, _to, _whole, openFilters: true)
+                ? () => _goResults(_from!, _to!, _whole, openFilters: true)
                 : null,
             behavior: HitTestBehavior.opaque,
             child: Opacity(
@@ -375,7 +423,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: GestureDetector(
-              onTap: ready ? () => _goResults(_from, _to, _whole) : null,
+              onTap: ready ? () => _applyRoute(_from!, _to!) : null,
               behavior: HitTestBehavior.opaque,
               child: Container(
                 height: 50,
@@ -508,23 +556,17 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     );
   }
 
-  void _goResults(String from, String to, bool whole,
-      {bool openFilters = false}) {
-    if (from.isEmpty || to.isEmpty) return;
+  void _goResults(Place from, Place to, bool whole, {bool openFilters = false}) {
     final driver = ref.read(authProvider).activeMode == ActiveMode.driver;
     final today = ymd(DateTime.now());
-    final q = <String, String>{
-      'from': from,
-      'to': to,
-      'mode': driver ? 'requests' : 'trips',
-      if (whole) 'seats': '4',
-      if (_date.isNotEmpty && _date != today) 'date': _date,
-      if (openFilters) 'filters': '1',
-    };
-    final qs = q.entries
-        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
-        .join('&');
-    context.push('/results?$qs');
+    final filters = FeedFilters(
+      from: from,
+      to: to,
+      seats: whole ? 4 : null,
+      date: (_date.isNotEmpty && _date != today) ? _date : '',
+    );
+    context.push('/results?mode=${driver ? 'requests' : 'trips'}${openFilters ? '&filters=1' : ''}',
+        extra: filters);
   }
 
   // ── Hub rails: popular · mine · history · destinations(fallback, last) ─────
@@ -553,7 +595,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     final dests = <PopularRoute>[];
     for (final r in [...routes]
       ..sort((a, b) => b.tripCount.compareTo(a.tripCount))) {
-      if (seen.add(r.to)) dests.add(r);
+      if (seen.add('${r.toId}')) dests.add(r);
       if (dests.length >= 8) break;
     }
 
@@ -674,7 +716,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     return GestureDetector(
       // Destination-only: fills «Куда» and leaves «Откуда» to the user (their
       // own/geolocated city), instead of forcing a fixed origin.
-      onTap: () => setState(() => _to = r.to),
+      onTap: () => setState(() => _to = r.toPlace),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -718,7 +760,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
       sub = 'feed.from_price'.tr(namedArgs: {'n': '${r.minPrice}'});
     }
     return GestureDetector(
-      onTap: () => _applyRoute(r.from, r.to),
+      onTap: () => _applyRoute(r.fromPlace, r.toPlace),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -759,7 +801,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     );
   }
 
-  Widget _histChip(String from, String to, bool dark) => GestureDetector(
+  Widget _histChip(Place from, Place to, bool dark) => GestureDetector(
         onTap: () => _applyRoute(from, to),
         behavior: HitTestBehavior.opaque,
         child: Container(
@@ -771,7 +813,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.history, size: 15, color: InkColors.c400),
             const SizedBox(width: 7),
-            Text('$from → $to',
+            Text('${from.name(isKg(context))} → ${to.name(isKg(context))}',
                 style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
@@ -780,34 +822,41 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
         ),
       );
 
-  // ── Recent routes (Hive, max 3 · web terme_recent_routes parity) ───────────
-  List<({String from, String to})> _recentRoutes() {
-    final raw =
-        (ref.read(hiveBoxProvider).get(StorageKeys.recentRoutes) as List?) ??
-            const [];
-    return raw
-        .whereType<String>()
-        .map((s) {
-          final p = s.split('|');
-          return (from: p.isNotEmpty ? p[0] : '', to: p.length > 1 ? p[1] : '');
-        })
-        .where((r) => r.from.isNotEmpty && r.to.isNotEmpty)
-        .toList();
+  // ── Recent routes (Hive, max 3) — full places so ids survive restarts ─────
+  List<({Place from, Place to})> _recentRoutes() {
+    final raw = (ref.read(hiveBoxProvider).get(StorageKeys.recentRoutes) as List?) ?? const [];
+    final out = <({Place from, Place to})>[];
+    for (final e in raw.whereType<String>()) {
+      try {
+        final m = jsonDecode(e) as Map<String, dynamic>;
+        out.add((
+          from: Place.fromJson((m['from'] as Map).cast<String, dynamic>()),
+          to: Place.fromJson((m['to'] as Map).cast<String, dynamic>()),
+        ));
+      } catch (_) {/* skip a malformed entry */}
+    }
+    return out;
   }
 
-  void _saveRecentRoute(String from, String to) {
-    if (from.isEmpty || to.isEmpty) return;
+  void _saveRecentRoute(Place from, Place to) {
     final box = ref.read(hiveBoxProvider);
+    final entry = jsonEncode({'from': from.toJson(), 'to': to.toJson()});
     final cur = ((box.get(StorageKeys.recentRoutes) as List?) ?? const [])
         .whereType<String>()
-        .toList();
-    final key = '$from|$to';
-    cur.removeWhere((s) => s == key);
-    cur.insert(0, key);
+        .where((s) {
+          try {
+            final m = jsonDecode(s) as Map;
+            return !((m['from'] as Map)['id'] == from.id && (m['to'] as Map)['id'] == to.id);
+          } catch (_) {
+            return false;
+          }
+        })
+        .toList()
+      ..insert(0, entry);
     box.put(StorageKeys.recentRoutes, cur.take(3).toList());
   }
 
-  void _applyRoute(String from, String to) {
+  void _applyRoute(Place from, Place to) {
     _saveRecentRoute(from, to);
     _goResults(from, to, _whole);
   }

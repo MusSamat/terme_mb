@@ -5,7 +5,6 @@ import 'package:terme_mb/api/services/requests_service.dart';
 import 'package:terme_mb/api/services/bookings_service.dart';
 import 'package:terme_mb/api/services/ratings_service.dart';
 import 'package:terme_mb/api/services/drivers_service.dart';
-import 'package:terme_mb/api/services/trips_service.dart';
 import 'package:terme_mb/api/services/profile_service.dart';
 import 'package:terme_mb/api/services/misc_services.dart';
 import 'package:terme_mb/api/services/likes_service.dart';
@@ -134,32 +133,6 @@ void main() {
       expect(s.totalTrips, 12);
       expect(s.rating, 4.7);
       verify(() => dio.get<Map<String, dynamic>>('/drivers/me/stats')).called(1);
-    });
-  });
-
-  // ── TripsService: priceSuggestion ────────────────────────────────────────────
-  group('TripsService.priceSuggestion', () {
-    late TripsService svc;
-    setUp(() => svc = TripsService(dio));
-
-    test('GET /routes/price-suggestion with from/to and parses tuple', () async {
-      when(() => dio.get<Map<String, dynamic>>(any(), queryParameters: any(named: 'queryParameters')))
-          .thenAnswer((_) async => _ok<Map<String, dynamic>>({'suggested': 1000, 'min': 800, 'max': 1500}));
-      final r = await svc.priceSuggestion('Бишкек', 'Ош');
-      expect(r.suggested, 1000);
-      expect(r.min, 800);
-      expect(r.max, 1500);
-      final q = verify(() => dio.get<Map<String, dynamic>>('/routes/price-suggestion',
-          queryParameters: captureAny(named: 'queryParameters'))).captured.single as Map;
-      expect(q['from'], 'Бишкек');
-      expect(q['to'], 'Ош');
-    });
-
-    test('defaults to 0 when fields missing', () async {
-      when(() => dio.get<Map<String, dynamic>>(any(), queryParameters: any(named: 'queryParameters')))
-          .thenAnswer((_) async => _ok<Map<String, dynamic>>({}));
-      final r = await svc.priceSuggestion('A', 'B');
-      expect(r.suggested, 0);
     });
   });
 

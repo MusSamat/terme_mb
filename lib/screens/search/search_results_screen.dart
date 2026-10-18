@@ -4,9 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/feed_filters.dart';
-import '../../models/trip_card_item.dart';
 import '../../providers/data_providers.dart';
-import '../../utils/config.dart';
+import '../../utils/locale.dart';
 import '../../widgets/app_chip.dart';
 import '../../widgets/date_picker_modal.dart';
 import '../../widgets/filters_sheet.dart';
@@ -65,28 +64,6 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   String get _today => ymd(DateTime.now());
   String get _current =>
       (_filters.date.isEmpty || _filters.date == 'any') ? _today : _filters.date;
-
-  List<TripCardItem> _applyFilters(List<TripCardItem> all) {
-    var list = List<TripCardItem>.from(all);
-    if (_filters.date != 'any') {
-      final eff = _filters.date.isEmpty ? _today : _filters.date;
-      list = list.where((t) => ymd(t.departureAt) == eff).toList();
-    }
-    if (_filters.onlyVerified) list = list.where((t) => t.driver.verified).toList();
-    if (_filters.luggage.isNotEmpty) list = list.where((t) => t.luggage == _filters.luggage).toList();
-    if (_filters.minRating > 0) list = list.where((t) => (t.driver.rating ?? 0) >= _filters.minRating).toList();
-    if (_filters.minPrice != null) list = list.where((t) => t.pricePerSeat >= _filters.minPrice!).toList();
-    if (_filters.maxPrice != null) list = list.where((t) => t.pricePerSeat <= _filters.maxPrice!).toList();
-    switch (_filters.sort) {
-      case 'price_asc':
-        list.sort((a, b) => a.pricePerSeat.compareTo(b.pricePerSeat));
-      case 'rating_desc':
-        list.sort((a, b) => (b.driver.rating ?? 0).compareTo(a.driver.rating ?? 0));
-      default:
-        list.sort((a, b) => a.departureAt.compareTo(b.departureAt));
-    }
-    return list;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +166,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                         fontWeight: FontWeight.w900,
                         color: dark ? Colors.white : InkColors.c900)),
                 const SizedBox(height: 1),
-                Text('${_filters.from} — ${_filters.to}',
+                Text('${_filters.from?.name(isKg(context)) ?? ''} — ${_filters.to?.name(isKg(context)) ?? ''}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -198,6 +175,13 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                         color: InkColors.c400)),
               ],
             ),
+          ),
+          // Same search on the map — see where exactly people board.
+          IconButton(
+            tooltip: 'map.title'.tr(),
+            onPressed: () => context.push('/map?kind=${driver ? 'requests' : 'trips'}',
+                extra: _filters.to),
+            icon: Icon(Icons.map_outlined, size: 22, color: dark ? InkColors.c300 : InkColors.c600),
           ),
           GestureDetector(
             onTap: () => setState(() => _filters =
@@ -371,8 +355,8 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
     final counts = ref
             .read(calendarCountsProvider((
               kind: requests ? 'requests' : 'trips',
-              from: _filters.from,
-              to: _filters.to,
+              from: _filters.from?.id,
+              to: _filters.to?.id,
             )))
             .valueOrNull ??
         const <String, int>{};
@@ -393,8 +377,8 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
     final counts = ref
         .watch(calendarCountsProvider((
           kind: requests ? 'requests' : 'trips',
-          from: _filters.from,
-          to: _filters.to,
+          from: _filters.from?.id,
+          to: _filters.to?.id,
         )))
         .valueOrNull;
     if (counts == null || counts.isEmpty) return const SizedBox.shrink();
@@ -502,7 +486,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                   error: e,
                   onRetry: () => ref.invalidate(tripsFeedProvider(_filters)))),
           data: (all) {
-            final trips = AppConfig.useMock ? _applyFilters(all) : all;
+            final trips = all;
             if (trips.isEmpty) {
               return SliverToBoxAdapter(child: _emptyBlock(dark, false));
             }

@@ -14,13 +14,14 @@ import '../api/services/requests_service.dart';
 import '../api/services/trips_service.dart';
 import '../api/services/users_service.dart';
 import '../api/services/presence_service.dart';
-import '../data/mock_app_data.dart';
-import '../data/mock_requests.dart';
-import '../data/mock_trips.dart';
+import '../models/app_notification.dart';
+import '../models/booking.dart';
+import '../models/chat.dart';
+import '../models/loyalty.dart';
 import '../models/car.dart';
-import '../models/driver_stats.dart';
 import '../models/feed_filters.dart';
 import '../models/passenger_request.dart';
+import '../models/place.dart';
 import '../models/pending_rating.dart';
 import '../models/request_response.dart';
 import '../models/review.dart';
@@ -28,6 +29,7 @@ import '../models/self_user.dart';
 import '../models/trip_card_item.dart';
 import '../utils/api_format.dart';
 import '../utils/config.dart';
+import '../utils/location.dart';
 import '../utils/date_format.dart';
 import '../widgets/app_toast.dart';
 import 'auth_provider.dart';
@@ -46,6 +48,8 @@ final notificationsServiceProvider = Provider<NotificationsService>((ref) => Not
 final loyaltyServiceProvider = Provider<LoyaltyService>((ref) => LoyaltyService(_dio(ref)));
 final citiesServiceProvider = Provider<CitiesService>((ref) => CitiesService(_dio(ref)));
 final popularRoutesProvider = FutureProvider<List<PopularRoute>>((ref) => ref.read(citiesServiceProvider).popularRoutes());
+final airportsProvider = FutureProvider<List<Airport>>((ref) => ref.read(citiesServiceProvider).airports());
+final mapServiceProvider = Provider<MapService>((ref) => MapService(_dio(ref)));
 final presenceServiceProvider = Provider<PresenceService>((ref) => PresenceService(_dio(ref)));
 
 /// Live online count — polls every 20s for the badge. Keeps the last value on error.
@@ -276,7 +280,23 @@ final socketBootstrapProvider = Provider<void>((ref) {
 /// Trips feed with cursor pagination (mirror of web infinite scroll). Yields
 /// AsyncValue<List> so `.when()` keeps working; `loadMore()` appends the next
 /// page, `hasMore`/`nearby` drive the UI.
-Map<String, dynamic> _tripFilterMap(FeedFilters f) => {
+// Feed date param — see apiFeedDate (utils/api_format.dart): '' = today, 'any'
+// = no date filter, else an ISO datetime with +06:00 offset.
+String? _feedDate(FeedFilters f) => apiFeedDate(f.date);
+
+// sort=nearest needs the viewer's position; without one, fall back to time.
+Map<String, dynamic> _sortParams(FeedFilters f, LatLngPoint? me) {
+  if (f.sort == 'nearest') {
+    return me == null ? const {} : {'sort': 'nearest', 'near_lat': me.lat, 'near_lng': me.lng};
+  }
+  return f.sort != 'time' ? {'sort': f.sort} : const {};
+}
+
+Map<String, dynamic> tripQuery(FeedFilters f, {LatLngPoint? me}) => {
+      if (f.from != null) 'from_id': f.from!.id,
+      if (f.to != null) 'to_id': f.to!.id,
+      if (_feedDate(f) != null) 'date': _feedDate(f),
+      if (f.kind != null) 'kind': f.kind,
       if (f.seats != null) 'seats': f.seats.toString(),
       if (f.onlyVerified) 'only_verified': 'true',
       if (f.luggage.isNotEmpty) 'luggage': f.luggage,
@@ -286,14 +306,17 @@ Map<String, dynamic> _tripFilterMap(FeedFilters f) => {
       if (f.womenOnly) 'women_only': 'true',
       if (f.noSmoking) 'no_smoking': 'true',
       if (f.pets) 'pets': 'true',
-      if (f.sort != 'time') 'sort': f.sort,
+      ..._sortParams(f, me),
     };
-// Web parity: an empty date means "today" (the stepper's default label is
-// «Сегодня»), so the feed must filter to today — not return every day. Only the
-// explicit «any» clears the date filter. Applies to trips AND requests.
-// Feed date param — see apiFeedDate (utils/api_format.dart) for the contract
-// (must be an ISO datetime with +06:00 offset, not a bare date).
-String? _feedDate(FeedFilters f) => apiFeedDate(f.date);
+
+Map<String, dynamic> requestQuery(FeedFilters f, {LatLngPoint? me}) => {
+      if (f.from != null) 'from_id': f.from!.id,
+      if (f.to != null) 'to_id': f.to!.id,
+      if (_feedDate(f) != null) 'date': _feedDate(f),
+      if (f.kind != null) 'kind': f.kind,
+      if (f.seats != null) 'seats': f.seats.toString(),
+      if (f.sort == 'nearest') ..._sortParams(f, me),
+    };
 
 class TripsFeedNotifier extends FamilyAsyncNotifier<List<TripCardItem>, FeedFilters> {
   String? _cursor;
@@ -301,35 +324,24 @@ class TripsFeedNotifier extends FamilyAsyncNotifier<List<TripCardItem>, FeedFilt
   bool loadingMore = false;
   bool get hasMore => _cursor != null;
 
+  Future<LatLngPoint?> _me(FeedFilters f) async =>
+      f.sort == 'nearest' ? ref.read(locationServiceProvider).current() : null;
+
   @override
   Future<List<TripCardItem>> build(FeedFilters filters) async {
-    if (AppConfig.useMock) {
-      _cursor = null;
-      return mockTrips();
-    }
-    final page = await ref.watch(tripsServiceProvider).list(
-          from: filters.from,
-          to: filters.to,
-          date: _feedDate(filters),
-          filters: _tripFilterMap(filters),
-        );
+    final page = await ref.watch(tripsServiceProvider).list(tripQuery(filters, me: await _me(filters)));
     _cursor = page.nextCursor;
     nearby = page.nearby;
     return page.data;
   }
 
   Future<void> loadMore() async {
-    if (loadingMore || _cursor == null || AppConfig.useMock) return;
+    if (loadingMore || _cursor == null) return;
     loadingMore = true;
     try {
-      final f = arg;
-      final page = await ref.read(tripsServiceProvider).list(
-            from: f.from,
-            to: f.to,
-            date: _feedDate(f),
-            filters: _tripFilterMap(f),
-            cursor: _cursor,
-          );
+      final page = await ref
+          .read(tripsServiceProvider)
+          .list(tripQuery(arg, me: ref.read(locationServiceProvider).last), cursor: _cursor);
       _cursor = page.nextCursor;
       state = AsyncData([...(state.valueOrNull ?? const []), ...page.data]);
     } catch (_) {
@@ -345,7 +357,6 @@ final tripsFeedProvider =
 
 /// Single trip detail — mock lookup or `GET /trips/{id}`.
 final tripDetailProvider = FutureProvider.family<TripCardItem, String>((ref, id) async {
-  if (AppConfig.useMock) return mockTripById(id);
   return ref.watch(tripsServiceProvider).detail(id);
 });
 
@@ -353,14 +364,13 @@ final tripDetailProvider = FutureProvider.family<TripCardItem, String>((ref, id)
 /// Per-day availability counts for a route — mirror of web `useCalendarCounts`.
 /// Route-scoped: only fetches when both cities are set (backend requires them);
 /// returns {} otherwise. `kind` picks trips (passenger) vs requests (driver).
-typedef CalendarKey = ({String kind, String from, String to});
+typedef CalendarKey = ({String kind, int? from, int? to});
 
 final calendarCountsProvider = FutureProvider.family<Map<String, int>, CalendarKey>((ref, key) async {
-  if (AppConfig.useMock) return tripCalendarCounts();
-  if (key.from.isEmpty || key.to.isEmpty) return const {};
+  if (key.from == null || key.to == null) return const {};
   return key.kind == 'requests'
-      ? ref.watch(requestsServiceProvider).calendar(key.from, key.to)
-      : ref.watch(tripsServiceProvider).calendar(key.from, key.to);
+      ? ref.watch(requestsServiceProvider).calendar(key.from!, key.to!)
+      : ref.watch(tripsServiceProvider).calendar(key.from!, key.to!);
 });
 
 // ── Sibling domains (mock↔remote) ────────────────────────────────────────────
@@ -374,32 +384,19 @@ class RequestsFeedNotifier extends FamilyAsyncNotifier<List<PassengerRequestItem
 
   @override
   Future<List<PassengerRequestItem>> build(FeedFilters filters) async {
-    if (AppConfig.useMock) {
-      _cursor = null;
-      return mockRequests();
-    }
-    final page = await ref.watch(requestsServiceProvider).list(
-          from: filters.from.isEmpty ? null : filters.from,
-          to: filters.to.isEmpty ? null : filters.to,
-          date: _feedDate(filters),
-          seats: filters.seats,
-        );
+    final me = filters.sort == 'nearest' ? await ref.read(locationServiceProvider).current() : null;
+    final page = await ref.watch(requestsServiceProvider).list(requestQuery(filters, me: me));
     _cursor = page.nextCursor;
     return page.data;
   }
 
   Future<void> loadMore() async {
-    if (loadingMore || _cursor == null || AppConfig.useMock) return;
+    if (loadingMore || _cursor == null) return;
     loadingMore = true;
     try {
-      final f = arg;
-      final page = await ref.read(requestsServiceProvider).list(
-            from: f.from.isEmpty ? null : f.from,
-            to: f.to.isEmpty ? null : f.to,
-            date: _feedDate(f),
-            seats: f.seats,
-            cursor: _cursor,
-          );
+      final page = await ref
+          .read(requestsServiceProvider)
+          .list(requestQuery(arg, me: ref.read(locationServiceProvider).last), cursor: _cursor);
       _cursor = page.nextCursor;
       state = AsyncData([...(state.valueOrNull ?? const []), ...page.data]);
     } catch (_) {
@@ -414,26 +411,24 @@ final requestsFeedProvider =
     AsyncNotifierProvider.family<RequestsFeedNotifier, List<PassengerRequestItem>, FeedFilters>(RequestsFeedNotifier.new);
 
 final requestDetailProvider = FutureProvider.family<PassengerRequestItem, String>((ref, id) async {
-  if (AppConfig.useMock) return mockRequestById(id);
   return ref.watch(requestsServiceProvider).detail(id);
 });
 
-final myBookingsProvider = FutureProvider<List<MockBooking>>((ref) async {
-  if (AppConfig.useMock) return mockBookings();
+final myBookingsProvider = FutureProvider<List<Booking>>((ref) async {
   return (await ref.watch(bookingsServiceProvider).mine()).data;
 });
 
-final chatSummariesProvider = FutureProvider<List<MockChat>>((ref) async {
-  if (AppConfig.useMock) return mockChats();
+final chatSummariesProvider = FutureProvider<List<ChatSummary>>((ref) async {
   return ref.watch(chatServiceProvider).summaries();
 });
 
 /// A single booking (GET /bookings/{id}) — hydrates the chat header/phone when a
 /// thread is deep-linked and isn't yet in the summaries list. Null on failure.
-final bookingDetailProvider = FutureProvider.family<MockBooking?, String>((ref, id) async {
-  if (AppConfig.useMock) return null;
+final bookingDetailProvider = FutureProvider.family<Booking?, String>((ref, id) async {
   try {
-    return await ref.watch(bookingsServiceProvider).get(id);
+    return await ref
+        .watch(bookingsServiceProvider)
+        .get(id, selfId: ref.watch(authProvider.select((a) => a.user?.id)));
   } catch (_) {
     return null;
   }
@@ -445,13 +440,12 @@ final bookingDetailProvider = FutureProvider.family<MockBooking?, String>((ref, 
 // reopened chats show EMPTY — the screen seeded history via ref.listen, which
 // only fires on loading→data transitions, and a warm cache never transitions.
 final chatThreadProvider =
-    FutureProvider.autoDispose.family<List<MockMessage>, String>((ref, bookingId) async {
-  if (AppConfig.useMock) return mockThread().reversed.toList();
+    FutureProvider.autoDispose.family<List<ChatMessage>, String>((ref, bookingId) async {
   final myId = ref.watch(authProvider).user?.id;
   final rows = await ref.watch(chatServiceProvider).messages(bookingId);
   final msgs = rows.map((m) {
     final created = DateTime.tryParse((m['createdAt'] ?? '') as String)?.toLocal();
-    return MockMessage(
+    return ChatMessage(
       text: (m['text'] ?? '') as String,
       mine: myId != null && m['senderId'] == myId,
       timeLabel: created != null ? hhmm(created) : '',
@@ -461,61 +455,51 @@ final chatThreadProvider =
   return msgs.reversed.toList(); // newest first for the reversed list
 });
 
-final notificationsListProvider = FutureProvider<List<MockNotif>>((ref) async {
-  if (AppConfig.useMock) return mockNotifs();
+final notificationsListProvider = FutureProvider<List<AppNotification>>((ref) async {
   return ref.watch(notificationsServiceProvider).list();
 });
 
-final loyaltyStatusProvider = FutureProvider<MockLoyalty>((ref) async {
-  if (AppConfig.useMock) return mockLoyalty();
+final loyaltyStatusProvider = FutureProvider<LoyaltyStatus>((ref) async {
   return ref.watch(loyaltyServiceProvider).status();
 });
 
 /// Driver's incoming booking requests (accept/reject queue).
-final incomingBookingsProvider = FutureProvider<List<MockBooking>>((ref) async {
-  if (AppConfig.useMock) return mockBookings();
+final incomingBookingsProvider = FutureProvider<List<Booking>>((ref) async {
   return (await ref.watch(bookingsServiceProvider).incoming()).data;
 });
 
 /// Driver's own published trips.
 final myTripsProvider = FutureProvider<List<TripCardItem>>((ref) async {
-  if (AppConfig.useMock) return mockTrips().take(4).toList();
   return (await ref.watch(tripsServiceProvider).mine()).data;
 });
 
 /// Passenger's own posted ride requests.
 final myRequestsProvider = FutureProvider<List<PassengerRequestItem>>((ref) async {
-  if (AppConfig.useMock) return mockRequests();
   return (await ref.watch(requestsServiceProvider).mine()).data;
 });
 
 /// Car catalog — brands (cached reference data for the make/model pickers).
 final carBrandsProvider = FutureProvider<List<CarBrand>>((ref) async {
-  if (AppConfig.useMock) return const [];
   return ref.watch(carsServiceProvider).brands();
 });
 
 /// Models for a selected brand.
 final carModelsProvider = FutureProvider.family<List<CarModel>, int>((ref, brandId) async {
-  if (AppConfig.useMock) return const [];
   return ref.watch(carsServiceProvider).models(brandId);
 });
 
 /// Car catalog — colours (name + hex swatch).
 final carColorsProvider = FutureProvider<List<CarColor>>((ref) async {
-  if (AppConfig.useMock) return const [];
   return ref.watch(carsServiceProvider).colors();
 });
 
 /// Driver's registered cars.
 final carsProvider = FutureProvider<List<Car>>((ref) async {
-  if (AppConfig.useMock) return const [];
   return ref.watch(carsServiceProvider).list();
 });
 
 /// Driver verification status ({ status, ... }).
 final driverStatusProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  if (AppConfig.useMock) return const {'status': 'none'};
   return ref.watch(driversServiceProvider).status();
 });
 
@@ -526,51 +510,36 @@ final publicProfileProvider = FutureProvider.family<SelfUser, String>((ref, id) 
 
 /// Reviews left about a user (/users/{id}/ratings).
 final userRatingsProvider = FutureProvider.family<List<Review>, String>((ref, id) async {
-  if (AppConfig.useMock) return const [];
   return ref.watch(usersServiceProvider).ratings(id);
 });
 
 /// Liked trips — powers the passenger «Избранное» tab (/users/me/likes?type=trip).
 final likedTripsProvider = FutureProvider<List<TripCardItem>>((ref) async {
-  if (AppConfig.useMock) return mockTrips().where((t) => t.liked).toList();
   return (await ref.watch(likesServiceProvider).trips()).data;
 });
 
 /// Liked passenger requests — driver «Избранное» tab (/users/me/likes?type=passenger_request).
 final likedRequestsProvider = FutureProvider<List<PassengerRequestItem>>((ref) async {
-  if (AppConfig.useMock) return mockRequests().where((r) => r.liked).toList();
   return (await ref.watch(likesServiceProvider).requests()).data;
 });
 
 /// Trips awaiting the current user's rating (/ratings/pending).
 final pendingRatingsProvider = FutureProvider<List<PendingRating>>((ref) async {
-  if (AppConfig.useMock) return const [];
   return ref.watch(ratingsServiceProvider).pending();
-});
-
-/// Driver performance summary (/drivers/me/stats).
-final driverStatsProvider = FutureProvider<DriverStats>((ref) async {
-  if (AppConfig.useMock) {
-    return const DriverStats(totalTrips: 0, rating: null, ratingCount: 0, cancellations30d: 0);
-  }
-  return ref.watch(driversServiceProvider).stats();
 });
 
 /// Driver offers on a passenger request — owner-only responses list
 /// (/passenger-requests/{id}/responses).
 final requestResponsesProvider = FutureProvider.family<List<RequestResponse>, String>((ref, requestId) async {
-  if (AppConfig.useMock) return const [];
   return ref.watch(requestsServiceProvider).responses(requestId);
 });
 
 /// Unread notification count for the badge.
 final unreadNotifProvider = FutureProvider<int>((ref) async {
-  if (AppConfig.useMock) return 0;
   return ref.watch(notificationsServiceProvider).unreadCount();
 });
 
 /// Total unread chat messages for the nav badge.
 final unreadChatProvider = FutureProvider<int>((ref) async {
-  if (AppConfig.useMock) return 0;
   return ref.watch(chatServiceProvider).unreadTotal();
 });

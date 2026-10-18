@@ -4,72 +4,163 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../api/services/misc_services.dart' show CityHit;
-import '../data/kg_cities.dart';
+import '../models/place.dart';
 import '../providers/data_providers.dart';
 import '../theme/colors.dart';
 import '../theme/dimens.dart';
-import '../utils/config.dart';
+import '../utils/locale.dart';
+import '../utils/location.dart';
+import 'app_toast.dart';
 
-/// City selection sheet — searches the full /cities DB (autocomplete) with a
-/// short debounce; falls back to the bundled short list offline / in mock mode.
-Future<String?> showCityPicker(BuildContext context, {String? title}) {
-  return showModalBottomSheet<String>(
+/// Place selection sheet — searches the SOATE directory (GET /cities) with a
+/// short debounce. [nearMe] adds «Рядом со мной» (GPS → nearest settlement).
+Future<Place?> showCityPicker(BuildContext context, {bool nearMe = false}) {
+  return showModalBottomSheet<Place>(
     useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => const _CityPickerSheet(),
+    builder: (ctx) => _CityPickerSheet(nearMe: nearMe),
   );
 }
 
+/// Icon per place type — cities, villages and airports read apart at a glance.
+IconData placeIcon(String type) => switch (type) {
+      'airport' => Icons.flight_rounded,
+      'capital' || 'city' => Icons.location_city_rounded,
+      'town' => Icons.apartment_rounded,
+      _ => Icons.place_outlined,
+    };
+
+/// Two-line place row (Yandex-style): name, then «район, область» in grey.
+class PlaceTile extends StatelessWidget {
+  const PlaceTile({super.key, required this.place, required this.onTap, this.dense = false});
+
+  final Place place;
+  final VoidCallback onTap;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final kg = isKg(context);
+    final sub = place.subtitle(kg);
+    return ListTile(
+      dense: dense,
+      visualDensity: dense ? VisualDensity.compact : null,
+      leading: Icon(placeIcon(place.type),
+          size: dense ? 20 : 22, color: place.isAirport ? BrandColors.c600 : InkColors.c400),
+      title: Text(place.name(kg),
+          style: TextStyle(
+              fontSize: dense ? 14 : 15,
+              fontWeight: FontWeight.w700,
+              color: dark ? Colors.white : InkColors.c900)),
+      subtitle: sub.isEmpty
+          ? null
+          : Text(sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: InkColors.c400)),
+      onTap: onTap,
+    );
+  }
+}
+
+/// «Рядом со мной» row: resolves the device position to its settlement.
+class NearMeTile extends ConsumerStatefulWidget {
+  const NearMeTile({super.key, required this.onPlace, this.dense = false});
+
+  final ValueChanged<Place> onPlace;
+  final bool dense;
+
+  @override
+  ConsumerState<NearMeTile> createState() => _NearMeTileState();
+}
+
+class _NearMeTileState extends ConsumerState<NearMeTile> {
+  bool _busy = false;
+
+  Future<void> _resolve() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final p = await ref.read(locationServiceProvider).current();
+      if (p == null || !inKyrgyzstan(p)) {
+        _toast('location.unavailable'.tr());
+        return;
+      }
+      final place = await ref.read(citiesServiceProvider).nearest(p.lat, p.lng);
+      if (place != null) {
+        widget.onPlace(place);
+      } else {
+        _toast('location.unavailable'.tr());
+      }
+    } catch (_) {
+      _toast('location.unavailable'.tr());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _toast(String msg) => Toasts.error(msg);
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        dense: widget.dense,
+        visualDensity: widget.dense ? VisualDensity.compact : null,
+        leading: _busy
+            ? const SizedBox(
+                width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: BrandColors.c600))
+            : const Icon(Icons.my_location_rounded, size: 21, color: BrandColors.c600),
+        title: Text('location.near_me'.tr(),
+            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: BrandColors.c600)),
+        onTap: _resolve,
+      );
+}
+
+/// Debounced place search shared by the pickers.
+mixin PlaceSearch<T extends ConsumerStatefulWidget> on ConsumerState<T> {
+  List<Place> results = const [];
+  bool searching = false;
+  Timer? _debounce;
+  String _q = '';
+
+  void searchPlaces(String v) {
+    _q = v.trim();
+    _debounce?.cancel();
+    setState(() => searching = true);
+    final q = _q;
+    _debounce = Timer(Duration(milliseconds: q.isEmpty ? 0 : 280), () async {
+      try {
+        final r = await ref.read(citiesServiceProvider).search(q);
+        if (mounted && _q == q) setState(() { results = r; searching = false; });
+      } catch (_) {
+        if (mounted && _q == q) setState(() { results = const []; searching = false; });
+      }
+    });
+  }
+
+  void disposeSearch() => _debounce?.cancel();
+}
+
 class _CityPickerSheet extends ConsumerStatefulWidget {
-  const _CityPickerSheet();
+  const _CityPickerSheet({required this.nearMe});
+  final bool nearMe;
 
   @override
   ConsumerState<_CityPickerSheet> createState() => _CityPickerSheetState();
 }
 
-class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> {
-  String _query = '';
-  late List<CityHit> _results = _localFilter('');
-  bool _loading = false;
-  Timer? _debounce;
-
-  List<CityHit> _localFilter(String q) {
-    final src = q.trim().isEmpty
-        ? kgCities
-        : kgCities.where((c) => c.toLowerCase().contains(q.toLowerCase()));
-    return [for (final c in src) CityHit(name: c)];
-  }
-
-  void _onChanged(String v) {
-    _query = v;
-    final q = v.trim();
-    _debounce?.cancel();
-
-    if (q.isEmpty) {
-      setState(() { _results = _localFilter(''); _loading = false; });
-      return;
-    }
-    if (AppConfig.useMock) {
-      setState(() { _results = _localFilter(q); _loading = false; });
-      return;
-    }
-    setState(() => _loading = true);
-    _debounce = Timer(const Duration(milliseconds: 280), () async {
-      try {
-        final r = await ref.read(citiesServiceProvider).search(q);
-        if (mounted && _query.trim() == q) setState(() { _results = r; _loading = false; });
-      } catch (_) {
-        if (mounted && _query.trim() == q) setState(() { _results = _localFilter(q); _loading = false; });
-      }
-    });
+class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> with PlaceSearch {
+  @override
+  void initState() {
+    super.initState();
+    searchPlaces('');
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    disposeSearch();
     super.dispose();
   }
 
@@ -92,13 +183,13 @@ class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> {
               padding: const EdgeInsets.all(16),
               child: TextField(
                 autofocus: true,
-                onChanged: _onChanged,
+                onChanged: searchPlaces,
                 style: TextStyle(fontSize: 15, color: dark ? Colors.white : InkColors.c900),
                 decoration: InputDecoration(
                   hintText: 'city_autocomplete.enter_city'.tr(),
                   hintStyle: const TextStyle(color: InkColors.c400),
                   prefixIcon: const Icon(Icons.search, color: InkColors.c400),
-                  suffixIcon: _loading
+                  suffixIcon: searching
                       ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: InkColors.c400)))
                       : null,
                   filled: true,
@@ -107,23 +198,14 @@ class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> {
                 ),
               ),
             ),
+            if (widget.nearMe) NearMeTile(onPlace: (p) => Navigator.of(context).pop(p)),
             Expanded(
-              child: (!_loading && _results.isEmpty)
+              child: (!searching && results.isEmpty)
                   ? Center(child: Text('city_autocomplete.not_found'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)))
                   : ListView.builder(
-                      itemCount: _results.length,
-                      itemBuilder: (_, i) {
-                        final hit = _results[i];
-                        final sub = hit.subtitle(context.locale.languageCode == 'kg');
-                        return ListTile(
-                          leading: const Icon(Icons.place_outlined, color: InkColors.c400),
-                          title: Text(hit.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900)),
-                          subtitle: sub.isEmpty
-                              ? null
-                              : Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: InkColors.c400)),
-                          onTap: () => Navigator.of(context).pop(hit.name),
-                        );
-                      },
+                      itemCount: results.length,
+                      itemBuilder: (_, i) =>
+                          PlaceTile(place: results[i], onTap: () => Navigator.of(context).pop(results[i])),
                     ),
             ),
           ],

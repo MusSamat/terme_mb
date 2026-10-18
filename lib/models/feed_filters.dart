@@ -1,11 +1,14 @@
-/// Feed filter state — mirrors the terme_ft search query params.
+import 'place.dart';
+
+/// Feed filter state — mirrors the /trips and /passenger-requests query params.
 class FeedFilters {
   const FeedFilters({
-    this.from = '',
-    this.to = '',
+    this.from,
+    this.to,
+    this.kind, // null = all | intercity | airport
     this.date = '', // '' = today, 'any', or YYYY-MM-DD
     this.seats, // ride-type: null = С попутчиками, 4 = Весь салон
-    this.sort = 'time', // time | price_asc | rating_desc
+    this.sort = 'time', // time | price_asc | rating_desc | nearest
     this.onlyVerified = false,
     this.luggage = '', // '' | yes | small | no
     this.minRating = 0,
@@ -16,8 +19,9 @@ class FeedFilters {
     this.pets = false,
   });
 
-  final String from;
-  final String to;
+  final Place? from;
+  final Place? to;
+  final String? kind;
   final String date;
   final int? seats;
   final String sort;
@@ -30,9 +34,12 @@ class FeedFilters {
   final bool noSmoking;
   final bool pets;
 
+  bool get hasRoute => from != null && to != null;
+
   FeedFilters copyWith({
-    String? from,
-    String? to,
+    Place? from,
+    Place? to,
+    String? kind,
     String? date,
     int? seats,
     String? sort,
@@ -44,13 +51,16 @@ class FeedFilters {
     bool? womenOnly,
     bool? noSmoking,
     bool? pets,
+    bool clearFrom = false,
+    bool clearTo = false,
     bool clearSeats = false,
     bool clearMinPrice = false,
     bool clearMaxPrice = false,
   }) {
     return FeedFilters(
-      from: from ?? this.from,
-      to: to ?? this.to,
+      from: clearFrom ? null : (from ?? this.from),
+      to: clearTo ? null : (to ?? this.to),
+      kind: kind ?? this.kind,
       date: date ?? this.date,
       seats: clearSeats ? null : (seats ?? this.seats),
       sort: sort ?? this.sort,
@@ -77,4 +87,17 @@ class FeedFilters {
     if (sort != 'time') n++;
     return n;
   }
+
+  // Value equality — FeedFilters is a provider family key.
+  List<Object?> get _props => [
+        from?.id, to?.id, kind, date, seats, sort, onlyVerified, luggage, minRating,
+        minPrice, maxPrice, womenOnly, noSmoking, pets,
+      ];
+
+  @override
+  bool operator ==(Object other) =>
+      other is FeedFilters && _props.join('|') == other._props.join('|');
+
+  @override
+  int get hashCode => _props.join('|').hashCode;
 }

@@ -25,3 +25,10 @@ String ymdOf(DateTime d) =>
 /// Price must not start with `0` — drop leading zeros as the user types.
 String stripLeadingZeros(String s) =>
     s.length > 1 && s.startsWith('0') ? s.replaceFirst(RegExp(r'^0+'), '') : s;
+
+/// «850 м» / «1,2 км» / «24 км» — distance on cards for «ближайшие».
+String distanceLabel(double km, {bool kg = false}) {
+  if (km < 1) return '${(km * 1000).round()} м';
+  final v = km < 10 ? km.toStringAsFixed(1).replaceAll('.', ',') : km.round().toString();
+  return '$v км';
+}

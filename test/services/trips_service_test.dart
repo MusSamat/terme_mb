@@ -46,42 +46,29 @@ void main() {
     });
 
     test('hits /trips and parses paged result', () async {
-      final page = await svc.list();
+      final page = await svc.list(const {});
       expect(page.data.single.id, 't1');
       expect(page.nextCursor, 'c1');
       verify(() => dio.get<Map<String, dynamic>>('/trips', queryParameters: any(named: 'queryParameters'))).called(1);
     });
 
-    test('from/to map to from_city/to_city', () async {
-      await svc.list(from: 'Бишкек', to: 'Ош');
+    test('query map is forwarded as-is (place ids, filters)', () async {
+      await svc.list({'from_id': 1, 'to_id': 2, 'kind': 'airport', 'sort': 'price_asc'});
       final captured = verify(() => dio.get<Map<String, dynamic>>(any(),
           queryParameters: captureAny(named: 'queryParameters'))).captured.single as Map;
-      expect(captured['from_city'], 'Бишкек');
-      expect(captured['to_city'], 'Ош');
+      expect(captured['from_id'], 1);
+      expect(captured['to_id'], 2);
+      expect(captured['kind'], 'airport');
+      expect(captured['sort'], 'price_asc');
+      expect(captured.containsKey('cursor'), false);
     });
 
-    test('empty from/to are omitted', () async {
-      await svc.list(from: '', to: '');
-      final captured = verify(() => dio.get<Map<String, dynamic>>(any(),
-          queryParameters: captureAny(named: 'queryParameters'))).captured.single as Map;
-      expect(captured.containsKey('from_city'), false);
-      expect(captured.containsKey('to_city'), false);
-    });
-
-    test('date + cursor forwarded', () async {
-      await svc.list(date: '2026-08-10T00:00:00+06:00', cursor: 'cur');
+    test('cursor is appended', () async {
+      await svc.list({'date': '2026-08-10T00:00:00+06:00'}, cursor: 'cur');
       final captured = verify(() => dio.get<Map<String, dynamic>>(any(),
           queryParameters: captureAny(named: 'queryParameters'))).captured.single as Map;
       expect(captured['date'], '2026-08-10T00:00:00+06:00');
       expect(captured['cursor'], 'cur');
-    });
-
-    test('extra filters are spread into the query', () async {
-      await svc.list(filters: {'only_verified': true, 'sort': 'price_asc'});
-      final captured = verify(() => dio.get<Map<String, dynamic>>(any(),
-          queryParameters: captureAny(named: 'queryParameters'))).captured.single as Map;
-      expect(captured['only_verified'], true);
-      expect(captured['sort'], 'price_asc');
     });
   });
 
@@ -94,14 +81,17 @@ void main() {
                   {'date': '2026-08-11', 'count': 0},
                 ],
               }));
-      final cal = await svc.calendar('Бишкек', 'Ош');
+      final cal = await svc.calendar(1, 2);
       expect(cal, {'2026-08-10': 3, '2026-08-11': 0});
+      final q = verify(() => dio.get<Map<String, dynamic>>('/trips/calendar',
+          queryParameters: captureAny(named: 'queryParameters'))).captured.single as Map;
+      expect(q, {'from_id': 1, 'to_id': 2});
     });
 
     test('empty data → empty map', () async {
       when(() => dio.get<Map<String, dynamic>>(any(), queryParameters: any(named: 'queryParameters')))
           .thenAnswer((_) async => _ok({'data': []}));
-      expect(await svc.calendar('A', 'B'), isEmpty);
+      expect(await svc.calendar(1, 2), isEmpty);
     });
   });
 

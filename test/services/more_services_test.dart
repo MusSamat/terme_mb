@@ -81,15 +81,16 @@ void main() {
     late RequestsService svc;
     setUp(() => svc = RequestsService(dio));
 
-    test('list maps from/to to from_city/to_city', () async {
+    test('list forwards the query (place ids) + cursor', () async {
       when(() => dio.get<Map<String, dynamic>>(any(), queryParameters: any(named: 'queryParameters')))
           .thenAnswer((_) async => _ok({'data': []}));
-      await svc.list(from: 'Бишкек', to: 'Ош', date: 'd');
+      await svc.list({'from_id': 1, 'to_id': 2, 'date': 'd'}, cursor: 'c');
       final q = verify(() => dio.get<Map<String, dynamic>>('/passenger-requests',
           queryParameters: captureAny(named: 'queryParameters'))).captured.single as Map;
-      expect(q['from_city'], 'Бишкек');
-      expect(q['to_city'], 'Ош');
+      expect(q['from_id'], 1);
+      expect(q['to_id'], 2);
       expect(q['date'], 'd');
+      expect(q['cursor'], 'c');
     });
 
     test('detail → GET /passenger-requests/{id}', () async {
@@ -102,7 +103,7 @@ void main() {
     test('calendar flattens rows', () async {
       when(() => dio.get<Map<String, dynamic>>(any(), queryParameters: any(named: 'queryParameters')))
           .thenAnswer((_) async => _ok({'data': [{'date': '2026-08-10', 'count': 4}]}));
-      expect(await svc.calendar('A', 'B'), {'2026-08-10': 4});
+      expect(await svc.calendar(1, 2), {'2026-08-10': 4});
     });
 
     test('create carries Idempotency-Key', () async {

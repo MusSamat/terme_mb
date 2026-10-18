@@ -1,26 +1,23 @@
-import 'dart:async';
-
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../api/services/misc_services.dart' show CityHit;
-import '../data/kg_cities.dart';
-import '../providers/data_providers.dart';
+import '../models/place.dart';
 import '../theme/colors.dart';
 import '../theme/dimens.dart';
-import '../utils/config.dart';
+import '../utils/locale.dart';
+import 'city_picker.dart';
 
 /// Route search sheet (Yandex «Межгород» style): Откуда + Куда shown together
 /// at the top, one shared suggestions list below, keyboard under it. Max 95%
 /// height. Returns the chosen (from, to) — or null if dismissed unchanged.
-Future<({String from, String to})?> showRouteSearchSheet(
+Future<({Place? from, Place? to})?> showRouteSearchSheet(
   BuildContext context, {
-  required String from,
-  required String to,
+  required Place? from,
+  required Place? to,
   required bool focusTo,
 }) {
-  return showModalBottomSheet<({String from, String to})>(
+  return showModalBottomSheet<({Place? from, Place? to})>(
     useRootNavigator: true,
     context: context,
     isScrollControlled: true,
@@ -30,29 +27,25 @@ Future<({String from, String to})?> showRouteSearchSheet(
 }
 
 class _RouteSearchSheet extends ConsumerStatefulWidget {
-  const _RouteSearchSheet(
-      {required this.from, required this.to, required this.focusTo});
+  const _RouteSearchSheet({required this.from, required this.to, required this.focusTo});
 
-  final String from;
-  final String to;
+  final Place? from;
+  final Place? to;
   final bool focusTo;
 
   @override
   ConsumerState<_RouteSearchSheet> createState() => _RouteSearchSheetState();
 }
 
-class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
-  late final TextEditingController _fromCtrl =
-      TextEditingController(text: widget.from);
-  late final TextEditingController _toCtrl =
-      TextEditingController(text: widget.to);
+class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> with PlaceSearch {
+  late Place? _from = widget.from;
+  late Place? _to = widget.to;
+  late final TextEditingController _fromCtrl = TextEditingController();
+  late final TextEditingController _toCtrl = TextEditingController();
   final FocusNode _fromFocus = FocusNode();
   final FocusNode _toFocus = FocusNode();
 
   late bool _activeIsTo = widget.focusTo;
-  List<CityHit> _results = const [];
-  bool _loading = false;
-  Timer? _debounce;
 
   @override
   void initState() {
@@ -60,24 +53,27 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
     _fromFocus.addListener(() {
       if (_fromFocus.hasFocus && _activeIsTo) {
         setState(() => _activeIsTo = false);
-        _search(_fromCtrl.text);
+        searchPlaces(_fromCtrl.text);
       }
     });
     _toFocus.addListener(() {
       if (_toFocus.hasFocus && !_activeIsTo) {
         setState(() => _activeIsTo = true);
-        _search(_toCtrl.text);
+        searchPlaces(_toCtrl.text);
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final kg = isKg(context);
+      _fromCtrl.text = _from?.name(kg) ?? '';
+      _toCtrl.text = _to?.name(kg) ?? '';
       (_activeIsTo ? _toFocus : _fromFocus).requestFocus();
-      _search(_activeIsTo ? _toCtrl.text : _fromCtrl.text);
+      searchPlaces('');
     });
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    disposeSearch();
     _fromCtrl.dispose();
     _toCtrl.dispose();
     _fromFocus.dispose();
@@ -85,85 +81,45 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
     super.dispose();
   }
 
-  List<CityHit> _localFilter(String q) {
-    final src = q.trim().isEmpty
-        ? kgCities
-        : kgCities.where((c) => c.toLowerCase().contains(q.toLowerCase()));
-    return [for (final c in src) CityHit(name: c)];
+  void _onType(String v) {
+    // Typing invalidates the picked place until a suggestion is chosen.
+    setState(() => _activeIsTo ? _to = null : _from = null);
+    searchPlaces(v);
   }
 
-  void _search(String v) {
-    final q = v.trim();
-    _debounce?.cancel();
-    if (q.isEmpty) {
-      setState(() {
-        _results = _localFilter('');
-        _loading = false;
-      });
-      return;
-    }
-    if (AppConfig.useMock) {
-      setState(() {
-        _results = _localFilter(q);
-        _loading = false;
-      });
-      return;
-    }
-    setState(() => _loading = true);
-    _debounce = Timer(const Duration(milliseconds: 280), () async {
-      try {
-        final r = await ref.read(citiesServiceProvider).search(q);
-        final active = _activeIsTo ? _toCtrl.text : _fromCtrl.text;
-        if (mounted && active.trim() == q) {
-          setState(() {
-            _results = r;
-            _loading = false;
-          });
-        }
-      } catch (_) {
-        if (mounted) {
-          setState(() {
-            _results = _localFilter(q);
-            _loading = false;
-          });
-        }
-      }
-    });
-  }
-
-  void _pick(CityHit hit) {
-    final city = hit.name;
+  void _pick(Place place) {
+    final name = place.name(isKg(context));
     if (_activeIsTo) {
-      _toCtrl.text = city;
-      if (_fromCtrl.text.trim().isEmpty) {
+      _to = place;
+      _toCtrl.text = name;
+      if (_from == null) {
         setState(() => _activeIsTo = false);
         _fromFocus.requestFocus();
-        _search('');
+        searchPlaces('');
       } else {
         _done();
       }
     } else {
-      _fromCtrl.text = city;
-      if (_toCtrl.text.trim().isEmpty) {
+      _from = place;
+      _fromCtrl.text = name;
+      if (_to == null) {
         setState(() => _activeIsTo = true);
         _toFocus.requestFocus();
-        _search('');
+        searchPlaces('');
       } else {
         _done();
       }
     }
   }
 
-  void _done() => Navigator.of(context)
-      .pop((from: _fromCtrl.text.trim(), to: _toCtrl.text.trim()));
+  void _done() => Navigator.of(context).pop((from: _from, to: _to));
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final h = MediaQuery.of(context).size.height;
     final kb = MediaQuery.of(context).viewInsets.bottom;
-    final bothSet =
-        _fromCtrl.text.trim().isNotEmpty && _toCtrl.text.trim().isNotEmpty;
+    final bothSet = _from != null && _to != null;
 
     return Padding(
       padding: EdgeInsets.only(bottom: kb),
@@ -216,8 +172,9 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
                   ],
                 ),
               ),
+              if (!_activeIsTo) NearMeTile(dense: true, onPlace: _pick),
               Flexible(
-                child: (!_loading && _results.isEmpty)
+                child: (!searching && results.isEmpty)
                     ? Center(
                         child: Text('city_autocomplete.not_found'.tr(),
                             style: const TextStyle(
@@ -226,38 +183,13 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
                                 color: InkColors.c400)))
                     : ListView.separated(
                         padding: const EdgeInsets.only(top: 4, bottom: 8),
-                        itemCount: _results.length,
+                        itemCount: results.length,
                         separatorBuilder: (_, __) => Divider(
                             height: 1,
                             indent: 52,
                             color: dark ? InkColors.c900 : InkColors.c100),
-                        itemBuilder: (_, i) {
-                          final hit = _results[i];
-                          final sub = hit.subtitle(
-                              context.locale.languageCode == 'kg');
-                          return ListTile(
-                            dense: true,
-                            visualDensity: VisualDensity.compact,
-                            leading: const Icon(Icons.place_outlined,
-                                size: 20, color: InkColors.c400),
-                            title: Text(hit.name,
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color:
-                                        dark ? Colors.white : InkColors.c900)),
-                            subtitle: sub.isEmpty
-                                ? null
-                                : Text(sub,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: InkColors.c400)),
-                            onTap: () => _pick(hit),
-                          );
-                        },
+                        itemBuilder: (_, i) =>
+                            PlaceTile(place: results[i], dense: true, onTap: () => _pick(results[i])),
                       ),
               ),
             ],
@@ -285,7 +217,7 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
           child: TextField(
             controller: ctrl,
             focusNode: focus,
-            onChanged: _search,
+            onChanged: _onType,
             style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -304,8 +236,7 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> {
           GestureDetector(
             onTap: () {
               ctrl.clear();
-              setState(() {});
-              _search('');
+              _onType('');
             },
             behavior: HitTestBehavior.opaque,
             child: const Padding(

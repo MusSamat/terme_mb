@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../models/passenger_request.dart';
 import '../theme/colors.dart';
+import '../utils/api_format.dart';
+import '../utils/locale.dart';
 import 'driver_avatar.dart';
 import 'ticket.dart';
 
@@ -25,6 +27,12 @@ class RequestCard extends StatelessWidget {
     final showRating = r.passengerRating != null && r.passengerRatingCount >= 3;
     final firstName = r.passengerName.split(' ').first;
     final inactive = r.status != 'open';
+    final kg = isKg(context);
+    final extra = [
+      if (r.distanceKm != null) distanceLabel(r.distanceKm!),
+      if (r.originPoint != null) r.originPoint!.label(kg),
+      if (r.flightNumber != null) '✈ ${r.flightNumber}',
+    ].where((s) => s.isNotEmpty).join(' · ');
 
     final ink = dark ? Colors.white : InkColors.c900;
     final muted = dark ? InkColors.c400 : InkColors.c500;
@@ -56,7 +64,12 @@ class RequestCard extends StatelessWidget {
                     ],
                   ]),
                   const SizedBox(height: 6),
-                  Text('${r.originCity} → ${r.destinationCity}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: muted)),
+                  Text('${r.originName(kg)} → ${r.destinationName(kg)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: muted)),
+                  if (extra.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(extra, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: muted)),
+                    ),
                 ]),
               ),
               const SizedBox(width: 8),

@@ -1,11 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:terme_mb/models/feed_filters.dart';
+import 'package:terme_mb/models/place.dart';
+
+const _a = Place(id: 1, type: 'capital', nameRu: 'Бишкек', nameKg: 'Бишкек');
+const _b = Place(id: 2, type: 'city', nameRu: 'Ош', nameKg: 'Ош');
+const _c = Place(id: 3, type: 'city', nameRu: 'Каракол', nameKg: 'Каракол');
 
 void main() {
   group('FeedFilters defaults', () {
     const f = FeedFilters();
-    test('from empty', () => expect(f.from, ''));
-    test('to empty', () => expect(f.to, ''));
+    test('from null', () => expect(f.from, isNull));
+    test('to null', () => expect(f.to, isNull));
     test('date empty (today)', () => expect(f.date, ''));
     test('sort time', () => expect(f.sort, 'time'));
     test('onlyVerified false', () => expect(f.onlyVerified, false));
@@ -21,8 +26,8 @@ void main() {
 
   group('FeedFilters.copyWith — each field', () {
     const base = FeedFilters();
-    test('from', () => expect(base.copyWith(from: 'Бишкек').from, 'Бишкек'));
-    test('to', () => expect(base.copyWith(to: 'Ош').to, 'Ош'));
+    test('from', () => expect(base.copyWith(from: _a).from, _a));
+    test('to', () => expect(base.copyWith(to: _b).to, _b));
     test('date', () => expect(base.copyWith(date: '2026-08-05').date, '2026-08-05'));
     test('sort', () => expect(base.copyWith(sort: 'price_asc').sort, 'price_asc'));
     test('onlyVerified', () => expect(base.copyWith(onlyVerified: true).onlyVerified, true));
@@ -36,10 +41,10 @@ void main() {
   });
 
   group('FeedFilters.copyWith — preserves untouched fields', () {
-    const base = FeedFilters(from: 'A', to: 'B', sort: 'rating_desc', onlyVerified: true, minPrice: 50);
-    final next = base.copyWith(to: 'C');
-    test('changed field updates', () => expect(next.to, 'C'));
-    test('from preserved', () => expect(next.from, 'A'));
+    const base = FeedFilters(from: _a, to: _b, sort: 'rating_desc', onlyVerified: true, minPrice: 50);
+    final next = base.copyWith(to: _c);
+    test('changed field updates', () => expect(next.to, _c));
+    test('from preserved', () => expect(next.from, _a));
     test('sort preserved', () => expect(next.sort, 'rating_desc'));
     test('onlyVerified preserved', () => expect(next.onlyVerified, true));
     test('minPrice preserved', () => expect(next.minPrice, 50));
@@ -86,7 +91,7 @@ void main() {
     test('sort != time counts', () => expect(base.copyWith(sort: 'price_asc').activeCount, 1));
     test('sort == time does NOT count', () => expect(base.copyWith(sort: 'time').activeCount, 0));
     test('from/to do NOT count toward activeCount', () {
-      expect(base.copyWith(from: 'A', to: 'B').activeCount, 0);
+      expect(base.copyWith(from: _a, to: _b).activeCount, 0);
     });
     test('date does NOT count toward activeCount', () {
       expect(base.copyWith(date: '2026-08-05').activeCount, 0);
@@ -111,6 +116,22 @@ void main() {
     test('three filters → 3', () {
       const f = FeedFilters(onlyVerified: true, womenOnly: true, pets: true);
       expect(f.activeCount, 3);
+    });
+  });
+
+  group('FeedFilters — value equality (provider family key)', () {
+    test('same places + fields are equal', () {
+      expect(const FeedFilters(from: _a, to: _b, kind: 'airport'), const FeedFilters(from: _a, to: _b, kind: 'airport'));
+      expect(const FeedFilters(from: _a).hashCode, const FeedFilters(from: _a).hashCode);
+    });
+    test('different destination is not equal', () {
+      expect(const FeedFilters(from: _a, to: _b) == const FeedFilters(from: _a, to: _c), false);
+    });
+    test('clearFrom / clearTo drop the place', () {
+      const f = FeedFilters(from: _a, to: _b);
+      expect(f.copyWith(clearFrom: true).from, isNull);
+      expect(f.copyWith(clearTo: true).to, isNull);
+      expect(f.copyWith(clearTo: true).from, _a);
     });
   });
 }

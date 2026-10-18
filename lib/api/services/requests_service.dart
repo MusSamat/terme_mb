@@ -10,14 +10,9 @@ class RequestsService {
   RequestsService(this._dio);
   final Dio _dio;
 
-  Future<PagedResult<PassengerRequestItem>> list({String? from, String? to, String? date, int? seats, String? cursor}) async {
-    final res = await _dio.get<Map<String, dynamic>>('/passenger-requests', queryParameters: {
-      if (from != null && from.isNotEmpty) 'from_city': from,
-      if (to != null && to.isNotEmpty) 'to_city': to,
-      if (date != null) 'date': date,
-      if (seats != null) 'seats': seats.toString(),
-      if (cursor != null) 'cursor': cursor,
-    });
+  Future<PagedResult<PassengerRequestItem>> list(Map<String, dynamic> query, {String? cursor}) async {
+    final res = await _dio.get<Map<String, dynamic>>('/passenger-requests',
+        queryParameters: {...query, if (cursor != null) 'cursor': cursor});
     return PagedResult.fromJson(res.data!, PassengerRequestItem.fromJson);
   }
 
@@ -26,12 +21,12 @@ class RequestsService {
     return PassengerRequestItem.fromJson(res.data!);
   }
 
-  /// GET /passenger-requests/calendar?from_city&to_city → per-day open-request
+  /// GET /passenger-requests/calendar?from_id&to_id → per-day open-request
   /// counts for the route. { data: [{date, count}] } → {date: count}.
-  Future<Map<String, int>> calendar(String fromCity, String toCity) async {
+  Future<Map<String, int>> calendar(int fromId, int toId) async {
     final res = await _dio.get<Map<String, dynamic>>('/passenger-requests/calendar', queryParameters: {
-      'from_city': fromCity,
-      'to_city': toCity,
+      'from_id': fromId,
+      'to_id': toId,
     });
     final rows = (res.data?['data'] as List?) ?? const [];
     return {for (final r in rows) (r['date'] as String): ((r['count'] as num?)?.toInt() ?? 0)};

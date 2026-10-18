@@ -9,30 +9,20 @@ class TripsService {
   TripsService(this._dio);
   final Dio _dio;
 
-  /// GET /trips — browse/search (cursor-paginated).
-  Future<PagedResult<TripCardItem>> list({
-    String? from,
-    String? to,
-    String? date,
-    String? cursor,
-    Map<String, dynamic>? filters,
-  }) async {
-    final res = await _dio.get<Map<String, dynamic>>('/trips', queryParameters: {
-      if (from != null && from.isNotEmpty) 'from_city': from,
-      if (to != null && to.isNotEmpty) 'to_city': to,
-      if (date != null) 'date': date,
-      if (cursor != null) 'cursor': cursor,
-      ...?filters,
-    });
+  /// GET /trips — browse/search (cursor-paginated). [query] carries from_id /
+  /// to_id / date / kind / sort (+ near_lat/near_lng) and the filters.
+  Future<PagedResult<TripCardItem>> list(Map<String, dynamic> query, {String? cursor}) async {
+    final res = await _dio.get<Map<String, dynamic>>('/trips',
+        queryParameters: {...query, if (cursor != null) 'cursor': cursor});
     return PagedResult.fromJson(res.data!, TripCardItem.fromJson);
   }
 
-  /// GET /trips/calendar?from_city&to_city → per-day active-trip counts for the
+  /// GET /trips/calendar?from_id&to_id → per-day active-trip counts for the
   /// route. Response is { data: [{date, count}] } → flattened to {date: count}.
-  Future<Map<String, int>> calendar(String fromCity, String toCity) async {
+  Future<Map<String, int>> calendar(int fromId, int toId) async {
     final res = await _dio.get<Map<String, dynamic>>('/trips/calendar', queryParameters: {
-      'from_city': fromCity,
-      'to_city': toCity,
+      'from_id': fromId,
+      'to_id': toId,
     });
     final rows = (res.data?['data'] as List?) ?? const [];
     return {for (final r in rows) (r['date'] as String): ((r['count'] as num?)?.toInt() ?? 0)};
@@ -61,19 +51,6 @@ class TripsService {
       options: Options(headers: {'Idempotency-Key': uuidV4()}),
     );
     return TripCardItem.fromJson(res.data!);
-  }
-
-  /// GET /routes/price-suggestion?from&to → { suggested, min, max } price hints
-  /// for the create-trip form.
-  Future<({int suggested, int min, int max})> priceSuggestion(String from, String to) async {
-    final res = await _dio.get<Map<String, dynamic>>('/routes/price-suggestion',
-        queryParameters: {'from': from, 'to': to});
-    final d = res.data ?? const {};
-    return (
-      suggested: ((d['suggested'] ?? 0) as num).toInt(),
-      min: ((d['min'] ?? 0) as num).toInt(),
-      max: ((d['max'] ?? 0) as num).toInt(),
-    );
   }
 
   Future<void> like(String id) => _dio.post('/trips/$id/like');

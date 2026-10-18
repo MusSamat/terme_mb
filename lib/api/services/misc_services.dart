@@ -1,6 +1,10 @@
 import 'package:dio/dio.dart';
 
-import '../../data/mock_app_data.dart';
+import '../../models/place.dart';
+
+import '../../models/app_notification.dart';
+import '../../models/chat.dart';
+import '../../models/loyalty.dart';
 
 /// Chat, notifications, loyalty, cities — lean dio wrappers over their
 /// respective endpoints (ТЗ §5.3). Grouped to keep the service count down.
@@ -10,10 +14,10 @@ class ChatService {
   final Dio _dio;
 
   /// GET /chats/summaries — conversation list.
-  Future<List<MockChat>> summaries() async {
+  Future<List<ChatSummary>> summaries() async {
     final res = await _dio.get<Map<String, dynamic>>('/chats/summaries');
     final list = (res.data?['chats'] as List?) ?? const [];
-    return list.map((e) => MockChat.fromJson((e as Map).cast<String, dynamic>())).toList();
+    return list.map((e) => ChatSummary.fromJson((e as Map).cast<String, dynamic>())).toList();
   }
 
   /// GET /chats/{bookingId}/messages — history.
@@ -46,13 +50,13 @@ class NotificationsService {
   NotificationsService(this._dio);
   final Dio _dio;
 
-  Future<List<MockNotif>> list({bool unreadOnly = false, String? cursor}) async {
+  Future<List<AppNotification>> list({bool unreadOnly = false, String? cursor}) async {
     final res = await _dio.get<Map<String, dynamic>>('/notifications', queryParameters: {
       if (unreadOnly) 'unread': 'true',
       if (cursor != null) 'cursor': cursor,
     });
     return ((res.data?['data'] as List?) ?? const [])
-        .map((e) => MockNotif.fromJson((e as Map).cast<String, dynamic>()))
+        .map((e) => AppNotification.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
 
@@ -70,10 +74,10 @@ class LoyaltyService {
   LoyaltyService(this._dio);
   final Dio _dio;
 
-  Future<MockLoyalty> status() async {
+  Future<LoyaltyStatus> status() async {
     final status = await _dio.get<Map<String, dynamic>>('/loyalty/status');
     final txs = await _dio.get<Map<String, dynamic>>('/loyalty/transactions');
-    return MockLoyalty.fromJson(status.data!, (txs.data?['data'] as List?) ?? const []);
+    return LoyaltyStatus.fromJson(status.data!, (txs.data?['data'] as List?) ?? const []);
   }
 }
 
@@ -81,86 +85,168 @@ class CitiesService {
   CitiesService(this._dio);
   final Dio _dio;
 
-  /// GET /cities?q= — city search/autocomplete. Carries the district/aiyl
-  /// context so the client can show «Баткен району, Самаркандек айылы» under
-  /// the name. Oblasts are excluded server-side.
-  Future<List<CityHit>> search(String query) async {
+  /// GET /cities?q= — SOATE directory autocomplete (RU / KG / Latin / wrong
+  /// layout all match server-side). Empty query → the most prominent places.
+  Future<List<Place>> search(String query, {int limit = 20}) async {
     final res = await _dio.get<Map<String, dynamic>>('/cities',
-        queryParameters: {if (query.isNotEmpty) 'q': query, 'limit': 20});
-    final list = (res.data?['data'] as List?) ?? const [];
-    return list
-        .map((e) {
-          final m = e as Map;
-          return CityHit(
-            name: (m['nameRu'] ?? '') as String,
-            type: m['type'] as String?,
-            districtRu: m['districtNameRu'] as String?,
-            districtKg: m['districtNameKg'] as String?,
-            aiylRu: m['aiylAimakNameRu'] as String?,
-            aiylKg: m['aiylAimakNameKg'] as String?,
-          );
-        })
-        .where((c) => c.name.isNotEmpty)
+        queryParameters: {if (query.trim().isNotEmpty) 'q': query.trim(), 'limit': limit});
+    return _places(res.data?['data']);
+  }
+
+  /// GET /cities/nearest — the settlement a GPS point is in (prefills «Откуда»).
+  Future<Place?> nearest(double lat, double lng) async {
+    final res = await _dio.get<Map<String, dynamic>>('/cities/nearest',
+        queryParameters: {'lat': lat, 'lng': lng});
+    return Place.maybe(res.data?['data']);
+  }
+
+  /// GET /cities/{id}/spots — departure spots + жилмассивы (Бишкек / Ош only).
+  Future<List<MeetingSpot>> spots(int cityId, {String? query}) async {
+    final res = await _dio.get<Map<String, dynamic>>('/cities/$cityId/spots',
+        queryParameters: {if (query != null && query.trim().isNotEmpty) 'q': query.trim()});
+    return ((res.data?['data'] as List?) ?? const [])
+        .map((e) => MeetingSpot.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
 
-  /// GET /cities/popular-routes — curated top routes for the empty feed state.
+  /// GET /cities/airports — airports with the city each one serves.
+  Future<List<Airport>> airports() async {
+    final res = await _dio.get<Map<String, dynamic>>('/cities/airports');
+    return ((res.data?['data'] as List?) ?? const [])
+        .map((e) => Airport.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// GET /cities/popular-routes — curated top routes with live trip counts.
   Future<List<PopularRoute>> popularRoutes() async {
     final res = await _dio.get<Map<String, dynamic>>('/cities/popular-routes');
     final list = (res.data?['data'] as List?) ?? const [];
     return list
         .map((e) {
-          final m = e as Map;
+          final m = (e as Map).cast<String, dynamic>();
           return PopularRoute(
             from: (m['from'] ?? '') as String,
             to: (m['to'] ?? '') as String,
+            fromId: (m['fromId'] as num?)?.toInt() ?? 0,
+            toId: (m['toId'] as num?)?.toInt() ?? 0,
             tripCount: (m['tripCount'] as num?)?.toInt() ?? 0,
             minPrice: (m['minPrice'] as num?)?.toInt(),
           );
         })
-        .where((r) => r.from.isNotEmpty && r.to.isNotEmpty)
+        .where((r) => r.fromId > 0 && r.toId > 0)
         .toList();
   }
+
+  static List<Place> _places(dynamic list) => ((list as List?) ?? const [])
+      .map((e) => Place.fromJson((e as Map).cast<String, dynamic>()))
+      .toList();
 }
 
-/// A popular route chip for the empty feed state (mirrors web PopularRoute).
+/// A popular route chip (names are RU snapshots; ids drive the search).
 class PopularRoute {
-  const PopularRoute({required this.from, required this.to, required this.tripCount, this.minPrice});
+  const PopularRoute({
+    required this.from,
+    required this.to,
+    required this.fromId,
+    required this.toId,
+    required this.tripCount,
+    this.minPrice,
+  });
   final String from;
   final String to;
+  final int fromId;
+  final int toId;
   final int tripCount;
   final int? minPrice;
+
+  // Minimal places for the search filters (names are completed by the detail).
+  Place get fromPlace => Place(id: fromId, type: 'city', nameRu: from, nameKg: from);
+  Place get toPlace => Place(id: toId, type: 'city', nameRu: to, nameKg: to);
 }
 
-/// A city search hit + its administrative context (район, айыл). Oblast is
-/// intentionally omitted — we never show it as a subtitle.
-class CityHit {
-  const CityHit({
-    required this.name,
-    this.type,
-    this.districtRu,
-    this.districtKg,
-    this.aiylRu,
-    this.aiylKg,
-  });
+/// GET /map — listings inside a viewport, grid-clustered server-side.
+class MapService {
+  MapService(this._dio);
+  final Dio _dio;
 
-  final String name;
-  final String? type; // city | town | village | raion …
-  final String? districtRu;
-  final String? districtKg;
-  final String? aiylRu;
-  final String? aiylKg;
-
-  /// Result tag: раион → «район»; settlement → «Баткен району, Самаркандек
-  /// айылы»; an oblast-level город with no district → «город/шаар». Distinguishes
-  /// homonyms like «Баткен · район» vs «Баткен · город».
-  String subtitle(bool kg) {
-    if (type == 'raion') return 'район';
-    // Oblast-level город → tag «город/шаар» (its district often repeats the name,
-    // e.g. «Баткен» город in «Баткен» район — the district would be noise).
-    if (type == 'city') return kg ? 'шаар' : 'город';
-    final d = (kg ? districtKg : districtRu)?.trim();
-    final a = (kg ? aiylKg : aiylRu)?.trim();
-    return [d, a].where((s) => s != null && s.isNotEmpty).join(', ');
+  Future<MapListings> listings({
+    required String kind, // trips | requests
+    required ({double west, double south, double east, double north}) bbox,
+    required int zoom,
+    int? toId,
+    String? ride, // intercity | airport
+    String? date,
+  }) async {
+    final res = await _dio.get<Map<String, dynamic>>('/map', queryParameters: {
+      'kind': kind,
+      'bbox': [bbox.west, bbox.south, bbox.east, bbox.north].map((v) => v.toStringAsFixed(5)).join(','),
+      'zoom': zoom.clamp(3, 20),
+      if (toId != null) 'to_id': toId,
+      if (ride != null) 'ride': ride,
+      if (date != null) 'date': date,
+    });
+    return MapListings.fromJson(res.data ?? const {});
   }
+}
+
+class MapItem {
+  const MapItem({
+    required this.id,
+    required this.lat,
+    required this.lng,
+    required this.exact,
+    required this.originCity,
+    required this.destinationCity,
+    required this.departureAt,
+    required this.seats,
+    this.price,
+  });
+  final String id;
+  final double lat;
+  final double lng;
+  final bool exact;
+  final String originCity;
+  final String destinationCity;
+  final DateTime departureAt;
+  final int seats;
+  final int? price;
+
+  factory MapItem.fromJson(Map<String, dynamic> j) => MapItem(
+        id: j['id'] as String,
+        lat: (j['lat'] as num).toDouble(),
+        lng: (j['lng'] as num).toDouble(),
+        exact: (j['exact'] ?? false) as bool,
+        originCity: (j['originCity'] ?? '') as String,
+        destinationCity: (j['destinationCity'] ?? '') as String,
+        departureAt: DateTime.parse(j['departureAt'] as String),
+        seats: (j['seats'] as num?)?.toInt() ?? 0,
+        price: (j['price'] as num?)?.toInt(),
+      );
+}
+
+class MapCluster {
+  const MapCluster({required this.lat, required this.lng, required this.count});
+  final double lat;
+  final double lng;
+  final int count;
+}
+
+class MapListings {
+  const MapListings({this.items = const [], this.clusters = const []});
+  final List<MapItem> items;
+  final List<MapCluster> clusters;
+
+  factory MapListings.fromJson(Map<String, dynamic> j) => MapListings(
+        items: ((j['items'] as List?) ?? const [])
+            .map((e) => MapItem.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+        clusters: ((j['clusters'] as List?) ?? const []).map((e) {
+          final m = e as Map;
+          return MapCluster(
+            lat: (m['lat'] as num).toDouble(),
+            lng: (m['lng'] as num).toDouble(),
+            count: (m['count'] as num).toInt(),
+          );
+        }).toList(),
+      );
 }
