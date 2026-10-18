@@ -187,14 +187,6 @@ class ListCard extends StatelessWidget {
   }
 }
 
-/// Small helper for a compact meta sub-line (rating · phone · seats).
-Widget listCardSub(List<InlineSpan> spans) => Text.rich(
-      TextSpan(children: spans),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: InkColors.c500),
-    );
-
 enum ListBtnKind { primary, ghost, danger }
 
 /// Full-width action button used inside [ListCard.actions]. Colour follows the

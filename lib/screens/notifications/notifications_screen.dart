@@ -4,11 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/friendly_error.dart';
-import '../../data/mock_app_data.dart';
+import '../../models/app_notification.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
-import '../../utils/config.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/query_error.dart';
 
@@ -52,7 +51,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
   }
 
   Future<void> _readAll() async {
-    if (AppConfig.useMock) return;
     try {
       await ref.read(notificationsServiceProvider).markAllRead();
       ref.invalidate(notificationsListProvider);
@@ -62,9 +60,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
     }
   }
 
-  Future<void> _open(MockNotif n) async {
+  Future<void> _open(AppNotification n) async {
     // Mark read on the server first so every device converges on the same state.
-    if (n.unread && n.id.isNotEmpty && !AppConfig.useMock) {
+    if (n.unread && n.id.isNotEmpty) {
       try {
         await ref.read(notificationsServiceProvider).markRead(n.id);
         ref.invalidate(notificationsListProvider);
@@ -152,7 +150,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
 
 class _NotifCard extends StatelessWidget {
   const _NotifCard({required this.notif, required this.onTap});
-  final MockNotif notif;
+  final AppNotification notif;
   final VoidCallback onTap;
 
   // Per-type icon + colour — 1:1 port of the web `TYPE_CONFIG`, so each

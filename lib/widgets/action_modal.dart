@@ -108,18 +108,6 @@ Future<void> showSuccessModal(BuildContext context,
   );
 }
 
-/// Error result modal (danger medallion + alert).
-Future<void> showErrorModal(BuildContext context, {required String title, String? body, String? primaryLabel}) {
-  return showActionModal<void>(
-    context,
-    icon: Icons.error,
-    tone: ModalTone.danger,
-    title: title,
-    body: body,
-    primary: AppButton(label: primaryLabel ?? 'OK', variant: AppButtonVariant.outline, onPressed: () => Navigator.of(context).pop()),
-  );
-}
-
 /// Confirmation modal — returns true if confirmed. [danger] uses the red tone
 /// for destructive actions (cancel booking, delete, logout).
 Future<bool> showConfirmModal(

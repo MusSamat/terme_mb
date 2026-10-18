@@ -67,18 +67,19 @@ void main() {
   });
 
   group('extractError — non-envelope / unknown', () {
-    test('DioException without envelope + non-transport → UNKNOWN', () {
+    test('5xx without envelope → SERVER_ERROR with status', () {
       final e = extractError(DioException(
         requestOptions: RequestOptions(path: '/x'),
         response: _resp(500, 'raw string body'),
         type: DioExceptionType.badResponse,
       ));
-      expect(e.code, 'UNKNOWN');
+      expect(e.code, 'SERVER_ERROR');
+      expect(e.statusCode, 500);
     });
-    test('arbitrary object → UNKNOWN with toString message', () {
+    test('arbitrary object → UNKNOWN, never leaks toString()', () {
       final e = extractError(StateError('boom'));
       expect(e.code, 'UNKNOWN');
-      expect(e.message, contains('boom'));
+      expect(e.message, isEmpty);
     });
   });
 

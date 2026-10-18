@@ -76,7 +76,7 @@ void paintTermeLogo(Canvas canvas, Size size, {bool plain = false}) {
   canvas.restore();
 }
 
-/// «Terme» wordmark — «Tapp» ink, «jet» brand teal (display font, 900).
+/// «Terme» wordmark — «Ter» ink, «me» brand teal (display font, 900).
 class Wordmark extends StatelessWidget {
   const Wordmark({super.key, this.fontSize = 24});
 
@@ -93,8 +93,8 @@ class Wordmark extends StatelessWidget {
       height: 1,
     );
     return Text.rich(TextSpan(children: [
-      TextSpan(text: 'Tapp', style: base.copyWith(color: dark ? Colors.white : InkColors.c900)),
-      TextSpan(text: 'jet', style: base.copyWith(color: dark ? BrandColors.c400 : BrandColors.c600)),
+      TextSpan(text: 'Ter', style: base.copyWith(color: dark ? Colors.white : InkColors.c900)),
+      TextSpan(text: 'me', style: base.copyWith(color: dark ? BrandColors.c400 : BrandColors.c600)),
     ]));
   }
 }

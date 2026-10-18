@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_app_data.dart';
+import '../../models/chat.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
@@ -164,7 +164,7 @@ class ChatHubScreen extends ConsumerWidget {
 
   /// Active conversations only — closed chats are not shown (they live with the
   /// trip, not as a persistent archive).
-  Widget _list(BuildContext context, bool dark, List<MockChat> chats) {
+  Widget _list(BuildContext context, bool dark, List<ChatSummary> chats) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.only(
@@ -218,7 +218,7 @@ class ChatHubScreen extends ConsumerWidget {
 
 class _ChatRow extends StatelessWidget {
   const _ChatRow({required this.chat});
-  final MockChat chat;
+  final ChatSummary chat;
 
   @override
   Widget build(BuildContext context) {

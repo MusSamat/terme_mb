@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:terme_mb/providers/auth_provider.dart';
 import 'package:terme_mb/providers/core_providers.dart';
+import 'package:terme_mb/models/feed_filters.dart';
 import 'package:terme_mb/models/self_user.dart';
 import 'package:terme_mb/screens/screens.dart';
 
@@ -48,14 +49,14 @@ void main() {
     'chat-thread': const ChatThreadScreen(bookingId: 'b1'),
     'notifications': const NotificationsScreen(),
     'loyalty': const LoyaltyScreen(),
-    'requests-feed': const RequestsFeedScreen(),
+    'search-results': const SearchResultsScreen(driver: false, initial: FeedFilters()),
+    'airport': const AirportScreen(),
+    'map': const MapScreen(),
     'request-detail': const RequestDetailScreen(id: 'r1'),
     'rate': const RateScreen(tripId: 't1', rateeId: 'd1'),
     'complaint': const ComplaintScreen(),
     'create': const CreateScreen(),
     'login': const LoginScreen(),
-    'forgot-password': const ForgotPasswordScreen(),
-    'onboarding': const OnboardingScreen(),
     'public-profile': const PublicProfileScreen(id: 'd1'),
     'driver-verification': const DriverVerificationScreen(),
     'legal': const LegalScreen(kind: 'about'),

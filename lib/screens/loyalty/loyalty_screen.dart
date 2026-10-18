@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_app_data.dart';
+import '../../models/loyalty.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
@@ -322,7 +322,7 @@ class LoyaltyScreen extends StatelessWidget {
         ]),
       );
 
-  Widget _tx(bool dark, MockLoyaltyTx tx) => Container(
+  Widget _tx(bool dark, LoyaltyTx tx) => Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
