@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -46,6 +47,18 @@ class PhoneField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _field(),
+        const SizedBox(height: 6),
+        Text('auth.phone_country_hint'.tr(),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: InkColors.c400)),
+      ],
+    );
+  }
+
+  Widget _field() {
     return Container(
       height: 52,
       padding: const EdgeInsets.only(left: 14),

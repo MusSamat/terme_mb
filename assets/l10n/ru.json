@@ -94,7 +94,8 @@
       "create_btn": "Создать аккаунт",
       "phone_hint": "Отправим код в WhatsApp на ваш номер.",
       "name_label": "Имя"
-    }
+    },
+    "phone_country_hint": "Номер другой страны? Сотрите +996 и введите свой код."
   },
   "trips": {
     "luggage_ok": "Багаж OK",
