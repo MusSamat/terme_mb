@@ -101,6 +101,7 @@ class DioClient {
     final data = err.response?.data;
     if (data is! Map || data['error'] is! Map) return false;
     final error = data['error'] as Map;
+    if (error['code'] == 'TOKEN_REUSE_DETECTED') return true;
     final details = error['details'];
     if (details is! Map) return false;
     return details['reason'] == 'token_reuse_detected' ||

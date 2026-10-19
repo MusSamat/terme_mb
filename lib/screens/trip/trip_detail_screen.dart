@@ -100,9 +100,11 @@ class TripDetailScreen extends ConsumerWidget {
             data: (trip) {
               _recordViewOnce(ref, trip);
               final isOwner = ref.read(authProvider).user?.id == trip.driver.id;
-              if (autoBook && !isOwner) {
+              // Once per trip: the detail rebuilds on every invalidate (socket
+              // booking events), which must not reopen the sheet.
+              if (autoBook && !isOwner && role == 'passenger' && _autoBooked.add(id)) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (context.mounted && role == 'passenger') showBookingSheet(context, trip);
+                  if (context.mounted) showBookingSheet(context, trip);
                 });
               }
               return Column(
@@ -133,6 +135,7 @@ class TripDetailScreen extends ConsumerWidget {
 }
 
 final _viewed = <String>{};
+final _autoBooked = <String>{};
 void _recordViewOnce(WidgetRef ref, TripCardItem trip) {
   if (_viewed.add(trip.id)) _recordView(ref, trip);
 }

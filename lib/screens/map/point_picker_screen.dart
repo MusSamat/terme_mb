@@ -58,6 +58,7 @@ class _PointPickerScreenState extends ConsumerState<PointPickerScreen> {
   List<MeetingSpot> _spots = const [];
   Timer? _debounce;
   bool _locating = false;
+  bool _ready = false;
 
   bool get _bigCity => widget.place.isCapital;
 
@@ -94,7 +95,9 @@ class _PointPickerScreenState extends ConsumerState<PointPickerScreen> {
     final me = await ref.read(locationServiceProvider).current(ask: !silent);
     if (!mounted) return;
     setState(() => _locating = false);
-    if (me == null) return;
+    // The API only accepts pins inside Kyrgyzstan; the controller needs a
+    // rendered map.
+    if (me == null || !inKyrgyzstan(me) || !_ready) return;
     final p = LatLng(me.lat, me.lng);
     // Only snap when the user is inside (≈ 30 km of) the chosen settlement.
     if (widget.place.hasPoint &&
@@ -172,6 +175,11 @@ class _PointPickerScreenState extends ConsumerState<PointPickerScreen> {
               options: MapOptions(
                 initialCenter: _center,
                 initialZoom: widget.initial != null ? 16 : (_bigCity ? 12 : 14),
+                // Pins outside Kyrgyzstan are rejected by the API.
+                cameraConstraint: CameraConstraint.containCenter(
+                  bounds: LatLngBounds(const LatLng(39, 69), const LatLng(43.5, 81)),
+                ),
+                onMapReady: () => _ready = true,
                 onPositionChanged: (camera, _) => _center = camera.center,
               ),
               children: [osmTiles()],

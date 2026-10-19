@@ -208,6 +208,15 @@
     "from_list": "Тизмеден тандоо",
     "manual_entry": "Башка (кол менен)",
     "verification": "Айдоочуну верификациялоо",
+    "verification_status": {
+      "none": "Өтүлгөн эмес",
+      "pending": "Текшерүүдө",
+      "verified": "Өттү",
+      "rejected": "Четке кагылды",
+      "docs_requested": "Документтер керек",
+      "suspended": "Убактылуу токтотулду",
+      "blocked": "Бөгөттөлдү"
+    },
     "telegram_bot": "Telegram-бот",
     "telegram_linked": "Туташкан",
     "telegram_connect": "Туташтыруу",

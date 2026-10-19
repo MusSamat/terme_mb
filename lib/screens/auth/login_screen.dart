@@ -43,6 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _loading = false;
   int _resend = 0;
   Timer? _resendTimer;
+  String? _sentTo; // number the running resend countdown belongs to
 
   String get _fullPhone => _phone.text;
   bool get _phoneValid => isValidPhone(_phone.text);
@@ -94,7 +95,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       Toasts.error('auth.login.enter_phone_first'.tr());
       return;
     }
-    if (_loading || _resend > 0) return;
+    if (_loading) return;
+    // Back from the code step with the same number while the countdown runs:
+    // the code is already on its way — just return to it.
+    if (_resend > 0 && _sentTo == _fullPhone) {
+      setState(() => _step = _Step.otp);
+      return;
+    }
     setState(() => _loading = true);
     try {
       final auth = ref.read(authServiceProvider);
@@ -102,6 +109,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await auth.sendOtp(_fullPhone);
       if (!mounted) return;
       _otp.clear();
+      _sentTo = _fullPhone;
       setState(() => _step = _Step.otp);
       _startResend();
     } catch (e) {

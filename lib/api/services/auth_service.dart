@@ -60,11 +60,16 @@ class AuthService {
   Future<void> logoutAll() => _dio.post('/auth/logout/all');
 
   /// POST /auth/refresh — silent token refresh (HttpOnly cookie carries the
-  /// refresh token). Returns the new access token, or null on failure.
+  /// refresh token). Returns the new access token, or null on a transient
+  /// failure. A 401 (dead / rotated cookie) is rethrown so callers log out
+  /// instead of keeping a token-less session.
   Future<String?> refresh() async {
     try {
       final res = await _dio.post<Map<String, dynamic>>('/auth/refresh', data: {'channel': 'web'});
       return res.data?['accessToken'] as String?;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) rethrow;
+      return null;
     } catch (_) {
       return null;
     }

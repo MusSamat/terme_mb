@@ -90,6 +90,7 @@ class _NearMeTileState extends ConsumerState<NearMeTile> {
         return;
       }
       final place = await ref.read(citiesServiceProvider).nearest(p.lat, p.lng);
+      if (!mounted) return;
       if (place != null) {
         widget.onPlace(place);
       } else {

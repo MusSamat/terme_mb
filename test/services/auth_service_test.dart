@@ -115,6 +115,12 @@ void main() {
           .thenThrow(DioException(requestOptions: RequestOptions(path: '/x')));
       expect(await svc.refresh(), isNull);
     });
+    test('rethrows a 401 (dead refresh cookie → caller logs out)', () async {
+      final req = RequestOptions(path: '/auth/refresh');
+      when(() => dio.post<Map<String, dynamic>>(any(), data: any(named: 'data'))).thenThrow(
+          DioException(requestOptions: req, response: Response(requestOptions: req, statusCode: 401)));
+      expect(svc.refresh(), throwsA(isA<DioException>()));
+    });
     test('returns null when body has no token', () async {
       when(() => dio.post<Map<String, dynamic>>(any(), data: any(named: 'data')))
           .thenAnswer((_) async => _ok({}));

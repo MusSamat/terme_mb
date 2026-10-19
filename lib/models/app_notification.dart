@@ -290,7 +290,7 @@ String? notifDeepLink(String type, Map<String, dynamic> payload) {
     }
     case 'trip_cancelled': {
       final tripId = (payload['tripId'] ?? payload['trip_id']) as String?;
-      return tripId != null ? '/trips/$tripId' : '/trips';
+      return tripId != null ? '/trips/$tripId' : '/';
     }
     case 'rating_received':
       return '/profile';

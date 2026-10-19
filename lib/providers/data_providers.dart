@@ -284,10 +284,11 @@ final socketBootstrapProvider = Provider<void>((ref) {
 // = no date filter, else an ISO datetime with +06:00 offset.
 String? _feedDate(FeedFilters f) => apiFeedDate(f.date);
 
-// sort=nearest needs the viewer's position; without one, fall back to time.
+// sort=nearest needs the viewer's position inside Kyrgyzstan (the API rejects
+// points outside it); without one, fall back to time.
 Map<String, dynamic> _sortParams(FeedFilters f, LatLngPoint? me) {
   if (f.sort == 'nearest') {
-    return me == null ? const {} : {'sort': 'nearest', 'near_lat': me.lat, 'near_lng': me.lng};
+    return me == null || !inKyrgyzstan(me) ? const {} : {'sort': 'nearest', 'near_lat': me.lat, 'near_lng': me.lng};
   }
   return f.sort != 'time' ? {'sort': f.sort} : const {};
 }

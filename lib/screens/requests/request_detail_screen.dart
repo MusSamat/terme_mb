@@ -112,6 +112,8 @@ class RequestDetailScreen extends ConsumerWidget {
                         ])
                       : Center(child: Text('requests.my.closed'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400))))
                   // Anyone else: respond (needs a car) + call / WhatsApp. Guests → login.
+                  : r.status != 'open'
+                  ? Center(child: Text('requests.my.closed'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400)))
                   : Column(mainAxisSize: MainAxisSize.min, children: [
                       GestureDetector(
                         onTap: () async {
@@ -186,7 +188,7 @@ class RequestDetailScreen extends ConsumerWidget {
       ref.invalidate(myRequestsProvider);
       ref.invalidate(requestDetailProvider(id));
       Toasts.success('toasts.request_cancelled'.tr());
-      if (context.mounted) context.canPop() ? context.pop() : context.go('/requests');
+      if (context.mounted) context.canPop() ? context.pop() : context.go('/');
     } catch (e) {
       Toasts.error(friendlyError(e));
     }

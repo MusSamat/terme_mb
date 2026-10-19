@@ -323,7 +323,7 @@ class _PriceMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = !requests && item.price != null ? '${item.price} c' : hhmm(item.departureAt);
+    final label = !requests && item.price != null ? '${item.price} ${'card.som'.tr()}' : hhmm(item.departureAt);
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),

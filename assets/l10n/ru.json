@@ -208,6 +208,15 @@
     "from_list": "Выбрать из списка",
     "manual_entry": "Другое (вручную)",
     "verification": "Верификация водителя",
+    "verification_status": {
+      "none": "Не пройдена",
+      "pending": "На проверке",
+      "verified": "Пройдена",
+      "rejected": "Отклонена",
+      "docs_requested": "Нужны документы",
+      "suspended": "Приостановлена",
+      "blocked": "Заблокирована"
+    },
     "telegram_bot": "Telegram-бот",
     "telegram_linked": "Подключён",
     "telegram_connect": "Подключить",

@@ -5,8 +5,8 @@ import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../utils/phone.dart';
 
-/// Shared classical-auth input fields (phone / password / OTP) used by the
-/// login and register screens. Styling matches the design system tokens.
+/// Shared auth input fields (phone / OTP / text) used by the login screen
+/// and the profile forms. Styling matches the design system tokens.
 
 BoxDecoration _fieldBox(bool dark) => BoxDecoration(
       // Subtle fill one step off the surface + a hairline border, so the field
@@ -109,57 +109,6 @@ class TextFieldBox extends StatelessWidget {
           isCollapsed: true,
         ),
       ),
-    );
-  }
-}
-
-class PasswordField extends StatelessWidget {
-  const PasswordField({
-    super.key,
-    required this.controller,
-    required this.dark,
-    required this.hint,
-    required this.obscure,
-    required this.onToggle,
-    this.onChanged,
-    this.onSubmit,
-  });
-
-  final TextEditingController controller;
-  final bool dark;
-  final String hint;
-  final bool obscure;
-  final VoidCallback onToggle;
-  final VoidCallback? onChanged;
-  final VoidCallback? onSubmit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.only(left: 14, right: 6),
-      decoration: _fieldBox(dark),
-      child: Row(children: [
-        Expanded(
-          child: TextField(
-            controller: controller,
-            obscureText: obscure,
-            onChanged: (_) => onChanged?.call(),
-            onSubmitted: onSubmit == null ? null : (_) => onSubmit!(),
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: dark ? Colors.white : InkColors.c900),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(color: InkColors.c400, fontWeight: FontWeight.w700),
-              border: InputBorder.none,
-              isCollapsed: true,
-            ),
-          ),
-        ),
-        IconButton(
-          onPressed: onToggle,
-          icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, size: 20, color: InkColors.c400),
-        ),
-      ]),
     );
   }
 }
