@@ -27,7 +27,11 @@ final dioClientProvider = Provider<DioClient>((ref) {
 });
 
 final socketClientProvider = Provider<SocketClient>((ref) {
-  final client = SocketClient(ref.watch(tokenStoreProvider));
+  final client = SocketClient(
+    ref.watch(tokenStoreProvider),
+    // Same single-flight refresh as HTTP — never a parallel /auth/refresh.
+    refresh: () => ref.read(dioClientProvider).refreshNow(),
+  );
   ref.onDispose(client.dispose);
   return client;
 });

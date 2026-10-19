@@ -4,17 +4,31 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../utils/config.dart';
 import '../api/token_store.dart';
+import 'socket_reauth.dart';
 
 /// Thin wrapper over socket.io — websocket-only transport, manual connect,
 /// exponential backoff, and token re-auth on every (re)connect.
 /// Mirrors terme_ft/src/lib/socket/client.ts.
+///
+/// The server drops a socket when its access token expires (`auth:expired`,
+/// then 'io server disconnect'), when the user gets blocked, and rejects
+/// handshakes with expired tokens / over the per-user cap. socket.io doesn't
+/// recover any of those by itself — [SocketReauth] refreshes the token via
+/// [refresh] (the shared HTTP single-flight) and reconnects with backoff.
 class SocketClient {
-  SocketClient(this._tokens) {
+  SocketClient(this._tokens, {Future<String?> Function()? refresh}) {
+    _reauth = SocketReauth(
+      refresh: refresh ?? () async => null,
+      currentToken: () => _tokens.accessToken,
+      reconnect: _reconnectWith,
+      wanted: () => _wanted,
+    );
     // Re-authenticate the socket whenever the access token changes.
     _tokenSub = _tokens.onRefreshed.listen((_) => refreshAuth());
   }
 
   late final StreamSubscription<String?> _tokenSub;
+  late final SocketReauth _reauth;
 
   final TokenStore _tokens;
   io.Socket? _socket;
@@ -33,17 +47,24 @@ class SocketClient {
           .build(),
     );
 
-    s.onConnectError((data) {
-      final msg = data?.toString() ?? '';
-      // Auth rejected by the server middleware (expired / missing token): socket.io
-      // won't retry by itself. Don't loop on the same token — the next refresh
-      // (TokenStore.onRefreshed → refreshAuth) reconnects with a fresh one.
-      if ((msg.contains('auth_required') || msg.contains('auth_failed')) &&
-          _tokens.accessToken != null &&
-          _tokens.accessToken != _authToken) {
-        _stamp(s);
-        s.connect();
-      }
+    s.onConnect((_) {
+      _connecting = false;
+      _reauth.onConnected();
+    });
+    // Middleware rejections arrive as 'error' in this client version (and as
+    // 'connect_error' in others) — handle both the same way.
+    void onHandshakeError(dynamic data) {
+      _connecting = false;
+      _reauth.handle(classifyHandshakeError(data));
+    }
+
+    s.onConnectError(onHandshakeError);
+    s.onError(onHandshakeError);
+    // The server announces expiry right before it drops the socket.
+    s.on('auth:expired', (_) => _reauth.recover(refreshToken: true));
+    s.onDisconnect((reason) {
+      _connecting = false;
+      _reauth.handle(classifyDisconnect(reason));
     });
 
     return s;
@@ -51,11 +72,15 @@ class SocketClient {
 
   // True between connect() and disconnect(): the app wants a live socket.
   bool _wanted = false;
-  String? _authToken;
+  // A connect() is in flight — a second one would send a duplicate CONNECT.
+  bool _connecting = false;
 
-  void _stamp(io.Socket s) {
-    _authToken = _tokens.accessToken;
-    s.auth = {'token': _authToken};
+  void _stamp(io.Socket s) => s.auth = {'token': _tokens.accessToken};
+
+  void _open(io.Socket s) {
+    if (s.connected || _connecting) return;
+    _connecting = true;
+    s.connect();
   }
 
   void connect() {
@@ -65,11 +90,13 @@ class SocketClient {
     if (_tokens.accessToken == null) return;
     final s = socket;
     _stamp(s);
-    if (!s.connected) s.connect();
+    _open(s);
   }
 
   void disconnect() {
     _wanted = false;
+    _connecting = false;
+    _reauth.reset();
     _socket?.disconnect();
   }
 
@@ -86,14 +113,26 @@ class SocketClient {
     _stamp(s);
     // Reconnect with the new token (mirrors web refreshSocketAuth).
     if (s.connected) {
-      s.disconnect().connect();
-    } else {
+      s.disconnect(); // fires 'disconnect' (client reason) synchronously
+      _connecting = true;
       s.connect();
+    } else {
+      _open(s);
     }
+  }
+
+  // Recovery path: the refresh normally already reconnected via refreshAuth
+  // (TokenStore.onRefreshed); this only covers a token that didn't change.
+  void _reconnectWith(String token) {
+    if (!_wanted) return;
+    final s = socket;
+    s.auth = {'token': token};
+    _open(s);
   }
 
   void dispose() {
     _tokenSub.cancel();
+    _reauth.reset();
     _socket?.dispose();
     _socket = null;
   }

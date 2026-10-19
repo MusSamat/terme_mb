@@ -86,4 +86,44 @@ void main() {
     expect(res.statusCode, 200);
     expect(adapter.seenAuth, ['Bearer t1']);
   });
+
+  test('TOKEN_EXPIRED on ANY request (POST, pre-iss/aud token) → refresh → retry with the body', () async {
+    final expiring = _ExpiringAdapter();
+    client.dio.httpClientAdapter = expiring;
+    tokens.set('old');
+    var refreshes = 0;
+    client.attachRefresh(() async {
+      refreshes++;
+      tokens.set('new');
+      return 'new';
+    });
+    final res = await client.dio.post<dynamic>('/bookings', data: {'tripId': 't1', 'seatsCount': 1});
+    expect(res.statusCode, 200);
+    expect(refreshes, 1);
+    expect(expiring.seen, ['POST Bearer old', 'POST Bearer new']);
+    expect(expiring.bodies.last, contains('t1'));
+  });
+}
+
+/// 401 TOKEN_EXPIRED for the stale token, 200 for any other.
+class _ExpiringAdapter implements HttpClientAdapter {
+  final seen = <String>[];
+  final bodies = <String>[];
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? body, Future<void>? _) async {
+    final auth = o.headers['Authorization'] as String?;
+    seen.add('${o.method} $auth');
+    bodies.add(body == null ? '' : utf8.decode(await body.expand((c) => c).toList()));
+    final headers = {Headers.contentTypeHeader: [Headers.jsonContentType]};
+    if (auth == 'Bearer old') {
+      return ResponseBody.fromString(
+          jsonEncode({'error': {'code': 'TOKEN_EXPIRED', 'message': 'Access token has expired'}}), 401,
+          headers: headers);
+    }
+    return ResponseBody.fromString(jsonEncode({'ok': true}), 200, headers: headers);
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
