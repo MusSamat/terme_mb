@@ -20,7 +20,6 @@ Future<void> showDatePickerModal(
   );
 }
 
-const _weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const _months = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
@@ -125,10 +124,10 @@ class _CalendarDialogState extends State<_CalendarDialog> {
             const SizedBox(height: 6),
             Row(
               children: [
-                for (var wi = 0; wi < _weekdays.length; wi++)
+                for (final (wi, wd) in 'date_picker.weekdays'.tr().split(',').indexed)
                   Expanded(
                     child: Center(
-                      child: Text(_weekdays[wi],
+                      child: Text(wd,
                           style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,

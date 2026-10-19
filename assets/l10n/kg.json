@@ -648,7 +648,8 @@
   },
   "date_picker": {
     "select_date": "Күндү тандоо",
-    "clear": "Тазалоо"
+    "clear": "Тазалоо",
+    "weekdays": "Дш,Шш,Шр,Бш,Жм,Иш,Жш"
   },
   "ratings": {
     "tags": {

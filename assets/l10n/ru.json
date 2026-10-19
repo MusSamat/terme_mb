@@ -648,7 +648,8 @@
   },
   "date_picker": {
     "select_date": "Выбор даты",
-    "clear": "Сбросить"
+    "clear": "Сбросить",
+    "weekdays": "Пн,Вт,Ср,Чт,Пт,Сб,Вс"
   },
   "ratings": {
     "tags": {

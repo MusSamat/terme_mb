@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/errors.dart';
 import '../../api/friendly_error.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
@@ -47,8 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String get _fullPhone => _phone.text;
   bool get _phoneValid => isValidPhone(_phone.text);
-  bool get _canSubmitName =>
-      _name.text.trim().isNotEmpty && _surname.text.trim().isNotEmpty;
+  bool get _canSubmitName => _name.text.trim().isNotEmpty && _surname.text.trim().isNotEmpty;
 
   @override
   void dispose() {
@@ -181,6 +181,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await _finishSession(token);
     } catch (e) {
       Toasts.error(friendlyError(e));
+      // The code is only checked here (registration verifies it in one call):
+      // a wrong / expired code sends the user back to re-enter it, names kept.
+      if (mounted && extractError(e).code.startsWith('OTP_')) {
+        _otp.clear();
+        setState(() => _step = _Step.otp);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -199,37 +205,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: dark ? InkColors.c950 : InkColors.c50,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: _back,
-                behavior: HitTestBehavior.opaque,
-                child: const Icon(Icons.arrow_back),
+    // System back walks the steps (name → code → phone) like the arrow does,
+    // instead of closing the screen and losing the entered code / names.
+    return PopScope(
+      canPop: _step == _Step.phone,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: Scaffold(
+        backgroundColor: dark ? InkColors.c950 : InkColors.c50,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: _back,
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Center(
-              child: DecoratedBox(
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), boxShadow: AppShadows.brandCta),
-                child: const LogoMark(size: 64),
+              const SizedBox(height: 24),
+              Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), boxShadow: AppShadows.brandCta),
+                  child: const LogoMark(size: 64),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            const Center(child: Wordmark(fontSize: 30)),
-            const SizedBox(height: 28),
-            if (_step == _Step.phone)
-              ..._phoneStep(dark)
-            else if (_step == _Step.otp)
-              ..._otpStep(dark)
-            else
-              ..._nameStep(dark),
-          ],
+              const SizedBox(height: 12),
+              const Center(child: Wordmark(fontSize: 30)),
+              const SizedBox(height: 28),
+              if (_step == _Step.phone)
+                ..._phoneStep(dark)
+              else if (_step == _Step.otp)
+                ..._otpStep(dark)
+              else
+                ..._nameStep(dark),
+            ],
+          ),
         ),
       ),
     );
@@ -280,11 +294,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       const SizedBox(height: 16),
       Center(
         child: _resend > 0
-            ? Text('auth.login.resend_in'.tr(namedArgs: {'n': '$_resend'}), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400))
+            ? Text('auth.login.resend_in'.tr(namedArgs: {'n': '$_resend'}),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400))
             : GestureDetector(
                 onTap: _resendCode,
                 behavior: HitTestBehavior.opaque,
-                child: Text('auth.login.resend_btn'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BrandColors.c600)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Text('auth.login.resend_btn'.tr(),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BrandColors.c600)),
+                ),
               ),
       ),
     ];
