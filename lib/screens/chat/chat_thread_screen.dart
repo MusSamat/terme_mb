@@ -34,12 +34,14 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   final List<ChatMessage> _messages = [];
   final _input = TextEditingController();
   bool _loaded = false;
+  List<ChatMessage>? _seededFrom; // history snapshot last merged into _messages
   bool _sending = false;
   String? _myId;
   void Function(dynamic)? _onSocketMessage;
   void Function(dynamic)? _onSocketTyping;
   void Function(dynamic)? _onSocketRead;
   void Function(dynamic)? _onSocketLimit;
+  void Function(dynamic)? _onSocketConnect;
 
   bool _otherTyping = false; // «печатает…» under the title
   Timer? _typingHideTimer; // auto-hides the indicator ~3s after the last event
@@ -61,10 +63,18 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       ref.invalidate(chatSummariesProvider);
     }).catchError((_) {/* best-effort */});
     final socket = ref.read(socketClientProvider);
-    socket.connect();
     // Join the booking's chat room so we receive room-scoped events (typing,
-    // read, limit warnings). History still loads via REST.
-    socket.emit('chat:join', {'booking_id': widget.bookingId});
+    // read, limit warnings). History still loads via REST. Room membership is
+    // per socket connection, so every (re)connect — network drop, token
+    // refresh — re-joins and refetches history to pick up missed messages.
+    _onSocketConnect = (_) {
+      if (!mounted) return;
+      socket.emit('chat:join', {'booking_id': widget.bookingId});
+      if (_loaded) ref.invalidate(chatThreadProvider(widget.bookingId));
+    };
+    socket.on('connect', _onSocketConnect!);
+    if (socket.connected) socket.emit('chat:join', {'booking_id': widget.bookingId});
+    socket.connect();
     // Incoming messages arrive on our user room (server emits chat:message to the
     // recipient) AND on the chat room after join. Append the ones for THIS
     // booking sent by the other party.
@@ -81,12 +91,19 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         setState(() {
           _otherTyping = false; // a real message supersedes the typing hint
           _messages.insert(0, ChatMessage(
+            id: id,
             text: (m['text'] ?? '') as String,
             mine: false,
             timeLabel: created != null ? hhmm(created) : 'chat.now'.tr(),
             read: true,
           ));
         });
+        // Seen while the thread is open → mark read (peer's ticks + our badge).
+        if (id != null) {
+          ref.read(chatServiceProvider).markRead(id).then((_) {
+            if (mounted) ref.invalidate(unreadChatProvider);
+          }).catchError((_) {/* best-effort */});
+        }
       } catch (_) {/* ignore malformed frame */}
     };
     socket.on('chat:message', _onSocketMessage!);
@@ -107,14 +124,18 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     };
     socket.on('chat:typing', _onSocketTyping!);
 
-    // Read receipts: the peer read my message → flip my sent bubbles to «read».
-    _onSocketRead = (_) {
+    // Read receipts arrive on the user room for ANY chat: {message_id, read_at}.
+    // Only a message of this thread counts; it and my older bubbles flip to read.
+    _onSocketRead = (data) {
       if (!mounted) return;
+      final readId = data is Map ? data['message_id'] : null;
+      final at = _messages.indexWhere((m) => m.id != null && m.id == readId);
+      if (at < 0) return;
       var changed = false;
-      for (var i = 0; i < _messages.length; i++) {
+      for (var i = at; i < _messages.length; i++) {
         final msg = _messages[i];
         if (msg.mine && !msg.read) {
-          _messages[i] = ChatMessage(text: msg.text, mine: true, timeLabel: msg.timeLabel, read: true);
+          _messages[i] = ChatMessage(id: msg.id, text: msg.text, mine: true, timeLabel: msg.timeLabel, read: true);
           changed = true;
         }
       }
@@ -143,6 +164,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     if (_onSocketTyping != null) socket.off('chat:typing', _onSocketTyping);
     if (_onSocketRead != null) socket.off('chat:read', _onSocketRead);
     if (_onSocketLimit != null) socket.off('chat:limit_warning', _onSocketLimit);
+    if (_onSocketConnect != null) socket.off('connect', _onSocketConnect);
     super.dispose();
   }
 
@@ -157,15 +179,35 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty || _sending) return;
+    final pending = ChatMessage(text: text, mine: true, timeLabel: 'chat.now'.tr(), read: false);
     setState(() {
-      _messages.insert(0, ChatMessage(text: text, mine: true, timeLabel: 'chat.now'.tr(), read: false));
+      _messages.insert(0, pending);
       _input.clear();
       _sending = true;
     });
     try {
-      await ref.read(chatServiceProvider).sendMessage(widget.bookingId, text);
+      final saved = await ref.read(chatServiceProvider).sendMessage(widget.bookingId, text);
+      final id = saved['id'] as String?;
+      if (id != null) _seenMsgIds.add(id);
+      // The server may redact phones / links — show what was actually stored.
+      if (mounted) {
+        setState(() {
+          final i = _messages.indexOf(pending);
+          if (i >= 0) {
+            _messages[i] = ChatMessage(
+                id: id, text: (saved['text'] as String?) ?? text, mine: true, timeLabel: pending.timeLabel, read: false);
+          }
+        });
+      }
     } catch (e) {
       Toasts.error(friendlyError(e));
+      // Not delivered: drop the bubble and give the text back for a retry.
+      if (mounted) {
+        setState(() {
+          _messages.remove(pending);
+          if (_input.text.isEmpty) _input.text = text;
+        });
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -207,10 +249,18 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     // build, NOT via ref.listen: listen only fires on state TRANSITIONS, so a
     // provider that resolved before this build (warm cache / fast network)
     // never seeded and the conversation rendered empty.
-    if (!_loaded && threadAsync.hasValue) {
+    // A refetch (reconnect) merges by id: live-only bubbles (socket messages not
+    // yet in history, an in-flight send) stay on top of the fresh history.
+    final history = threadAsync.valueOrNull;
+    if (history != null && !identical(history, _seededFrom)) {
+      final ids = {for (final m in history) if (m.id != null) m.id!};
+      final live = _messages.where((m) => m.id == null || !ids.contains(m.id)).toList();
       _messages
         ..clear()
-        ..addAll(threadAsync.value!);
+        ..addAll(live)
+        ..addAll(history);
+      _seenMsgIds.addAll(ids);
+      _seededFrom = history;
       _loaded = true;
     }
 
@@ -233,8 +283,10 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(chat.otherName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-                Text(_otherTyping ? 'chat.typing'.tr() : 'chat.online'.tr(),
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: BrandColors.c500)),
+                // No live presence for the peer here — only a real typing signal.
+                if (_otherTyping)
+                  Text('chat.typing'.tr(),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: BrandColors.c500)),
               ],
             ),
           ),
@@ -288,6 +340,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                     ],
                   ),
                 ),
+                // «Забронировано» only once the driver accepted (pre-booking
+                // chats are pending / viewed).
+                if (chat.bookingStatus == 'accepted')
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(

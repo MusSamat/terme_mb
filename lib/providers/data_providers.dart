@@ -446,8 +446,8 @@ final bookingDetailProvider = FutureProvider.family<Booking?, String>((ref, id) 
   }
 });
 
-/// Message history for one booking, mapped to display bubbles (newest first, to
-/// match the reversed ListView). `mine` is resolved against the current user id.
+/// Message history for one booking, mapped to display bubbles — newest first
+/// (as the API returns it), matching the reversed ListView. `mine` is resolved against the current user id.
 // autoDispose: the thread must refetch on every open. A permanent cache made
 // reopened chats show EMPTY — the screen seeded history via ref.listen, which
 // only fires on loading→data transitions, and a warm cache never transitions.
@@ -458,13 +458,14 @@ final chatThreadProvider =
   final msgs = rows.map((m) {
     final created = DateTime.tryParse((m['createdAt'] ?? '') as String)?.toLocal();
     return ChatMessage(
+      id: m['id'] as String?,
       text: (m['text'] ?? '') as String,
       mine: myId != null && m['senderId'] == myId,
       timeLabel: created != null ? hhmm(created) : '',
       read: (m['isRead'] ?? false) as bool,
     );
   }).toList();
-  return msgs.reversed.toList(); // newest first for the reversed list
+  return msgs;
 });
 
 final notificationsListProvider = FutureProvider<List<AppNotification>>((ref) async {

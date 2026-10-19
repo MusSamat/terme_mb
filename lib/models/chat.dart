@@ -39,7 +39,8 @@ class ChatSummary {
 }
 
 class ChatMessage {
-  const ChatMessage({required this.text, required this.mine, required this.timeLabel, this.read = true});
+  const ChatMessage({this.id, required this.text, required this.mine, required this.timeLabel, this.read = true});
+  final String? id; // server id; null while an optimistic send is in flight
   final String text;
   final bool mine;
   final String timeLabel;

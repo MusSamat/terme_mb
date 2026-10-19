@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../utils/config.dart';
@@ -9,8 +11,10 @@ import '../api/token_store.dart';
 class SocketClient {
   SocketClient(this._tokens) {
     // Re-authenticate the socket whenever the access token changes.
-    _tokens.onRefreshed.listen((_) => refreshAuth());
+    _tokenSub = _tokens.onRefreshed.listen((_) => refreshAuth());
   }
+
+  late final StreamSubscription<String?> _tokenSub;
 
   final TokenStore _tokens;
   io.Socket? _socket;
@@ -89,6 +93,7 @@ class SocketClient {
   }
 
   void dispose() {
+    _tokenSub.cancel();
     _socket?.dispose();
     _socket = null;
   }
