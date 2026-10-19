@@ -223,7 +223,7 @@ final socketBootstrapProvider = Provider<void>((ref) {
     ('booking:viewed', (_) => invBookings()),
     ('trip:cancelled', (d) {
       invBookings(); invNotifs();
-      final p = pm(d);
+      final p = sub(pm(d), 'trip') ?? pm(d); // { trip: PublicTrip }
       final from = (p['originCity'] ?? '') as String;
       final to = (p['destinationCity'] ?? '') as String;
       final route = (from.isNotEmpty && to.isNotEmpty) ? ' · $from → $to' : '';

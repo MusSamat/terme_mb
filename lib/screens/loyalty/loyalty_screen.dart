@@ -274,10 +274,9 @@ class LoyaltyScreen extends StatelessWidget {
                         const SizedBox(height: 10),
                         _earn(dark, Icons.directions_car,
                             'loyalty.earn.driver'.tr(), '+10'),
+                        // Mirrors the backend: POINTS_PER_TRIP = 10 for every participant.
                         _earn(dark, Icons.event_seat,
-                            'loyalty.earn.passenger'.tr(), '+5'),
-                        _earn(dark, Icons.star, 'loyalty.earn.five_stars'.tr(),
-                            '+3'),
+                            'loyalty.earn.passenger'.tr(), '+10'),
                         const SizedBox(height: 16),
                         Text('loyalty.history_section'.tr(),
                             style: TextStyle(
@@ -285,6 +284,12 @@ class LoyaltyScreen extends StatelessWidget {
                                 fontWeight: FontWeight.w800,
                                 color: dark ? Colors.white : InkColors.c900)),
                         const SizedBox(height: 10),
+                        if (l.transactions.isEmpty)
+                          Text('loyalty.history_empty'.tr(),
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: InkColors.c400)),
                         for (final tx in l.transactions) _tx(dark, tx),
                       ],
                     ),
@@ -342,7 +347,7 @@ class LoyaltyScreen extends StatelessWidget {
                       color: InkColors.c400)),
             ]),
           ),
-          Text('+${tx.points}',
+          Text('${tx.points >= 0 ? '+' : ''}${tx.points}',
               style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w900,

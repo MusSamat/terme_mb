@@ -74,7 +74,7 @@ void main() {
     test('generic fallback when nothing else available', () {
       expect(
         friendlyError(_envelope({'code': 'TOTALLY_UNKNOWN_CODE_XYZ', 'message': ''})),
-        'Произошла непредвиденная ошибка. Попробуйте обновить страницу.',
+        'Произошла непредвиденная ошибка. Попробуйте ещё раз.',
       );
     });
 

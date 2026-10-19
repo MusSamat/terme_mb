@@ -31,6 +31,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   bool _denied = false; // camera permission explicitly denied
   bool _switching = false;
   bool _shooting = false;
+  bool _starting = false; // a _start() is in flight (permission dialog → resume)
+  bool _pausedLive = false; // a live controller was released on inactive
+  bool _resumeFront = false; // its lens, to reopen the same one on resume
 
   @override
   void initState() {
@@ -61,6 +64,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     );
     final ctrl = CameraController(desc, ResolutionPreset.high,
         enableAudio: false, imageFormatGroup: ImageFormatGroup.jpeg);
+    _starting = true;
     try {
       await ctrl.initialize();
       // Lock capture to portrait so document photos never come out sideways,
@@ -75,6 +79,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         _initFailed = false;
       });
     } on CameraException catch (e) {
+      await ctrl.dispose();
       // Tell a denied permission apart from a genuinely unavailable camera so we
       // can show the right message (Settings hint vs. system-camera fallback).
       final denied = e.code.toLowerCase().contains('denied') ||
@@ -86,7 +91,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         });
       }
     } catch (_) {
+      await ctrl.dispose();
       if (mounted) setState(() => _initFailed = true);
+    } finally {
+      _starting = false;
     }
   }
 
@@ -95,8 +103,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     setState(() => _switching = true);
     final wasFront =
         _controller?.description.lensDirection == CameraLensDirection.front;
-    await _controller?.dispose();
-    _controller = null;
+    // Unmount the preview before disposing its controller.
+    final old = _controller;
+    setState(() => _controller = null);
+    await old?.dispose();
     await _start(front: !wasFront);
     if (mounted) setState(() => _switching = false);
   }
@@ -119,20 +129,29 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   // Fallback: the system camera via image_picker (still a live shot, no overlay).
   Future<void> _fallback() async {
-    final file = await captureCompressedImage(front: widget.front);
-    if (mounted) Navigator.of(context).pop(file);
+    try {
+      final file = await captureCompressedImage(front: widget.front);
+      if (mounted) Navigator.of(context).pop(file);
+    } catch (_) {
+      // e.g. camera permission denied for the system camera too.
+      Toasts.error('camera.capture_failed'.tr());
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final c = _controller;
     if (state == AppLifecycleState.inactive) {
-      c?.dispose();
-      _controller = null;
-    } else if (state == AppLifecycleState.resumed &&
-        c == null &&
-        !_initFailed) {
-      _start(front: widget.front);
+      // The first-launch permission dialog also makes the app inactive while
+      // _start() is still initializing — nothing to release then.
+      if (c == null) return;
+      _pausedLive = true;
+      _resumeFront = c.description.lensDirection == CameraLensDirection.front;
+      setState(() => _controller = null); // unmount the preview first
+      c.dispose();
+    } else if (state == AppLifecycleState.resumed && _pausedLive && !_starting) {
+      _pausedLive = false;
+      _start(front: _resumeFront);
     }
   }
 

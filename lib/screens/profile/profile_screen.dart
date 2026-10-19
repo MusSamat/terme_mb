@@ -152,6 +152,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         void choose(String code) {
           context.setLocale(Locale(code));
           ref.read(hiveBoxProvider).put(StorageKeys.locale, code);
+          // users.language drives WhatsApp / Telegram notification texts.
+          if (ref.read(authProvider).isAuthenticated) {
+            final auth = ref.read(authProvider.notifier);
+            ref.read(profileServiceProvider).update(language: code).then(auth.updateUser, onError: (_) {/* local choice stands */});
+          }
           Navigator.of(sheetCtx).pop();
         }
 

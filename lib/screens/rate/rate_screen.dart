@@ -41,6 +41,10 @@ class _RateScreenState extends ConsumerState<RateScreen> {
   List<String> get _positiveTags => _ratingPassenger ? _passengerPos : _driverPos;
   List<String> get _negativeTags => _ratingPassenger ? _passengerNeg : _driverNeg;
 
+  // Tags on screen for the current score / role — only these are sent (a tag
+  // picked at 5★ must not ride along after dropping to 2★).
+  List<String> _shownTags = const [];
+
   @override
   void dispose() {
     _comment.dispose();
@@ -56,7 +60,7 @@ class _RateScreenState extends ConsumerState<RateScreen> {
             tripId: widget.tripId,
             rateeId: widget.rateeId,
             score: _score,
-            tags: _tags.toList(),
+            tags: _tags.where(_shownTags.contains).toList(),
             comment: comment.isEmpty ? null : comment,
           );
       if (mounted) setState(() => _sent = true);
@@ -72,6 +76,7 @@ class _RateScreenState extends ConsumerState<RateScreen> {
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     if (_sent) return _success(dark);
+    _shownTags = _score >= 4 ? _positiveTags : _negativeTags;
 
     return Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
@@ -83,10 +88,12 @@ class _RateScreenState extends ConsumerState<RateScreen> {
           onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      // Scrolls with the keyboard up (tags + comment exceed 360×640); the
+      // submit button stays pinned below.
+      body: Column(children: [
+        Expanded(
+          child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
           children: [
             const SizedBox(height: 12),
             Text('rate.question_generic'.tr(),
@@ -132,7 +139,7 @@ class _RateScreenState extends ConsumerState<RateScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final tag in (_score >= 4 ? _positiveTags : _negativeTags))
+                  for (final tag in _shownTags)
                     GestureDetector(
                       onTap: () => setState(() => _tags.contains(tag) ? _tags.remove(tag) : _tags.add(tag)),
                       behavior: HitTestBehavior.opaque,
@@ -175,15 +182,21 @@ class _RateScreenState extends ConsumerState<RateScreen> {
                 ),
               ),
             ],
-            const Spacer(),
-            AppButton(
+          ],
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+            child: AppButton(
               label: 'rate.submit'.tr(),
               loading: _submitting,
               onPressed: _score > 0 && !_submitting ? _submit : null,
             ),
-          ],
+          ),
         ),
-      ),
+      ]),
     );
   }
 

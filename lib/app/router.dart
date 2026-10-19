@@ -22,19 +22,31 @@ const _protectedPrefixes = <String>[
 ];
 
 final routerProvider = Provider<GoRouter>((ref) {
-  // Watch ONLY the auth status — not the whole AuthState. Watching everything
-  // rebuilt (recreated) the GoRouter on every activeMode change, resetting
-  // navigation to initialLocation '/'. That's why picking a role in the create
-  // sheet landed on the home hub instead of the create form.
-  final status = ref.watch(authProvider.select((s) => s.status));
+  // ONE router for the app's lifetime. Recreating it on every auth change reset
+  // navigation to '/' and orphaned navigation done right after login (the
+  // deferred «book this trip» resume went to the discarded router). Auth changes
+  // only re-run the redirect via refreshListenable.
+  final authTick = ValueNotifier<int>(0);
+  ref.onDispose(authTick.dispose);
+  late final GoRouter router;
+  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
+    authTick.value++;
+    // Signed out (logout, account deleted, forced logout): drop every screen —
+    // incl. imperative sub-pages — and land on home, as a fresh start.
+    if (prev == AuthStatus.authenticated && next == AuthStatus.anonymous) {
+      _rootKey.currentState?.popUntil((r) => r.isFirst);
+      router.go('/');
+    }
+  });
 
-  return GoRouter(
+  router = GoRouter(
     navigatorKey: _rootKey,
     initialLocation: '/',
+    refreshListenable: authTick,
     redirect: (context, state) {
       // Only gate once we've resolved to a definite anonymous state — never
       // during idle/loading (avoids bouncing on cold start / silent refresh).
-      if (status != AuthStatus.anonymous) return null;
+      if (ref.read(authProvider).status != AuthStatus.anonymous) return null;
       final loc = state.matchedLocation;
       final isProtected = _protectedPrefixes.any(loc.startsWith);
       if (isProtected) return '/auth/login';
@@ -184,4 +196,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });

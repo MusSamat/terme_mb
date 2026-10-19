@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,6 +64,9 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
   final _otp = TextEditingController();
   _Step _step = _Step.form;
   bool _loading = false;
+  // Resend cooldown — the backend allows one code per 60 s (5 a day).
+  int _resend = 0;
+  Timer? _resendTimer;
 
   String get _fullPhone => _phone.text;
 
@@ -69,6 +74,7 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
   void dispose() {
     _phone.dispose();
     _otp.dispose();
+    _resendTimer?.cancel();
     super.dispose();
   }
 
@@ -77,7 +83,16 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
     setState(() => _loading = true);
     try {
       await ref.read(profileServiceProvider).startPhoneChange(_fullPhone);
-      if (mounted) setState(() => _step = _Step.otp);
+      if (!mounted) return;
+      setState(() {
+        _step = _Step.otp;
+        _resend = 60;
+      });
+      _resendTimer?.cancel();
+      _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (_resend <= 1) t.cancel();
+        if (mounted) setState(() => _resend = _resend > 0 ? _resend - 1 : 0);
+      });
     } catch (e) {
       Toasts.error(friendlyError(e));
     } finally {
@@ -95,8 +110,8 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
       if (token != null) ref.read(tokenStoreProvider).set(token);
       final me = await ref.read(authServiceProvider).me();
       ref.read(authProvider.notifier).setSession(me, accessToken: token);
-      if (mounted) Navigator.of(context).pop();
       Toasts.success('profile.phone_changed'.tr());
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       Toasts.error(friendlyError(e));
       if (mounted) setState(() => _loading = false);
@@ -129,12 +144,22 @@ class _PhoneChangeSheetState extends ConsumerState<_PhoneChangeSheet> {
             const SizedBox(height: 12),
             OtpField(controller: _otp, dark: dark, onChanged: (_) => setState(() {})),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _loading ? null : _start,
-              behavior: HitTestBehavior.opaque,
-              child: Text('auth.login.resend_btn'.tr(),
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: BrandColors.c600)),
-            ),
+            if (_resend > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text('auth.login.resend_in'.tr(namedArgs: {'n': '$_resend'}),
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: InkColors.c400)),
+              )
+            else
+              GestureDetector(
+                onTap: _loading ? null : _start,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text('auth.login.resend_btn'.tr(),
+                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: BrandColors.c600)),
+                ),
+              ),
             const SizedBox(height: 16),
             AppButton(
               label: 'auth.login.confirm_btn'.tr(),

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/errors.dart';
 import '../../api/friendly_error.dart';
 import '../../models/car.dart';
 import '../../providers/data_providers.dart';
@@ -224,6 +225,16 @@ class _DriverVerificationScreenState
       context.canPop() ? context.pop() : context.go('/profile');
     } catch (e) {
       Toasts.error(friendlyError(e));
+      // A rejected photo (too small / unreadable) names its field — jump back to
+      // that step with the slot cleared so the user retakes just that one.
+      final field = extractError(e).details?['field'];
+      final at = _docSlots.indexWhere((d) => d.cat == field);
+      if (at >= 0 && mounted) {
+        setState(() {
+          _docs.remove(field);
+          _step = at + 1;
+        });
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -233,7 +244,21 @@ class _DriverVerificationScreenState
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final doc = _currentDoc;
-    return Scaffold(
+    // Under review / approved / suspended: the wizard would only end in a 409 —
+    // show where the application stands instead.
+    final st = ref.watch(driverStatusProvider).valueOrNull;
+    final status = st?['status'] as String?;
+    if (const {'pending', 'verified', 'suspended', 'blocked'}.contains(status)) {
+      return _statusScreen(dark, status!);
+    }
+    // System back walks the wizard steps like the arrow (car data and photos
+    // survive) instead of leaving the screen.
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _onBack();
+      },
+      child: Scaffold(
       backgroundColor: dark ? InkColors.c950 : InkColors.c50,
       appBar: AppBar(
         backgroundColor: dark ? InkColors.c950 : InkColors.c50,
@@ -252,6 +277,7 @@ class _DriverVerificationScreenState
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               children: [
+                if (_step == 0) _reviewNote(dark),
                 _progressHeader(dark, doc),
                 const SizedBox(height: 18),
                 if (_step == 0) ..._carStep(dark) else _docCapture(dark, doc!),
@@ -261,6 +287,77 @@ class _DriverVerificationScreenState
           _bottomBar(dark),
         ],
       ),
+    ),
+    );
+  }
+
+  Widget _statusScreen(bool dark, String status) {
+    final ok = status == 'verified';
+    final waiting = status == 'pending';
+    return Scaffold(
+      backgroundColor: dark ? InkColors.c950 : InkColors.c50,
+      appBar: AppBar(
+        backgroundColor: dark ? InkColors.c950 : InkColors.c50,
+        elevation: 0,
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/profile')),
+        title: Text('driver_reg.title'.tr(),
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: dark ? Colors.white : InkColors.c900)),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(ok ? Icons.verified : (waiting ? Icons.hourglass_top : Icons.block),
+                size: 56, color: ok || waiting ? GrapeColors.c600 : CoralColors.c600),
+            const SizedBox(height: 16),
+            Text('profile.verification_status.$status'.tr(),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900)),
+            const SizedBox(height: 8),
+            Text('driver_reg.status_${ok ? 'verified' : (waiting ? 'pending' : 'locked')}_desc'.tr(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, height: 1.5, fontWeight: FontWeight.w600, color: InkColors.c500)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // Why a resubmission is needed: the moderator's reason / requested documents.
+  Widget _reviewNote(bool dark) {
+    final st = ref.watch(driverStatusProvider).valueOrNull;
+    final status = st?['status'] as String?;
+    if (status != 'rejected' && status != 'docs_requested') return const SizedBox.shrink();
+    final reason = (st?['rejectionReason'] as String?)?.trim() ?? '';
+    final docs = ((st?['requestedDocs'] as List?) ?? const []).cast<String>();
+    final lines = [
+      if (reason.isNotEmpty) reason,
+      if (docs.isNotEmpty) docs.map((d) => 'driver_reg.doc_${d}_label'.tr()).join(', '),
+    ];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: dark ? CoralColors.c600.withValues(alpha: 0.1) : CoralColors.c50,
+        borderRadius: BorderRadius.circular(AppRadii.xl2),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(Icons.info_outline, size: 20, color: CoralColors.c600),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('profile.verification_status.$status'.tr(),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: CoralColors.c700)),
+            for (final l in lines)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(l, style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: CoralColors.c700)),
+              ),
+          ]),
+        ),
+      ]),
     );
   }
 

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../api/errors.dart';
 import '../../api/friendly_error.dart';
+import '../../models/self_user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
@@ -69,10 +70,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  Future<void> _finishSession(String token) async {
+  Future<void> _finishSession(String token, SelfUser? fromAuth) async {
     final auth = ref.read(authServiceProvider);
     ref.read(tokenStoreProvider).set(token);
-    final me = await auth.me();
+    // The code is already spent: if /users/me fails, sign in with the profile
+    // the auth call returned instead of failing the whole login.
+    SelfUser me;
+    try {
+      me = await auth.me();
+    } catch (_) {
+      if (fromAuth == null) rethrow;
+      me = fromAuth;
+    }
     ref.read(authProvider.notifier).setSession(me, accessToken: token);
     if (!mounted) return;
     // Resume a guest intent parked before the login redirect (TTL-guarded);
@@ -124,6 +133,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _loading = true);
     try {
       await ref.read(authServiceProvider).sendOtp(_fullPhone);
+      if (!mounted) return;
       _otp.clear();
       _startResend();
     } catch (e) {
@@ -152,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Toasts.error('errors.global_desc'.tr());
         return;
       }
-      await _finishSession(token);
+      await _finishSession(token, result.user);
     } catch (e) {
       Toasts.error(friendlyError(e));
       _otp.clear();
@@ -178,7 +188,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Toasts.error('errors.global_desc'.tr());
         return;
       }
-      await _finishSession(token);
+      await _finishSession(token, result.user);
     } catch (e) {
       Toasts.error(friendlyError(e));
       // The code is only checked here (registration verifies it in one call):

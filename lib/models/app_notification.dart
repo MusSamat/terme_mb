@@ -150,8 +150,10 @@ String notifBody(String type, Map<String, dynamic> p) {
       }
     case 'trip_cancelled':
       {
-        final from = s('originCity');
-        final to = s('destinationCity');
+        // Payload is { trip: PublicTrip } — older rows carried flat fields.
+        final trip = mp(p, 'trip');
+        final from = (trip?['originCity'] ?? s('originCity')) as String;
+        final to = (trip?['destinationCity'] ?? s('destinationCity')) as String;
         return from.isNotEmpty && to.isNotEmpty
             ? 'notif.body_trip_cancelled'.tr(namedArgs: {'route': '$from → $to'})
             : 'notif.body_trip_cancelled_fallback'.tr();
@@ -225,7 +227,8 @@ String notifBody(String type, Map<String, dynamic> p) {
         final docs = (p['docs'] as List?)?.cast<String>() ?? const [];
         return docs.isEmpty
             ? 'notif.body_verification_need_docs_fallback'.tr()
-            : 'notif.body_verification_need_docs'.tr(namedArgs: {'docs': docs.join(', ')});
+            : 'notif.body_verification_need_docs'
+                .tr(namedArgs: {'docs': docs.map((d) => 'driver_reg.doc_${d}_label'.tr()).join(', ')});
       }
     case 'account_blocked':
       {
@@ -237,7 +240,7 @@ String notifBody(String type, Map<String, dynamic> p) {
         final tier = s('tier');
         return tier.isEmpty
             ? 'notif.body_loyalty_tier_changed_fallback'.tr()
-            : 'notif.body_loyalty_tier_changed'.tr(namedArgs: {'tier': tier});
+            : 'notif.body_loyalty_tier_changed'.tr(namedArgs: {'tier': 'loyalty.tiers.$tier'.tr()});
       }
     case 'security_alert_reuse':
       return 'notif.body_security_alert_reuse'.tr();
@@ -289,7 +292,8 @@ String? notifDeepLink(String type, Map<String, dynamic> payload) {
       return id != null ? '/my/bookings/$id/chat' : '/my/bookings';
     }
     case 'trip_cancelled': {
-      final tripId = (payload['tripId'] ?? payload['trip_id']) as String?;
+      final trip = (payload['trip'] as Map?)?.cast<String, dynamic>();
+      final tripId = (trip?['id'] ?? payload['tripId'] ?? payload['trip_id']) as String?;
       return tripId != null ? '/trips/$tripId' : '/';
     }
     case 'rating_received':

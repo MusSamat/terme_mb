@@ -7,7 +7,13 @@ class LoyaltyTx {
   factory LoyaltyTx.fromJson(Map<String, dynamic> j) => LoyaltyTx(
         points: (j['points'] ?? 0) as int,
         sourceKey: (j['source'] ?? 'bonus') as String,
-        dateLabel: (j['createdAt'] ?? '') as String,
+        dateLabel: (() {
+          // Local dd.MM.yyyy — never the raw ISO string.
+          final d = DateTime.tryParse((j['createdAt'] ?? '') as String)?.toLocal();
+          if (d == null) return '';
+          String two(int v) => v.toString().padLeft(2, '0');
+          return '${two(d.day)}.${two(d.month)}.${d.year}';
+        })(),
       );
 }
 
