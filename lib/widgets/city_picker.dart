@@ -10,6 +10,7 @@ import '../theme/colors.dart';
 import '../theme/dimens.dart';
 import '../utils/locale.dart';
 import '../utils/location.dart';
+import '../api/friendly_error.dart';
 import 'app_toast.dart';
 
 /// Place selection sheet — searches the SOATE directory (GET /cities) with a
@@ -123,6 +124,7 @@ class _NearMeTileState extends ConsumerState<NearMeTile> {
 mixin PlaceSearch<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   List<Place> results = const [];
   bool searching = false;
+  Object? searchError; // last search failed (offline…) — not «not found»
   Timer? _debounce;
   String _q = '';
 
@@ -134,12 +136,28 @@ mixin PlaceSearch<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     _debounce = Timer(Duration(milliseconds: q.isEmpty ? 0 : 280), () async {
       try {
         final r = await ref.read(citiesServiceProvider).search(q);
-        if (mounted && _q == q) setState(() { results = r; searching = false; });
-      } catch (_) {
-        if (mounted && _q == q) setState(() { results = const []; searching = false; });
+        if (mounted && _q == q) setState(() { results = r; searching = false; searchError = null; });
+      } catch (e) {
+        if (mounted && _q == q) setState(() { results = const []; searching = false; searchError = e; });
       }
     });
   }
+
+  void retrySearch() => searchPlaces(_q);
+
+  /// Empty-results body: a failed search shows the reason + retry.
+  Widget emptyResults(double fontSize) => searchError != null
+      ? Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(friendlyError(searchError!),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600, color: InkColors.c400)),
+            TextButton(onPressed: retrySearch, child: Text('errors.repeat'.tr())),
+          ]),
+        )
+      : Center(
+          child: Text('city_autocomplete.not_found'.tr(),
+              style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600, color: InkColors.c400)));
 
   void disposeSearch() => _debounce?.cancel();
 }
@@ -202,7 +220,7 @@ class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> with PlaceSe
             if (widget.nearMe) NearMeTile(onPlace: (p) => Navigator.of(context).pop(p)),
             Expanded(
               child: (!searching && results.isEmpty)
-                  ? Center(child: Text('city_autocomplete.not_found'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: InkColors.c400)))
+                  ? emptyResults(14)
                   : ListView.builder(
                       itemCount: results.length,
                       itemBuilder: (_, i) =>

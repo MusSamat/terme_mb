@@ -175,12 +175,7 @@ class _RouteSearchSheetState extends ConsumerState<_RouteSearchSheet> with Place
               if (!_activeIsTo) NearMeTile(dense: true, onPlace: _pick),
               Flexible(
                 child: (!searching && results.isEmpty)
-                    ? Center(
-                        child: Text('city_autocomplete.not_found'.tr(),
-                            style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: InkColors.c400)))
+                    ? emptyResults(13.5)
                     : ListView.separated(
                         padding: const EdgeInsets.only(top: 4, bottom: 8),
                         itemCount: results.length,
