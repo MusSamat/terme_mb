@@ -213,7 +213,7 @@ class _ComplaintScreenState extends ConsumerState<ComplaintScreen> {
                 runSpacing: 8,
                 children: [
                   for (var i = 0; i < _photos.length; i++)
-                    Stack(children: [
+                    Stack(clipBehavior: Clip.none, children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadii.md),
                         child: Image.file(_photos[i], width: 72, height: 72, fit: BoxFit.cover),
@@ -224,7 +224,7 @@ class _ComplaintScreenState extends ConsumerState<ComplaintScreen> {
                         child: IconButton(
                           onPressed: () => setState(() => _photos.removeAt(i)),
                           icon: const CircleAvatar(radius: 11, backgroundColor: Colors.black54, child: Icon(Icons.close, size: 14, color: Colors.white)),
-                          tooltip: 'complaint.remove_photo_label'.tr(),
+                          tooltip: 'complaint.remove_photo_label'.tr(namedArgs: {'n': '${i + 1}'}),
                         ),
                       ),
                     ]),

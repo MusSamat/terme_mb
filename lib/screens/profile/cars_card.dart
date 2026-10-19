@@ -73,7 +73,10 @@ class CarsCard extends ConsumerWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(car.title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-            Text('${car.plate} · ${car.color ?? ''} · ${'profile.seats_n'.tr(namedArgs: {'n': '${car.seatsCount}'})}',
+            Text(
+                [car.plate, car.color ?? '', 'profile.seats_n'.tr(namedArgs: {'n': '${car.seatsCount}'})]
+                    .where((p) => p.isNotEmpty)
+                    .join(' · '),
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c400)),
           ]),
         ),
@@ -91,7 +94,7 @@ class CarsCard extends ConsumerWidget {
             if (!ok) return;
             try {
               await ref.read(carsServiceProvider).remove(car.id);
-              ref.invalidate(carsProvider);
+              if (context.mounted) ref.invalidate(carsProvider);
             } catch (e) {
               if (context.mounted) Toasts.error(friendlyError(e));
             }
@@ -389,7 +392,9 @@ class _AddCarSheetState extends ConsumerState<_AddCarSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: BoxDecoration(color: dark ? InkColors.c900 : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl4))),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).padding.bottom),
+        // Scrolls when the keyboard leaves too little room (360dp).
+        child: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: InkColors.c300, borderRadius: BorderRadius.circular(999)))),
           const SizedBox(height: 14),
@@ -417,6 +422,7 @@ class _AddCarSheetState extends ConsumerState<_AddCarSheet> {
           const SizedBox(height: 16),
           AppButton(label: 'profile.add_car'.tr(), variant: AppButtonVariant.grape, loading: _loading, onPressed: _valid ? _submit : null),
         ]),
+        ),
       ),
     );
   }

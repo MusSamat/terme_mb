@@ -433,9 +433,12 @@ class _ReviewsScreen extends ConsumerWidget {
                           final r = reviews[i];
                           return _panel(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
-                              Text(r.raterName,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _ink)),
-                              const Spacer(),
+                              Expanded(
+                                child: Text(r.raterName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _ink)),
+                              ),
                               Row(children: [
                                 for (var s = 0; s < r.score; s++) const Icon(Icons.star, size: 13, color: AccentColors.c400)
                               ]),

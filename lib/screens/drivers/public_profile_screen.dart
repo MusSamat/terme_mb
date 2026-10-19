@@ -32,7 +32,8 @@ class PublicProfileScreen extends ConsumerWidget {
 
   Widget _body(BuildContext context, WidgetRef ref, bool dark, SelfUser u) {
     final role = roleThemeFor(u.isDriver ? UiRole.driver : UiRole.passenger);
-    final reviews = ref.watch(userRatingsProvider(id)).valueOrNull ?? const <Review>[];
+    final reviewsAsync = ref.watch(userRatingsProvider(id));
+    final reviews = reviewsAsync.valueOrNull ?? const <Review>[];
     return ListView(
       padding: EdgeInsets.zero,
       children: [
@@ -74,7 +75,8 @@ class PublicProfileScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Column(children: [
             Row(children: [
-              _stat(dark, (u.rating ?? 0).toStringAsFixed(1), 'drivers.rating_label'.tr()),
+              // null below 3 ratings (backend) — a dash, never a fake «0.0».
+              _stat(dark, u.rating?.toStringAsFixed(1) ?? '—', 'drivers.rating_label'.tr()),
               _stat(dark, '${u.ratingCount}', 'drivers.ratings_label'.tr()),
             ]),
             if ((u.bio ?? '').isNotEmpty) ...[
@@ -88,7 +90,14 @@ class PublicProfileScreen extends ConsumerWidget {
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
             ),
             const SizedBox(height: 10),
-            if (reviews.isEmpty)
+            if (reviewsAsync.isLoading && !reviewsAsync.hasValue)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4)),
+              )
+            else if (reviewsAsync.hasError && !reviewsAsync.hasValue)
+              QueryError(error: reviewsAsync.error!, onRetry: () => ref.invalidate(userRatingsProvider(id)))
+            else if (reviews.isEmpty)
               Text('drivers.no_reviews'.tr(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c400))
             else
               for (final r in reviews) _review(dark, r.raterName, r.score, r.comment ?? ''),
@@ -115,8 +124,12 @@ class PublicProfileScreen extends ConsumerWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Text(name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-            const Spacer(),
+            Expanded(
+              child: Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
+            ),
             Row(children: [for (var i = 0; i < stars; i++) const Icon(Icons.star, size: 13, color: AccentColors.c400)]),
           ]),
           if (text.isNotEmpty) ...[
