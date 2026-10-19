@@ -971,20 +971,8 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
   late int _seatsAvail = widget.trip.seatsAvailable;
   bool _seatsBusy = false;
   bool _loading = false;
-  // GET /trips/my carries no comment — fill it from the detail, and only send
-  // `comment` when the user changed it (a blind null would erase it).
-  String _commentOrig = '';
-
-  @override
-  void initState() {
-    super.initState();
-    ref.read(tripDetailProvider(widget.trip.id).future).then((t) {
-      final c = t.comment ?? '';
-      if (!mounted || _comment.text.trim() != _commentOrig) return;
-      _commentOrig = c;
-      _comment.text = c;
-    }).catchError((_) {/* field stays editable */});
-  }
+  // Only send `comment` when the user changed it (a blind null would erase it).
+  late final String _commentOrig = widget.trip.comment ?? '';
 
   // Remaining seats — immediate ±1 (phone deals happen off-app), like the web
   // owner panel. Separate from the price/comment/luggage save below.
