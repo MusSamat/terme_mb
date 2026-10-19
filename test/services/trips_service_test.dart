@@ -128,6 +128,16 @@ void main() {
       expect(opts.headers?['Idempotency-Key'], isNotNull);
       expect((opts.headers!['Idempotency-Key'] as String).length, greaterThan(10));
     });
+
+    test('a caller-supplied key is sent as-is (retry reuses it)', () async {
+      when(() => dio.post<Map<String, dynamic>>(any(),
+              data: any(named: 'data'), options: any(named: 'options')))
+          .thenAnswer((_) async => _ok(_tripJson('new')));
+      await svc.create({'originCity': 'A'}, idempotencyKey: 'key-123');
+      final opts = verify(() => dio.post<Map<String, dynamic>>('/trips',
+          data: any(named: 'data'), options: captureAny(named: 'options'))).captured.single as Options;
+      expect(opts.headers?['Idempotency-Key'], 'key-123');
+    });
   });
 
   group('like / unlike / view verbs', () {

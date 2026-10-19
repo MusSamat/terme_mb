@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/errors.dart';
 import '../../api/friendly_error.dart';
 import '../../widgets/query_error.dart';
 import '../../models/trip_card_item.dart';
@@ -20,6 +21,7 @@ import '../../widgets/listing_metrics.dart';
 import '../../widgets/verified_badge.dart';
 import '../../utils/config.dart';
 import '../../utils/locale.dart';
+import '../../utils/uuid.dart';
 import '../../widgets/contact_actions.dart';
 import '../../widgets/route_map.dart';
 import '../create/create_screen.dart' show CreatePrefill;
@@ -522,6 +524,8 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
   bool _sent = false;
   bool _loading = false;
   String? _bookingId; // real id of the created booking (for the chat link)
+  // Reused on a retry after a lost response, so a timeout can't double-book.
+  String _idemKey = uuidV4();
   final _comment = TextEditingController();
 
   static const _chips = ['book_form.chip_bus_station', 'book_form.chip_small_luggage', 'book_form.chip_alone', 'book_form.chip_early'];
@@ -548,15 +552,19 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
             tripId: widget.trip.id,
             seats: _seats,
             comment: comment.isEmpty ? null : comment,
+            idempotencyKey: _idemKey,
           );
+      if (!mounted) return;
       // Refresh the seat count on the trip, the passenger's bookings, and the
       // feed behind the sheet.
       ref.invalidate(tripDetailProvider(widget.trip.id));
       ref.invalidate(myBookingsProvider);
       ref.invalidate(tripsFeedProvider);
-      if (mounted) setState(() { _sent = true; _bookingId = id; });
+      setState(() { _sent = true; _bookingId = id; });
     } catch (e) {
       Toasts.error(friendlyError(e));
+      // Only a transport failure may have booked; anything answered → new key.
+      if (extractError(e).code != AppException.networkOffline) _idemKey = uuidV4();
     } finally {
       if (mounted) setState(() => _loading = false);
     }

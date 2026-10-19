@@ -27,10 +27,11 @@ class BookingsService {
 
   /// Returns the created booking's id so the UI can link straight to it
   /// (the waiting screen used to hardcode a fake "b1").
-  Future<String?> create({required String tripId, required int seats, String? comment}) async {
+  /// Pass the same [idempotencyKey] when retrying the same booking.
+  Future<String?> create({required String tripId, required int seats, String? comment, String? idempotencyKey}) async {
     final res = await _dio.post<Map<String, dynamic>>('/bookings',
         data: {'tripId': tripId, 'seatsCount': seats, if (comment != null) 'comment': comment},
-        options: Options(headers: {'Idempotency-Key': uuidV4()}));
+        options: Options(headers: {'Idempotency-Key': idempotencyKey ?? uuidV4()}));
     return res.data?['id'] as String?;
   }
 
