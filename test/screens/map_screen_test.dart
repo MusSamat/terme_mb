@@ -70,11 +70,11 @@ class FakeCities extends CitiesService {
   }
 }
 
-MapItem pin(String id, double km) => MapItem(
+MapItem pin(String id, double km, {bool exact = true}) => MapItem(
       id: id,
       lat: 42.8746 + km / 111.2,
       lng: 74.5698,
-      exact: true,
+      exact: exact,
       originCity: 'Бишкек',
       destinationCity: 'Ош',
       departureAt: DateTime.now().add(const Duration(days: 1)),
@@ -206,6 +206,60 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('near-near')));
     await tester.pumpAndSettle();
     expect(opened, ['near']);
+    FlutterError.onError = onError;
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('results map: nearby + truncated notes, settlement pins dimmed with a row hint', (tester) async {
+    final onError = FlutterError.onError;
+    FlutterError.onError = (d) {
+      if (d.library != 'image resource service') onError?.call(d);
+    };
+    await pump(
+      tester,
+      FakeLocation(LocPermission.denied),
+      Scaffold(
+        body: RouteResultsMap(
+          items: [pin('village', 3, exact: false), pin('pinned', 1)], // village departs first → top row
+          requests: false,
+          origin: null,
+          nearby: true,
+          truncated: true,
+          onOpen: (_) {},
+        ),
+      ),
+    );
+    expect(find.text('Показаны ближайшие сёла'), findsOneWidget);
+    expect(find.text('Показаны первые 500 по времени отправления'), findsOneWidget);
+    expect(find.text('примерно, центр села'), findsOneWidget);
+    final dimmed = tester.widgetList<Opacity>(
+        find.ancestor(of: find.byType(MapMarker), matching: find.byType(Opacity)));
+    expect(dimmed.map((o) => o.opacity).toList()..sort(), [0.75, 1.0]);
+
+    await tester.tap(find.byKey(const ValueKey('near-village')));
+    await tester.pumpAndSettle();
+    final sel = tester.widgetList<Opacity>(
+        find.ancestor(of: find.byType(MapMarker), matching: find.byType(Opacity)));
+    expect(sel.every((o) => o.opacity == 1), isTrue, reason: 'the selected pin is never dimmed');
+    FlutterError.onError = onError;
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('results map without notes when the route matched exactly', (tester) async {
+    final onError = FlutterError.onError;
+    FlutterError.onError = (d) {
+      if (d.library != 'image resource service') onError?.call(d);
+    };
+    await pump(
+      tester,
+      FakeLocation(LocPermission.denied),
+      Scaffold(
+        body: RouteResultsMap(items: [pin('a', 1)], requests: true, origin: null, onOpen: (_) {}),
+      ),
+    );
+    expect(find.text('Показаны ближайшие сёла'), findsNothing);
+    expect(find.text('Показаны первые 500 по времени отправления'), findsNothing);
+    expect(find.text('примерно, центр села'), findsNothing);
     FlutterError.onError = onError;
     expect(tester.takeException(), isNull);
   });

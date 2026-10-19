@@ -197,6 +197,24 @@ class MapService {
     });
     return MapListings.fromJson(res.data ?? const {});
   }
+
+  /// GET /map/route — all listings of from→to (same date / ride as the list).
+  Future<MapRoute> route({
+    required String kind, // trips | requests
+    required int fromId,
+    required int toId,
+    String? date,
+    String? ride,
+  }) async {
+    final res = await _dio.get<Map<String, dynamic>>('/map/route', queryParameters: {
+      'kind': kind,
+      'from_id': fromId,
+      'to_id': toId,
+      if (date != null) 'date': date,
+      if (ride != null) 'ride': ride,
+    });
+    return MapRoute.fromJson(res.data ?? const {});
+  }
 }
 
 class MapItem {
@@ -207,30 +225,65 @@ class MapItem {
     required this.exact,
     required this.originCity,
     required this.destinationCity,
+    String? originKg,
+    String? destinationKg,
     required this.departureAt,
     required this.seats,
     this.price,
-  });
+  })  : originKg = originKg ?? originCity,
+        destinationKg = destinationKg ?? destinationCity;
   final String id;
   final double lat;
   final double lng;
   final bool exact;
   final String originCity;
   final String destinationCity;
+  final String originKg;
+  final String destinationKg;
   final DateTime departureAt;
+  /// Trips: free seats; requests: passengers.
   final int seats;
   final int? price;
 
-  factory MapItem.fromJson(Map<String, dynamic> j) => MapItem(
-        id: j['id'] as String,
-        lat: (j['lat'] as num).toDouble(),
-        lng: (j['lng'] as num).toDouble(),
-        exact: (j['exact'] ?? false) as bool,
-        originCity: (j['originCity'] ?? '') as String,
-        destinationCity: (j['destinationCity'] ?? '') as String,
-        departureAt: DateTime.parse(j['departureAt'] as String),
-        seats: (j['seats'] as num?)?.toInt() ?? 0,
-        price: (j['price'] as num?)?.toInt(),
+  String originName(bool kg) => kg ? originKg : originCity;
+  String destinationName(bool kg) => kg ? destinationKg : destinationCity;
+
+  /// Parses both the /map/route item ({origin:{nameRu,nameKg}}, seatsFree |
+  /// passengers) and the legacy /map item (originCity, seats).
+  factory MapItem.fromJson(Map<String, dynamic> j) {
+    final o = (j['origin'] as Map?)?.cast<String, dynamic>();
+    final d = (j['destination'] as Map?)?.cast<String, dynamic>();
+    return MapItem(
+      id: j['id'] as String,
+      lat: (j['lat'] as num).toDouble(),
+      lng: (j['lng'] as num).toDouble(),
+      exact: (j['exact'] ?? false) as bool,
+      originCity: (o?['nameRu'] ?? j['originCity'] ?? '') as String,
+      destinationCity: (d?['nameRu'] ?? j['destinationCity'] ?? '') as String,
+      originKg: o?['nameKg'] as String?,
+      destinationKg: d?['nameKg'] as String?,
+      departureAt: DateTime.parse(j['departureAt'] as String).toLocal(),
+      seats: ((j['seatsFree'] ?? j['passengers'] ?? j['seats']) as num?)?.toInt() ?? 0,
+      price: (j['price'] as num?)?.toInt(),
+    );
+  }
+}
+
+/// GET /map/route — every active listing of one route (cap 500).
+class MapRoute {
+  const MapRoute({this.items = const [], this.truncated = false, this.nearby = false});
+  final List<MapItem> items;
+  /// More than the cap exist — only the earliest are shown.
+  final bool truncated;
+  /// Nothing on the exact places → nearby settlements (25 km) were used.
+  final bool nearby;
+
+  factory MapRoute.fromJson(Map<String, dynamic> j) => MapRoute(
+        items: ((j['items'] as List?) ?? const [])
+            .map((e) => MapItem.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+        truncated: (j['truncated'] ?? false) as bool,
+        nearby: (j['nearby'] ?? false) as bool,
       );
 }
 

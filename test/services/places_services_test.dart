@@ -77,6 +77,48 @@ void main() {
       expect(q['ride'], 'airport');
       expect(q.containsKey('date'), false);
     });
+
+    Map<String, dynamic> routeItem(String id, {required bool exact, int? seatsFree, int? passengers, int? price}) => {
+          'id': id,
+          'kind': seatsFree != null ? 'trip' : 'request',
+          'lat': 42.87,
+          'lng': 74.59,
+          'exact': exact,
+          'departureAt': '2026-10-20T03:00:00.000Z',
+          'seatsFree': seatsFree,
+          'passengers': passengers,
+          'price': price,
+          'origin': {'id': 1, 'nameRu': 'Бишкек', 'nameKg': 'Бишкек'},
+          'destination': {'id': 7, 'nameRu': 'Нарын', 'nameKg': 'Нарын шаары'},
+          'user': {'id': 'u1', 'name': 'Азамат', 'avatarUrl': null, 'rating': null, 'ratingCount': 0},
+        };
+
+    test('route → GET /map/route with route, date, ride; parses items + flags', () async {
+      stubGet({
+        'kind': 'trips',
+        'truncated': true,
+        'nearby': true,
+        'items': [routeItem('t1', exact: false, seatsFree: 3, price: 1200)],
+      });
+      final r = await MapService(dio)
+          .route(kind: 'trips', fromId: 1, toId: 7, date: '2026-10-20T00:00:00+06:00', ride: 'intercity');
+      expect(captureQuery('/map/route'),
+          {'kind': 'trips', 'from_id': 1, 'to_id': 7, 'date': '2026-10-20T00:00:00+06:00', 'ride': 'intercity'});
+      expect((r.truncated, r.nearby), (true, true));
+      final it = r.items.single;
+      expect((it.exact, it.seats, it.price, it.lat), (false, 3, 1200, 42.87));
+      expect(it.destinationName(true), 'Нарын шаары');
+      expect(it.destinationName(false), 'Нарын');
+    });
+
+    test('route: requests carry passengers, no price; optional params omitted; empty body', () async {
+      stubGet({'items': [routeItem('r1', exact: true, passengers: 2)]});
+      final r = await MapService(dio).route(kind: 'requests', fromId: 1, toId: 7);
+      final q = captureQuery('/map/route');
+      expect(q.containsKey('date') || q.containsKey('ride'), false);
+      expect((r.items.single.seats, r.items.single.price, r.truncated, r.nearby), (2, null, false, false));
+      expect(MapRoute.fromJson(const {}).items, isEmpty);
+    });
   });
 
   group('ProfileService — phone change via WhatsApp code', () {

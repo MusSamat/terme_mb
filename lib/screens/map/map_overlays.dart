@@ -6,6 +6,7 @@ import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../utils/api_format.dart';
 import '../../utils/date_format.dart';
+import '../../utils/locale.dart';
 import '../../utils/location.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/map/car_glyph.dart';
@@ -150,9 +151,17 @@ class LocationBanner extends StatelessWidget {
 /// Fixed part of the «Рядом» sheet (handle + title + count) — also used to
 /// size the peek.
 class NearbyHeader extends StatelessWidget {
-  const NearbyHeader({super.key, required this.requests, required this.count});
+  const NearbyHeader({
+    super.key,
+    required this.requests,
+    required this.count,
+    this.nearby = false,
+    this.truncated = false,
+  });
   final bool requests;
   final int count;
+  final bool nearby;
+  final bool truncated;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -176,6 +185,22 @@ class NearbyHeader extends StatelessWidget {
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: InkColors.c500)),
               ),
           ]),
+          if (nearby) _note(Icons.near_me_outlined, 'map.nearby_villages'.tr(), AccentColors.c700),
+          if (truncated) _note(Icons.info_outline_rounded, 'map.truncated'.tr(), InkColors.c500),
+        ]),
+      );
+
+  Widget _note(IconData icon, String text, Color color) => Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+          ),
         ]),
       );
 }
@@ -201,6 +226,7 @@ class NearbyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kg = isKg(context);
     final when = departureLabel(item.departureAt);
     final seats = (requests ? 'map.seats_needed' : 'map.seats_free').tr(namedArgs: {'n': '${item.seats}'});
     final meta = [
@@ -234,7 +260,7 @@ class NearbyTile extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${item.originCity} → ${item.destinationCity}',
+                  Text('${item.originName(kg)} → ${item.destinationName(kg)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -246,9 +272,11 @@ class NearbyTile extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c500)),
-                  if (showOpen && !item.exact) ...[
-                    const SizedBox(height: 4),
-                    Text('map.approx_point'.tr(),
+                  if (!item.exact) ...[
+                    const SizedBox(height: 2),
+                    Text('map.approx_village'.tr(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: InkColors.c400)),
                   ],
                   if (showOpen) ...[

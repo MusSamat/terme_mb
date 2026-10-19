@@ -522,29 +522,39 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
     );
   }
 
-  // Map view: this route's results only, pinned at their pickup points.
+  // Map view: every listing of this route (GET /map/route), pinned at their
+  // pickup points. Loaded list pages stand in while it loads (or without a route).
   Widget _mapBody(bool dark, bool driver) {
+    final from = _filters.from;
     void open(String id) => driver ? context.push('/requests/$id') : showTripDetailSheet(context, id);
-    Widget wrap(bool empty, Iterable<MapItem?> pins) => empty
+    Widget map(List<MapItem> items, {bool nearby = false, bool truncated = false}) => items.isEmpty
         ? SingleChildScrollView(child: _emptyBlock(dark, driver))
         : RouteResultsMap(
-            items: pins.nonNulls.toList(),
+            items: items,
             requests: driver,
-            origin: _filters.from,
+            origin: from,
+            nearby: nearby,
+            truncated: truncated,
             onOpen: open,
           );
     Widget err(Object e, VoidCallback retry) => SingleChildScrollView(child: QueryError(error: e, onRetry: retry));
-    if (driver) {
-      return ref.watch(requestsFeedProvider(_filters)).when(
-            loading: () => const _LoadingBlock(),
-            error: (e, _) => err(e, () => ref.invalidate(requestsFeedProvider(_filters))),
-            data: (all) => wrap(all.isEmpty, all.map((r) => requestPin(r, fallback: _filters.from))),
-          );
-    }
-    return ref.watch(tripsFeedProvider(_filters)).when(
+    final feed = driver
+        ? ref.watch(requestsFeedProvider(_filters)).whenData((all) => all.map((r) => requestPin(r, fallback: from)))
+        : ref.watch(tripsFeedProvider(_filters)).whenData((all) => all.map((t) => tripPin(t, fallback: from)));
+    void retryFeed() =>
+        driver ? ref.invalidate(requestsFeedProvider(_filters)) : ref.invalidate(tripsFeedProvider(_filters));
+    Widget fromFeed() => feed.when(
           loading: () => const _LoadingBlock(),
-          error: (e, _) => err(e, () => ref.invalidate(tripsFeedProvider(_filters))),
-          data: (all) => wrap(all.isEmpty, all.map((t) => tripPin(t, fallback: _filters.from))),
+          error: (e, _) => err(e, retryFeed),
+          data: (pins) => map(pins.nonNulls.toList()),
+        );
+    final key = (requests: driver, filters: _filters);
+    return ref.watch(mapRouteProvider(key)).when(
+          loading: fromFeed,
+          error: (e, _) => err(e, () => ref.invalidate(mapRouteProvider(key))),
+          data: (route) => route == null
+              ? fromFeed()
+              : map(route.items, nearby: route.nearby, truncated: route.truncated),
         );
   }
 

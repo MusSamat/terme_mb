@@ -418,6 +418,22 @@ class RequestsFeedNotifier extends AutoDisposeFamilyAsyncNotifier<List<Passenger
 final requestsFeedProvider = AsyncNotifierProvider.autoDispose
     .family<RequestsFeedNotifier, List<PassengerRequestItem>, FeedFilters>(RequestsFeedNotifier.new);
 
+/// «Карта» tab of the results screen — every listing of the route via
+/// GET /map/route, with the list's route / date / ride. Null without a route.
+typedef MapRouteKey = ({bool requests, FeedFilters filters});
+
+final mapRouteProvider = FutureProvider.autoDispose.family<MapRoute?, MapRouteKey>((ref, key) async {
+  final f = key.filters;
+  if (f.from == null || f.to == null || f.from!.id == f.to!.id) return null;
+  return ref.watch(mapServiceProvider).route(
+        kind: key.requests ? 'requests' : 'trips',
+        fromId: f.from!.id,
+        toId: f.to!.id,
+        date: _feedDate(f),
+        ride: f.kind,
+      );
+});
+
 final requestDetailProvider = FutureProvider.family<PassengerRequestItem, String>((ref, id) async {
   return ref.watch(requestsServiceProvider).detail(id);
 });

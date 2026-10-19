@@ -30,6 +30,8 @@ class PassengerRequestItem {
     this.destination,
     this.originPoint,
     this.destinationPoint,
+    this.lat,
+    this.lng,
     this.distanceKm,
   });
 
@@ -58,6 +60,9 @@ class PassengerRequestItem {
   final Place? destination;
   final MeetingPoint? originPoint; // where the passenger waits
   final MeetingPoint? destinationPoint;
+  // Boarding / waiting point from the API: the pin, else the origin settlement.
+  final double? lat;
+  final double? lng;
   final double? distanceKm; // sort=nearest only
 
   bool get isAirport => kind == 'airport';
@@ -96,6 +101,8 @@ class PassengerRequestItem {
       destination: Place.maybe(j['destination']),
       originPoint: MeetingPoint.maybe(j['originPoint']),
       destinationPoint: MeetingPoint.maybe(j['destinationPoint']),
+      lat: (j['lat'] as num?)?.toDouble(),
+      lng: (j['lng'] as num?)?.toDouble(),
       distanceKm: (j['distanceKm'] as num?)?.toDouble(),
     );
   }

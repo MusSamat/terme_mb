@@ -171,8 +171,8 @@ class _TripHistoryScreenState extends ConsumerState<TripHistoryScreen> {
             return _list([
               for (final t in past)
                 _row(
-                  from: t.originCity,
-                  to: t.destinationCity,
+                  from: t.originName(isKg(context)),
+                  to: t.destinationName(isKg(context)),
                   date: _d(t.departureAt),
                   status: (t.status == 'active' || t.status == 'direct') ? 'completed' : t.status,
                   role: 'profile.history_as_driver'.tr(),

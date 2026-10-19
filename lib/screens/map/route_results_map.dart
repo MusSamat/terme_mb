@@ -22,7 +22,8 @@ const _userZoom = 13.0;
 /// The user dot joins the initial fit only when this close to the origin.
 const _meFitKm = 50.0;
 
-/// «Карта» view of one route's results: spec pins at each pickup point, the
+/// «Карта» view of one route's results: spec pins at each pickup point (dimmed
+/// when it is only the settlement centre), the
 /// user dot, and a «Рядом» sheet with the same results sorted by distance
 /// from the user (by time without a location). Pin ↔ row selection is linked.
 class RouteResultsMap extends ConsumerStatefulWidget {
@@ -32,12 +33,20 @@ class RouteResultsMap extends ConsumerStatefulWidget {
     required this.requests,
     required this.origin,
     required this.onOpen,
+    this.nearby = false,
+    this.truncated = false,
   });
 
   final List<MapItem> items;
   final bool requests;
   final Place? origin;
   final void Function(String id) onOpen;
+
+  /// Results come from nearby settlements (GET /map/route `nearby`).
+  final bool nearby;
+
+  /// More results exist than were returned (`truncated`).
+  final bool truncated;
 
   @override
   ConsumerState<RouteResultsMap> createState() => _RouteResultsMapState();
@@ -181,7 +190,10 @@ class _RouteResultsMapState extends ConsumerState<RouteResultsMap> with WidgetsB
           alignment: Alignment.topCenter,
           child: GestureDetector(
             onTap: () => _tapPin(it),
-            child: MapMarker(requests: widget.requests, badge: it.seats > 0 ? it.seats : null, selected: selected),
+            child: Opacity(
+              opacity: it.exact || selected ? 1 : 0.75,
+              child: MapMarker(requests: widget.requests, badge: it.seats > 0 ? it.seats : null, selected: selected),
+            ),
           ),
         );
     MapItem? sel;
@@ -209,8 +221,9 @@ class _RouteResultsMapState extends ConsumerState<RouteResultsMap> with WidgetsB
     final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0);
     final safe = MediaQuery.paddingOf(context).bottom;
     final rows = sortResults(_me, widget.items);
-    // Peek = header + the first 1–2 rows (one on short screens / big text).
-    final peek = (64 + 70.0 * (height < 560 ? 1 : 2)) * scale + safe;
+    // Peek = header (+ its notes) + the first 1–2 rows (one on short screens / big text).
+    final notes = (widget.nearby ? 1 : 0) + (widget.truncated ? 1 : 0);
+    final peek = (64 + 20.0 * notes + 70.0 * (height < 560 ? 1 : 2)) * scale + safe;
     final minSize = (peek / height).clamp(0.14, 0.55);
     return DraggableScrollableSheet(
       controller: _sheet,
@@ -226,7 +239,12 @@ class _RouteResultsMapState extends ConsumerState<RouteResultsMap> with WidgetsB
         ),
         child: CustomScrollView(controller: scroll, slivers: [
           SliverToBoxAdapter(
-            child: NearbyHeader(requests: widget.requests, count: rows.length),
+            child: NearbyHeader(
+              requests: widget.requests,
+              count: rows.length,
+              nearby: widget.nearby,
+              truncated: widget.truncated,
+            ),
           ),
           SliverList.builder(
             itemCount: rows.length,

@@ -47,7 +47,7 @@ void main() {
 
   group('pickup pins', () {
     const from = Place(id: 1, type: 'city', nameRu: 'Бишкек', nameKg: 'Бишкек', lat: 42.87, lng: 74.59);
-    Map<String, dynamic> trip({Map<String, dynamic>? point, Map<String, dynamic>? origin}) => {
+    Map<String, dynamic> trip({Map<String, dynamic>? point}) => {
           'id': 't1',
           'originCity': 'Бишкек',
           'destinationCity': 'Ош',
@@ -55,7 +55,6 @@ void main() {
           'seatsAvailable': 3,
           'pricePerSeat': 1200,
           if (point != null) 'originPoint': point,
-          if (origin != null) 'origin': origin,
         };
 
     test('meeting point wins and is exact', () {
@@ -63,14 +62,22 @@ void main() {
       expect((p.lat, p.lng, p.exact, p.seats, p.price), (42.9, 74.6, true, 3, 1200));
     });
 
-    test('no point → listing origin city, then the searched «Откуда»', () {
-      final viaOrigin = tripPin(
-          TripCardItem.fromJson(trip(origin: {'id': 5, 'nameRu': 'Кант', 'lat': 42.89, 'lng': 74.85})),
-          fallback: from)!;
-      expect((viaOrigin.lat, viaOrigin.exact), (42.89, false));
+    test('no point → the API boarding lat/lng (not exact), then the searched «Откуда»', () {
+      final viaApi = tripPin(TripCardItem.fromJson({...trip(), 'lat': 42.89, 'lng': 74.85}), fallback: from)!;
+      expect((viaApi.lat, viaApi.lng, viaApi.exact), (42.89, 74.85, false));
       final viaFrom = tripPin(TripCardItem.fromJson(trip()), fallback: from)!;
       expect((viaFrom.lat, viaFrom.lng), (42.87, 74.59));
       expect(tripPin(TripCardItem.fromJson(trip())), isNull, reason: 'no coordinates at all');
+    });
+
+    test('route names follow the listing places (nameKg in kg)', () {
+      final p = tripPin(TripCardItem.fromJson({
+        ...trip(point: {'lat': 42.9, 'lng': 74.6}),
+        'destination': {'id': 7, 'nameRu': 'Нарын', 'nameKg': 'Нарын шаары'},
+      }))!;
+      expect(p.destinationName(true), 'Нарын шаары');
+      expect(p.destinationName(false), 'Нарын');
+      expect(p.originName(true), 'Бишкек', reason: 'no place ref → RU snapshot');
     });
 
     test('request pin uses where the passenger waits + seats needed', () {

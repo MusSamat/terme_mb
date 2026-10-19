@@ -16,28 +16,38 @@ double haversineKm(LatLngPoint a, LatLngPoint b) {
   return 2 * r * math.asin(math.min(1, math.sqrt(h)));
 }
 
-/// Pickup pin of a listing: its meeting point, else the origin settlement
-/// (from the listing, else the searched «Откуда»). Null when nothing has coords.
+/// Pickup pin of a loaded list item (shown while /map/route loads): its
+/// meeting point, else the API's boarding lat/lng (the origin settlement),
+/// else the searched «Откуда». Null when nothing has coords.
 MapItem? _pin({
   required String id,
   required MeetingPoint? point,
-  required Place? origin,
+  required double? lat,
+  required double? lng,
   required Place? fallback,
-  required String from,
-  required String to,
+  required String Function(bool kg) from,
+  required String Function(bool kg) to,
   required DateTime? at,
   required int seats,
   int? price,
 }) {
-  final city = origin?.hasPoint == true ? origin : (fallback?.hasPoint == true ? fallback : null);
-  if (at == null || (point == null && city == null)) return null;
+  final ({double lat, double lng})? pt = point != null
+      ? (lat: point.lat, lng: point.lng)
+      : lat != null && lng != null
+          ? (lat: lat, lng: lng)
+          : fallback?.hasPoint == true
+              ? (lat: fallback!.lat!, lng: fallback.lng!)
+              : null;
+  if (at == null || pt == null) return null;
   return MapItem(
     id: id,
-    lat: point?.lat ?? city!.lat!,
-    lng: point?.lng ?? city!.lng!,
+    lat: pt.lat,
+    lng: pt.lng,
     exact: point != null,
-    originCity: from,
-    destinationCity: to,
+    originCity: from(false),
+    destinationCity: to(false),
+    originKg: from(true),
+    destinationKg: to(true),
     departureAt: at,
     seats: seats,
     price: price,
@@ -47,10 +57,11 @@ MapItem? _pin({
 MapItem? tripPin(TripCardItem t, {Place? fallback}) => _pin(
       id: t.id,
       point: t.originPoint,
-      origin: t.origin,
+      lat: t.lat,
+      lng: t.lng,
       fallback: fallback,
-      from: t.originCity,
-      to: t.destinationCity,
+      from: t.originName,
+      to: t.destinationName,
       at: t.departureAt,
       seats: t.seatsAvailable,
       price: t.pricePerSeat,
@@ -59,10 +70,11 @@ MapItem? tripPin(TripCardItem t, {Place? fallback}) => _pin(
 MapItem? requestPin(PassengerRequestItem r, {Place? fallback}) => _pin(
       id: r.id,
       point: r.originPoint,
-      origin: r.origin,
+      lat: r.lat,
+      lng: r.lng,
       fallback: fallback,
-      from: r.originCity,
-      to: r.destinationCity,
+      from: r.originName,
+      to: r.destinationName,
       at: r.departureDate,
       seats: r.seatsNeeded,
     );
