@@ -26,18 +26,18 @@ class SocketClient {
           .setReconnectionDelay(1000)
           .setReconnectionDelayMax(10000)
           .enableReconnection()
-          .setAuth({'token': _tokens.accessToken})
           .build(),
     );
 
     s.onConnectError((data) {
       final msg = data?.toString() ?? '';
-      if (msg.contains('auth_required') || msg.contains('auth_failed')) {
-        // Re-stamp the (possibly refreshed by the dio layer) token and connect
-        // once. On connect error the socket is NOT connected, so refreshAuth()'s
-        // disconnect().connect() branch never fires — calling it AND connect()
-        // here used to race two connection attempts.
-        s.auth = {'token': _tokens.accessToken};
+      // Auth rejected by the server middleware (expired / missing token): socket.io
+      // won't retry by itself. Don't loop on the same token — the next refresh
+      // (TokenStore.onRefreshed → refreshAuth) reconnects with a fresh one.
+      if ((msg.contains('auth_required') || msg.contains('auth_failed')) &&
+          _tokens.accessToken != null &&
+          _tokens.accessToken != _authToken) {
+        _stamp(s);
         s.connect();
       }
     });
@@ -45,15 +45,29 @@ class SocketClient {
     return s;
   }
 
+  // True between connect() and disconnect(): the app wants a live socket.
+  bool _wanted = false;
+  String? _authToken;
+
+  void _stamp(io.Socket s) {
+    _authToken = _tokens.accessToken;
+    s.auth = {'token': _authToken};
+  }
+
   void connect() {
+    _wanted = true;
+    // No token yet (cold start before the first refresh) → refreshAuth connects
+    // once it lands; connecting bare would only bounce with auth_required.
+    if (_tokens.accessToken == null) return;
     final s = socket;
-    // Always stamp the current token before connecting (the socket may have been
-    // created before auth completed, or after a token refresh).
-    s.auth = {'token': _tokens.accessToken};
+    _stamp(s);
     if (!s.connected) s.connect();
   }
 
-  void disconnect() => _socket?.disconnect();
+  void disconnect() {
+    _wanted = false;
+    _socket?.disconnect();
+  }
 
   bool get connected => _socket?.connected ?? false;
 
@@ -63,11 +77,15 @@ class SocketClient {
   void emit(String event, [dynamic data]) => _socket?.emit(event, data);
 
   void refreshAuth() {
-    final s = _socket;
-    if (s == null) return;
-    s.auth = {'token': _tokens.accessToken};
+    if (!_wanted || _tokens.accessToken == null) return;
+    final s = socket;
+    _stamp(s);
     // Reconnect with the new token (mirrors web refreshSocketAuth).
-    if (s.connected) s.disconnect().connect();
+    if (s.connected) {
+      s.disconnect().connect();
+    } else {
+      s.connect();
+    }
   }
 
   void dispose() {

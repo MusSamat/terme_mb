@@ -40,6 +40,10 @@ class DioClient {
   void attachRefresh(RefreshFn fn) => _refresh = fn;
   void attachForceLogout(ForceLogoutFn fn) => _forceLogout = fn;
 
+  /// Runs (or joins) the single-flight refresh — used by the cold-start restore
+  /// so requests issued meanwhile wait for its token.
+  Future<String?> refreshNow() => _runRefresh();
+
   Dio _build() {
     final d = Dio(
       BaseOptions(
@@ -55,7 +59,15 @@ class DioClient {
 
     d.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
+        onRequest: (options, handler) async {
+          // Cold start: the cached profile renders the signed-in shell before the
+          // first refresh lands. Hold token-less calls until it does, instead of
+          // firing them bare and getting 401 no_token.
+          if (_tokens.accessToken == null && _inflight != null && !options.path.contains('/auth/')) {
+            try {
+              await _inflight;
+            } catch (_) {/* the call goes out bare; its 401 is handled below */}
+          }
           final token = _tokens.accessToken;
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -114,8 +126,13 @@ class DioClient {
     final path = err.requestOptions.path;
     if (path.contains('/auth/refresh')) return false;
     final data = err.response?.data;
-    final code = data is Map && data['error'] is Map ? data['error']['code'] : null;
-    return code == 'TOKEN_EXPIRED' && _refresh != null;
+    final error = data is Map && data['error'] is Map ? data['error'] as Map : null;
+    final code = error?['code'];
+    final details = error?['details'];
+    // A token-less call (the startup refresh failed offline) also recovers via
+    // refresh; the auth layer's RefreshFn returns null for guests.
+    final noToken = code == 'UNAUTHORIZED' && details is Map && details['reason'] == 'no_token';
+    return (code == 'TOKEN_EXPIRED' || noToken) && _refresh != null;
   }
 
   Future<String?> _runRefresh() {

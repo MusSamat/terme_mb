@@ -81,6 +81,8 @@ final apiBootstrapProvider = Provider<void>((ref) {
   final notifier = ref.read(authProvider.notifier);
 
   client.attachRefresh(() async {
+    // Guests have no refresh cookie — don't hit /auth/refresh for them.
+    if (ref.read(authProvider).status == AuthStatus.anonymous) return null;
     try {
       final token = await auth.refresh();
       if (token != null) tokens.set(token);
@@ -117,9 +119,9 @@ final apiBootstrapProvider = Provider<void>((ref) {
       notifier.setStatus(AuthStatus.loading);
     }
     try {
-      final token = await auth.refresh();
+      // Via the client's single flight: calls made meanwhile wait for this token.
+      final token = await client.refreshNow();
       if (token == null) throw Exception('refresh_failed');
-      tokens.set(token);
       final me = await auth.me();
       notifier.setSession(me, accessToken: token);
     } on DioException catch (e) {
@@ -233,6 +235,9 @@ final socketBootstrapProvider = Provider<void>((ref) {
     ('trip:completed_rate', (_) => invNotifs()),
     ('request:response_received', (d) {
       invNotifs();
+      // Live offers on the open request + the «Мои» counters.
+      ref.invalidate(requestResponsesProvider);
+      ref.invalidate(myRequestsProvider);
       final p = pm(d);
       final name = (p['driverName'] ?? '') as String;
       final price = p['price'];
@@ -415,11 +420,17 @@ final requestDetailProvider = FutureProvider.family<PassengerRequestItem, String
   return ref.watch(requestsServiceProvider).detail(id);
 });
 
+/// Signed-in account id, watched by every per-user provider so a logout → login
+/// as someone else rebuilds them instead of showing the previous account's cache.
+String? _uid(Ref ref) => ref.watch(authProvider.select((a) => a.isAuthenticated ? a.user?.id : null));
+
 final myBookingsProvider = FutureProvider<List<Booking>>((ref) async {
+  _uid(ref);
   return (await ref.watch(bookingsServiceProvider).mine()).data;
 });
 
 final chatSummariesProvider = FutureProvider<List<ChatSummary>>((ref) async {
+  _uid(ref);
   return ref.watch(chatServiceProvider).summaries();
 });
 
@@ -457,25 +468,30 @@ final chatThreadProvider =
 });
 
 final notificationsListProvider = FutureProvider<List<AppNotification>>((ref) async {
+  _uid(ref);
   return ref.watch(notificationsServiceProvider).list();
 });
 
 final loyaltyStatusProvider = FutureProvider<LoyaltyStatus>((ref) async {
+  _uid(ref);
   return ref.watch(loyaltyServiceProvider).status();
 });
 
 /// Driver's incoming booking requests (accept/reject queue).
 final incomingBookingsProvider = FutureProvider<List<Booking>>((ref) async {
+  _uid(ref);
   return (await ref.watch(bookingsServiceProvider).incoming()).data;
 });
 
 /// Driver's own published trips.
 final myTripsProvider = FutureProvider<List<TripCardItem>>((ref) async {
+  _uid(ref);
   return (await ref.watch(tripsServiceProvider).mine()).data;
 });
 
 /// Passenger's own posted ride requests.
 final myRequestsProvider = FutureProvider<List<PassengerRequestItem>>((ref) async {
+  _uid(ref);
   return (await ref.watch(requestsServiceProvider).mine()).data;
 });
 
@@ -496,11 +512,13 @@ final carColorsProvider = FutureProvider<List<CarColor>>((ref) async {
 
 /// Driver's registered cars.
 final carsProvider = FutureProvider<List<Car>>((ref) async {
+  _uid(ref);
   return ref.watch(carsServiceProvider).list();
 });
 
 /// Driver verification status ({ status, ... }).
 final driverStatusProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  _uid(ref);
   return ref.watch(driversServiceProvider).status();
 });
 
@@ -516,31 +534,37 @@ final userRatingsProvider = FutureProvider.family<List<Review>, String>((ref, id
 
 /// Liked trips — powers the passenger «Избранное» tab (/users/me/likes?type=trip).
 final likedTripsProvider = FutureProvider<List<TripCardItem>>((ref) async {
+  _uid(ref);
   return (await ref.watch(likesServiceProvider).trips()).data;
 });
 
 /// Liked passenger requests — driver «Избранное» tab (/users/me/likes?type=passenger_request).
 final likedRequestsProvider = FutureProvider<List<PassengerRequestItem>>((ref) async {
+  _uid(ref);
   return (await ref.watch(likesServiceProvider).requests()).data;
 });
 
 /// Trips awaiting the current user's rating (/ratings/pending).
 final pendingRatingsProvider = FutureProvider<List<PendingRating>>((ref) async {
+  _uid(ref);
   return ref.watch(ratingsServiceProvider).pending();
 });
 
 /// Driver offers on a passenger request — owner-only responses list
 /// (/passenger-requests/{id}/responses).
 final requestResponsesProvider = FutureProvider.family<List<RequestResponse>, String>((ref, requestId) async {
+  _uid(ref);
   return ref.watch(requestsServiceProvider).responses(requestId);
 });
 
 /// Unread notification count for the badge.
 final unreadNotifProvider = FutureProvider<int>((ref) async {
+  _uid(ref);
   return ref.watch(notificationsServiceProvider).unreadCount();
 });
 
 /// Total unread chat messages for the nav badge.
 final unreadChatProvider = FutureProvider<int>((ref) async {
+  _uid(ref);
   return ref.watch(chatServiceProvider).unreadTotal();
 });
