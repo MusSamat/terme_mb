@@ -61,9 +61,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _startResend() {
+  void _startResend([int seconds = 60]) {
     _resendTimer?.cancel();
-    setState(() => _resend = 60);
+    setState(() => _resend = seconds);
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_resend <= 1) t.cancel();
       if (mounted) setState(() => _resend = _resend > 0 ? _resend - 1 : 0);
@@ -123,6 +123,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _startResend();
     } catch (e) {
       Toasts.error(friendlyError(e));
+      // A code already went to this number within the minute (restart, double
+      // tap): go to the code step and count down the server's wait.
+      final wait = otpResendCooldown(e);
+      if (wait != null && mounted) {
+        _otp.clear();
+        _sentTo = _fullPhone;
+        setState(() => _step = _Step.otp);
+        _startResend(wait);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -138,6 +147,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _startResend();
     } catch (e) {
       Toasts.error(friendlyError(e));
+      final wait = otpResendCooldown(e);
+      if (wait != null && mounted) _startResend(wait);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

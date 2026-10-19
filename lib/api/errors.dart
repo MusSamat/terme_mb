@@ -10,6 +10,7 @@ class AppException implements Exception {
     this.details,
     this.requestId,
     this.statusCode,
+    this.retryAfter,
   });
 
   final String code;
@@ -19,11 +20,22 @@ class AppException implements Exception {
   final String? requestId;
   final int? statusCode;
 
+  /// Seconds until a 429 clears (the Retry-After header of the route limiters);
+  /// null when the server didn't say (DB-level OTP caps).
+  final int? retryAfter;
+
   static const tokenExpired = 'TOKEN_EXPIRED';
+  static const rateLimited = 'RATE_LIMITED';
   static const networkOffline = 'NETWORK_OFFLINE';
   static const seatsNotAvailable = 'SEATS_NOT_AVAILABLE';
 
   bool get isTokenExpired => code == tokenExpired;
+
+  /// Rate-limiter bucket of a 429 (`otp_send_min`, `otp_send_ip_hour`, …).
+  String? get rateLimitBucket {
+    if (code != rateLimited) return null;
+    return details?['bucket']?.toString();
+  }
 
   @override
   String toString() => 'AppException($code, $message)';
@@ -45,6 +57,7 @@ AppException extractError(Object error) {
         details: (e['details'] as Map?)?.cast<String, dynamic>(),
         requestId: e['request_id']?.toString(),
         statusCode: error.response?.statusCode,
+        retryAfter: int.tryParse(error.response?.headers.value('retry-after')?.trim() ?? ''),
       );
     }
 
@@ -75,4 +88,12 @@ AppException extractError(Object error) {
   // Unknown failure — generic (message empty so friendlyError uses global_desc,
   // never a raw toString()).
   return AppException(code: 'UNKNOWN', message: '');
+}
+
+/// A 429 from the per-number «one code a minute» cap: the code is already on
+/// its way, so the UI runs its resend countdown (server wait, else 60 s).
+int? otpResendCooldown(Object error) {
+  final e = extractError(error);
+  if (e.rateLimitBucket != 'otp_send_min') return null;
+  return (e.retryAfter ?? 60).clamp(1, 120);
 }
