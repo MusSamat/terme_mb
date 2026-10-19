@@ -69,7 +69,7 @@
   "role_prompt": {
     "create_title": "Эмне жарыялайсыз?",
     "create_sub": "Эмнени жайгаштырууну тандаңыз",
-    "create_passenger": "Табыштама калтыруу",
+    "create_passenger": "Өтүнмө калтыруу",
     "create_passenger_desc": "Багыт боюнча айдоочулар табат",
     "create_driver": "Сапар жарыялоо",
     "create_driver_desc": "Бош орундарды жолдошторго сунуштаңыз"
@@ -139,8 +139,8 @@
   },
   "requests": {
     "depart_label": "Жөнөө убактысы",
-    "request_label": "Арыз",
-    "respond_title": "Арызга жооп берүү",
+    "request_label": "Өтүнмө",
+    "respond_title": "Өтүнмөгө жооп берүү",
     "price_label": "Сиздин баа (сом)",
     "price_placeholder": "Мисалы: 1200",
     "message_label": "Кабар (милдеттүү эмес)",
@@ -159,18 +159,18 @@
       "offers_count": "{n} жаңы сунуш",
       "offers_title": "Айдоочулардын сунуштары",
       "no_offers": "Азырынча айдоочулардан сунуш жок",
-      "cancel_title": "Арызды жокко чыгарасызбы?",
-      "cancel_btn": "Арызды жокко чыгаруу",
+      "cancel_title": "Өтүнмөнү жокко чыгарасызбы?",
+      "cancel_btn": "Өтүнмөнү жокко чыгаруу",
       "accept_aria": "Кабыл алуу",
       "reject_aria": "Четке кагуу",
-      "edit": "Өтүнүчтү өзгөртүү",
+      "edit": "Өтүнмөнү өзгөртүү",
       "seats_label": "Канча орун керек",
       "date_label": "Сапар күнү",
-      "closed": "Өтүнүч жабылды"
+      "closed": "Өтүнмө жабылды"
     },
     "err_price_range": "Баасы 50 сомдон 10 000 сомго чейин болушу керек.",
     "need_car_title": "Унаа кошуңуз",
-    "need_car_body": "Арызга жооп берүү үчүн профилге унаа кошуңуз"
+    "need_car_body": "Өтүнмөгө жооп берүү үчүн профилге унаа кошуңуз"
   },
   "bookings": {
     "rate_btn": "Сапарды баалоо",
@@ -390,8 +390,8 @@
       "description": "Сапар таап, орун брондоңуз"
     },
     "passenger_requests": {
-      "title": "Азырынча арыз жок",
-      "description": "Арыз калтырыңыз — айдоочулар жооп беришет"
+      "title": "Азырынча өтүнмө жок",
+      "description": "Өтүнмө калтырыңыз — айдоочулар жооп беришет"
     },
     "driver_trips": {
       "title": "Азырынча сапар жок",
@@ -405,7 +405,7 @@
     "mode_trips_title": "Мен жүргүнчүмүн",
     "mode_requests_title": "Мен айдоочумун",
     "mode_trips_hint": "тасмада — айдоочулардын сапарлары",
-    "mode_requests_hint": "тасмада — жүргүнчүлөрдүн арыздары",
+    "mode_requests_hint": "тасмада — жүргүнчүлөрдүн өтүнмөлөрү",
     "find_trip": "Сапар табуу",
     "find_passenger": "Жүргүнчүлөрдү табуу",
     "ride_shared": "Жолдоштор менен",
@@ -424,10 +424,10 @@
       "other": "Сизде {} активдүү сапар"
     },
     "mine_requests_line": {
-      "one": "Сизде {} активдүү арыз",
-      "few": "Сизде {} активдүү арыз",
-      "many": "Сизде {} активдүү арыз",
-      "other": "Сизде {} активдүү арыз"
+      "one": "Сизде {} активдүү өтүнмө",
+      "few": "Сизде {} активдүү өтүнмө",
+      "many": "Сизде {} активдүү өтүнмө",
+      "other": "Сизде {} активдүү өтүнмө"
     },
     "mine_trips_sub": "Сапарларыңызды башкарыңыз",
     "mine_requests_sub": "Жоопторду көрүңүз",
@@ -448,10 +448,10 @@
       "other": "{} сапар"
     },
     "requests_plural": {
-      "one": "{} арыз",
-      "few": "{} арыз",
-      "many": "{} арыз",
-      "other": "{} арыз"
+      "one": "{} өтүнмө",
+      "few": "{} өтүнмө",
+      "many": "{} өтүнмө",
+      "other": "{} өтүнмө"
     }
   },
   "detail": {
@@ -537,7 +537,7 @@
     "published_body_driver": "Жарнак тасмада. Жооптор «Меники» бөлүмүнө келет.",
     "published_body_passenger": "Заявка тасмада. Жооптор «Меники» бөлүмүнө келет.",
     "published_cta_driver": "«Менин сапарларым» бөлүмүнө",
-    "published_cta_passenger": "«Менин арыздарым» бөлүмүнө",
+    "published_cta_passenger": "«Менин өтүнмөлөрүм» бөлүмүнө",
     "publish_another": "Дагы түзүү",
     "car_title": "Унаа",
     "err_no_car": "Унааны тандаңыз же кошуңуз"
@@ -556,7 +556,7 @@
     "history_empty_hint": "Аякталган жана жокко чыгарылгандар бул жерде чыгат.",
     "tab_bookings": "Брондор",
     "tab_my_trips": "Сапарларым",
-    "filter_requests": "Арыздар",
+    "filter_requests": "Өтүнмөлөр",
     "section_incoming": "Кирүүчү",
     "attn_incoming": "{n} жаңы бронь",
     "attn_rate": "Баалоо · {name}",
@@ -569,7 +569,7 @@
   "toasts": {
     "saved": "Сакталды",
     "booking_cancelled": "Брондоо жокко чыгарылды",
-    "request_cancelled": "Табыштама жокко чыгарылды",
+    "request_cancelled": "Өтүнмө жокко чыгарылды",
     "offer_accepted": "Сунуш кабыл алынды",
     "offer_declined": "Сунуш четке кагылды",
     "offer_sent": "Сунуш жөнөтүлдү"
@@ -752,8 +752,8 @@
     "body_request_response_accepted_fallback": "Жүргүнчү сунушуңузду кабыл алды — чатты ачыңыз",
     "body_request_response_declined": "Жүргүнчү сунушуңузду четке какты",
     "body_request_cancelled_admin": "Себеби: {reason}",
-    "body_request_cancelled_admin_route": "{route} өтүнүчү администратор тарабынан жокко чыгарылды",
-    "body_request_cancelled_admin_fallback": "Өтүнүчүңүз администратор тарабынан жокко чыгарылды",
+    "body_request_cancelled_admin_route": "{route} өтүнмөсү администратор тарабынан жокко чыгарылды",
+    "body_request_cancelled_admin_fallback": "Өтүнмөңүз администратор тарабынан жокко чыгарылды",
     "body_new_message": "«{preview}»",
     "body_new_message_fallback": "Чатта жаңы билдирүү",
     "body_rating_received": "{rater} сизге баа берди{score}",
@@ -771,7 +771,7 @@
     "body_trip_completed_rate_fallback": "Аяктаган сапарга баа бериңиз",
     "seats_part": " · {n} орун",
     "price_part": " {price} сом үчүн",
-    "type_request_cancelled_admin": "Өтүнүчүңүз администратор тарабынан жокко чыгарылды"
+    "type_request_cancelled_admin": "Өтүнмөңүз администратор тарабынан жокко чыгарылды"
   },
   "notif_toast": {
     "new_request_title": "Сапарга жаңы өтүнмө",
@@ -836,21 +836,21 @@
   "map": {
     "title": "Картада",
     "trips": "Сапарлар",
-    "requests": "Арыздар",
+    "requests": "Өтүнмөлөр",
     "entry_sub_trips": "Жакын жерден отуруу",
     "entry_sub_requests": "Жакын жерде ким күтүүдө",
     "any_destination": "Каалаган жакка",
     "to": "Чейин:",
     "any_date": "Каалаган күн",
     "empty_trips": "Бул жерде сапар жок — картаны кичирейтиңиз",
-    "empty_requests": "Бул жерде арыз жок — картаны кичирейтиңиз",
+    "empty_requests": "Бул жерде өтүнмө жок — картаны кичирейтиңиз",
     "load_failed": "Жүктөө мүмкүн болгон жок — кайталоо үчүн басыңыз",
     "seats_free": "бош орун: {n}",
     "seats_needed": "керектүү орун: {n}",
     "som_per_seat": "сом бир орун үчүн",
     "approx_point": "Отуруучу жер көрсөтүлгөн эмес — калктуу пункттун борбору көрсөтүлдү",
     "open_trip": "Сапарды ачуу",
-    "open_request": "Арызды ачуу"
+    "open_request": "Өтүнмөнү ачуу"
   },
   "airport": {
     "title": "Аэропорт",
@@ -862,8 +862,8 @@
     "pick_date": "Күнү",
     "offer_ride": "Трансфер сунуштоо",
     "need_ride": "Трансфер керек",
-    "empty_trips": "Азырынча сапар жок — арыз калтырыңыз, айдоочулар жооп берет",
-    "empty_requests": "Бул багытта азырынча арыз жок",
+    "empty_trips": "Азырынча сапар жок — өтүнмө калтырыңыз, айдоочулар жооп берет",
+    "empty_requests": "Бул багытта азырынча өтүнмө жок",
     "flight_hint": "Рейстин номери (милдеттүү эмес)",
     "flight_label": "Рейс {n}"
   }
