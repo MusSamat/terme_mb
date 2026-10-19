@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/errors.dart';
 import '../../api/friendly_error.dart';
 import '../../models/car.dart';
 import '../../models/place.dart';
@@ -17,8 +18,10 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
 import '../../utils/locale.dart';
 import '../../utils/location.dart';
+import '../../utils/uuid.dart';
 import '../../widgets/city_picker.dart';
 import '../../widgets/meeting_point_field.dart';
+import '../../widgets/query_error.dart';
 import '../../widgets/seats_stepper.dart';
 import '../profile/cars_card.dart' show showAddCarSheet;
 
@@ -58,6 +61,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   int _seats = 1;
   TimeOfDay? _time;
   bool _submitting = false;
+  // One key per publish attempt: a retry after a lost response (timeout) reuses
+  // it so the server returns the trip it already created instead of a dupe.
+  String _idemKey = uuidV4();
   String? _carId; // driver: selected car for the trip
   String _luggage = 'small'; // driver: none | small | yes (web default = small)
   bool _priceNegotiable = false; // driver: allow passengers to haggle
@@ -278,15 +284,21 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     }
     final hour = flexible ? 12 : (_time?.hour ?? 9);
     final minute = flexible ? 0 : (_time?.minute ?? 0);
-    final iso = DateTime(day.year, day.month, day.day, hour, minute)
-        .toUtc()
-        .toIso8601String();
-    return (iso: iso, flexible: flexible);
+    var at = DateTime(day.year, day.month, day.day, hour, minute);
+    // No explicit time (passengers never pick one): the 09:00 default may have
+    // passed today — use the next quarter hour at least 40 min ahead (the API
+    // wants ≥30 min for trips and a future time for requests).
+    final earliest = now.add(const Duration(minutes: 40));
+    if (_time == null && at.isBefore(earliest)) {
+      at = DateTime(earliest.year, earliest.month, earliest.day, earliest.hour, (earliest.minute ~/ 15 + 1) * 15);
+    }
+    return (iso: at.toUtc().toIso8601String(), flexible: flexible);
   }
 
   // ISO for the departure-window end, or null when unset / not after the start.
   String? _windowEndIso() {
     if (_timeEnd == null || _time == null) return null;
+    if (_customDate == null && _dateIndex == 3) return null; // «Гибко» → 12:00, no window
     if (_timeEnd!.hour * 60 + _timeEnd!.minute <=
         _time!.hour * 60 + _time!.minute) {
       return null;
@@ -326,6 +338,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       _pickup.clear();
       _dropoff.clear();
       _prefs.clear();
+      _idemKey = uuidV4();
     });
   }
 
@@ -349,16 +362,32 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     // Driver: a trip needs a car (web parity gate).
     String? carId;
     if (_asDriver) {
-      carId =
-          _selectedCarId(ref.read(carsProvider).valueOrNull ?? const <Car>[]);
+      final cars = ref.read(carsProvider);
+      if (!cars.hasValue) {
+        // Still loading or failed — not «add a car».
+        if (cars.hasError) Toasts.error(friendlyError(cars.error!));
+        return;
+      }
+      carId = _selectedCarId(cars.value!);
       if (carId == null) {
         Toasts.error('create.err_no_car'.tr());
         return;
       }
     }
 
-    setState(() => _submitting = true);
     final dep = _departure();
+    // A time the driver picked explicitly must still be ≥30 min ahead.
+    if (_asDriver && DateTime.parse(dep.iso).isBefore(DateTime.now().add(const Duration(minutes: 30)))) {
+      Toasts.error('api_errors.departure_too_soon'.tr());
+      return;
+    }
+    // Normalise «su-1882» / «SU  1882» to the API format (SU 1882).
+    final flight = _flight.text.trim().toUpperCase().replaceAll('-', ' ').replaceAll(RegExp(r'\s+'), ' ');
+    if (!_asDriver && _airport && flight.isNotEmpty && !RegExp(r'^[A-Z0-9]{2}\s?\d{1,4}[A-Z]?$').hasMatch(flight)) {
+      Toasts.error('create.err_flight'.tr());
+      return;
+    }
+    setState(() => _submitting = true);
     try {
       if (_asDriver) {
         final prefs = <String, bool>{
@@ -382,7 +411,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           if (_dropoff.isNotEmpty) 'dropoffCityIds': [for (final p in _dropoff) p.id],
           if (_windowEndIso() != null) 'departureWindowEnd': _windowEndIso(),
           if (_comment.text.trim().isNotEmpty) 'comment': _comment.text.trim(),
-        });
+        }, idempotencyKey: _idemKey);
+        _idemKey = uuidV4();
+        if (!mounted) return;
         ref.invalidate(calendarCountsProvider);
         ref.invalidate(
             myTripsProvider); // show the new trip in «Мои поездки» at once
@@ -398,12 +429,13 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           'destinationCityId': to.id,
           if (_fromPoint != null) 'originPoint': _fromPoint!.toBody(),
           if (_toPoint != null) 'destinationPoint': _toPoint!.toBody(),
-          if (_airport && _flight.text.trim().isNotEmpty) 'flightNumber': _flight.text.trim(),
+          if (_airport && flight.isNotEmpty) 'flightNumber': flight,
           'seatsNeeded': _seats,
           'departureDate': dep.iso,
           'flexible': dep.flexible,
           if (comment.isNotEmpty) 'comment': comment,
         });
+        if (!mounted) return;
         ref.invalidate(requestsFeedProvider);
         ref.invalidate(
             myRequestsProvider); // show the new request in «Мои заявки» at once
@@ -426,6 +458,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       );
     } catch (e) {
       Toasts.error(friendlyError(e));
+      // Keep the key only for a transport failure (the trip may exist); any
+      // answered error means a corrected body needs a fresh key.
+      if (extractError(e).code != AppException.networkOffline) _idemKey = uuidV4();
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -442,7 +477,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                       padding: EdgeInsets.all(6),
                       child: CircularProgressIndicator(
                           strokeWidth: 2.4, color: GrapeColors.c500)))),
-          error: (_, __) => const SizedBox.shrink(),
+          error: (e, _) => QueryError(error: e, onRetry: () => ref.invalidate(carsProvider)),
           data: (cars) {
             final selected = _selectedCarId(cars);
             Car? car;
@@ -608,7 +643,10 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         const SizedBox(height: 12),
         if (_asDriver) ...[
           _zonesSection(dark),
-          if (_time != null) ...[const SizedBox(height: 12), _windowRow(dark)],
+          if (_time != null && !(_customDate == null && _dateIndex == 3)) ...[
+            const SizedBox(height: 12),
+            _windowRow(dark),
+          ],
           const SizedBox(height: 12),
           _negotiableRow(dark),
           const SizedBox(height: 16),
@@ -973,11 +1011,13 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         Row(children: [
           Icon(Icons.alt_route, size: 18, color: _accent),
           const SizedBox(width: 8),
-          Text('create.zones_title'.tr(),
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: dark ? Colors.white : InkColors.c900)),
+          Expanded(
+            child: Text('create.zones_title'.tr(),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: dark ? Colors.white : InkColors.c900)),
+          ),
         ]),
         const SizedBox(height: 4),
         Text('create.zones_hint'.tr(),
@@ -1024,6 +1064,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
               ]),
             ),
           ),
+        if (list.length < 5) // API cap per list
         _carChip('+ ${'create.zones_add'.tr()}', false, dark, () async {
           final city = await showCityPicker(context);
           if (city != null && !list.contains(city) && city.id != _from?.id && city.id != _to?.id) {
@@ -1141,8 +1182,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                 fontWeight: FontWeight.w800,
                 color: dark ? Colors.white : InkColors.c900)),
         const SizedBox(height: 12),
-        Row(children: [
-          for (final l in _luggageOpts) ...[
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final l in _luggageOpts)
             GestureDetector(
               onTap: () => setState(() => _luggage = l),
               behavior: HitTestBehavior.opaque,
@@ -1166,8 +1207,6 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                             : (dark ? InkColors.c200 : InkColors.c700))),
               ),
             ),
-            const SizedBox(width: 8),
-          ],
         ]),
       ]),
     );

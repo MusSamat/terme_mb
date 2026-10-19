@@ -84,9 +84,9 @@ class TripCardItem {
         id: j['id'] as String,
         originCity: (j['originCity'] ?? '') as String,
         destinationCity: (j['destinationCity'] ?? '') as String,
-        departureAt: DateTime.parse(j['departureAt'] as String),
+        departureAt: DateTime.parse(j['departureAt'] as String).toLocal(),
         departureWindowEnd:
-            j['departureWindowEnd'] != null ? DateTime.tryParse(j['departureWindowEnd'] as String) : null,
+            j['departureWindowEnd'] != null ? DateTime.tryParse(j['departureWindowEnd'] as String)?.toLocal() : null,
         seatsAvailable: (j['seatsAvailable'] ?? 0) as int,
         seatsTotal: (j['seatsTotal'] ?? 0) as int,
         pricePerSeat: ((j['pricePerSeat'] ?? 0) as num).toInt(),

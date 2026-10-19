@@ -44,11 +44,12 @@ class TripsService {
   }
 
   /// POST /trips — publish a trip (idempotent).
-  Future<TripCardItem> create(Map<String, dynamic> body) async {
+  /// Pass the same [idempotencyKey] when retrying the same publish.
+  Future<TripCardItem> create(Map<String, dynamic> body, {String? idempotencyKey}) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/trips',
       data: body,
-      options: Options(headers: {'Idempotency-Key': uuidV4()}),
+      options: Options(headers: {'Idempotency-Key': idempotencyKey ?? uuidV4()}),
     );
     return TripCardItem.fromJson(res.data!);
   }

@@ -66,7 +66,7 @@ class PassengerRequestItem {
 
   factory PassengerRequestItem.fromJson(Map<String, dynamic> j) {
     final p = (j['passenger'] as Map?)?.cast<String, dynamic>() ?? const {};
-    final date = j['departureDate'] != null ? DateTime.tryParse(j['departureDate'] as String) : null;
+    final date = j['departureDate'] != null ? DateTime.tryParse(j['departureDate'] as String)?.toLocal() : null;
     final dateLabel = date != null
         ? '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}'
         : (j['dateLabel'] ?? '') as String;

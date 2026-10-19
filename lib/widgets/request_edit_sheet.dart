@@ -34,7 +34,24 @@ class _RequestEditSheetState extends ConsumerState<RequestEditSheet> {
   late int _seats = widget.request.seatsNeeded;
   late final _comment = TextEditingController(text: widget.request.comment ?? '');
   late DateTime _date = widget.request.departureDate ?? DateTime.now().add(const Duration(days: 1));
+  bool _dateChanged = false;
   bool _loading = false;
+  // «Мои» list cards carry no comment — fill it from the detail, and only send
+  // fields the user changed (a blind resend erases the comment / re-posts a
+  // past date the API rejects).
+  late String _commentOrig = widget.request.comment ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.request.comment != null) return;
+    ref.read(requestDetailProvider(widget.request.id).future).then((r) {
+      final c = r.comment ?? '';
+      if (!mounted || _comment.text.trim() != _commentOrig) return;
+      _commentOrig = c;
+      _comment.text = c;
+    }).catchError((_) {/* field stays editable */});
+  }
 
   @override
   void dispose() {
@@ -50,7 +67,15 @@ class _RequestEditSheetState extends ConsumerState<RequestEditSheet> {
       firstDate: now,
       lastDate: now.add(const Duration(days: 60)),
     );
-    if (picked != null) setState(() => _date = DateTime(picked.year, picked.month, picked.day, 12));
+    if (picked == null) return;
+    // Keep the original time of day; today with a passed time → next hour.
+    var d = DateTime(picked.year, picked.month, picked.day, _date.hour, _date.minute);
+    final earliest = DateTime.now().add(const Duration(minutes: 40));
+    if (d.isBefore(earliest)) d = DateTime(earliest.year, earliest.month, earliest.day, earliest.hour + 1);
+    setState(() {
+      _date = d;
+      _dateChanged = true;
+    });
   }
 
   Future<void> _save() async {
@@ -66,15 +91,17 @@ class _RequestEditSheetState extends ConsumerState<RequestEditSheet> {
     if (!ok) return;
     setState(() => _loading = true);
     try {
+      final comment = _comment.text.trim();
       await ref.read(requestsServiceProvider).edit(widget.request.id, {
         'seatsNeeded': _seats,
-        'departureDate': _date.toUtc().toIso8601String(),
-        'comment': _comment.text.trim().isEmpty ? null : _comment.text.trim(),
+        if (_dateChanged) 'departureDate': _date.toUtc().toIso8601String(),
+        if (comment != _commentOrig) 'comment': comment.isEmpty ? null : comment,
       });
+      Toasts.success('toasts.saved'.tr());
+      if (!mounted) return;
       ref.invalidate(myRequestsProvider);
       widget.onSaved?.call();
-      if (mounted) Navigator.of(context).pop();
-      Toasts.success('toasts.saved'.tr());
+      Navigator.of(context).pop();
     } catch (e) {
       Toasts.error(friendlyError(e));
       if (mounted) setState(() => _loading = false);
@@ -100,7 +127,8 @@ class _RequestEditSheetState extends ConsumerState<RequestEditSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: BoxDecoration(color: dark ? InkColors.c900 : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl4))),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).padding.bottom),
+        child: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: InkColors.c300, borderRadius: BorderRadius.circular(999)))),
           const SizedBox(height: 14),
@@ -153,6 +181,7 @@ class _RequestEditSheetState extends ConsumerState<RequestEditSheet> {
           const SizedBox(height: 16),
           AppButton(label: 'profile.save'.tr(), loading: _loading, onPressed: _save),
         ]),
+        ),
       ),
     );
   }

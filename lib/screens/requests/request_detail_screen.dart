@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../../utils/date_format.dart';
 import '../../widgets/action_modal.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
@@ -115,11 +116,25 @@ class RequestDetailScreen extends ConsumerWidget {
                   : r.status != 'open'
                   ? Center(child: Text('requests.my.closed'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400)))
                   : Column(mainAxisSize: MainAxisSize.min, children: [
+                      // Already offered → no second respond (the API answers 409).
+                      if (r.responded)
+                        Container(
+                          height: 50,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: GrapeColors.c600.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadii.lg)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.check_circle, size: 20, color: GrapeColors.c600),
+                            const SizedBox(width: 8),
+                            Text('card.responded'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: GrapeColors.c600)),
+                          ]),
+                        )
+                      else
                       GestureDetector(
                         onTap: () async {
                           if (!authed) return toLogin();
                           final cars = await ref.read(carsProvider.future).catchError((_) => const <Never>[]);
-                          if (!context.mounted) return;
+                          // A second tap while cars loaded: the first already opened a sheet.
+                          if (!context.mounted || ModalRoute.of(context)?.isCurrent != true) return;
                           if (cars.isEmpty) {
                             Toasts.info('requests.need_car_title'.tr(), 'requests.need_car_body'.tr());
                             showAddCarSheet(context, dark: dark);
@@ -168,7 +183,12 @@ class RequestDetailScreen extends ConsumerWidget {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, size: 18, color: filled ? Colors.white : color),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: filled ? Colors.white : color)),
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: filled ? Colors.white : color)),
+            ),
           ]),
         ),
       );
@@ -185,10 +205,11 @@ class RequestDetailScreen extends ConsumerWidget {
     if (!ok) return;
     try {
       await ref.read(requestsServiceProvider).cancel(r.id);
+      Toasts.success('toasts.request_cancelled'.tr());
+      if (!context.mounted) return;
       ref.invalidate(myRequestsProvider);
       ref.invalidate(requestDetailProvider(id));
-      Toasts.success('toasts.request_cancelled'.tr());
-      if (context.mounted) context.canPop() ? context.pop() : context.go('/');
+      context.canPop() ? context.pop() : context.go('/');
     } catch (e) {
       Toasts.error(friendlyError(e));
     }
@@ -221,7 +242,12 @@ class RequestDetailScreen extends ConsumerWidget {
                       Icon(Icons.star, size: 12, color: i <= r.passengerRating!.round() ? AccentColors.c400 : InkColors.c300),
                     const SizedBox(width: 5),
                     Text(r.passengerRating!.toStringAsFixed(1), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900)),
-                    Text(' · ${r.passengerRatingCount} ${'drivers.ratings_count'.tr()}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c500)),
+                    Flexible(
+                      child: Text(' · ${r.passengerRatingCount} ${'drivers.ratings_count'.tr()}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c500)),
+                    ),
                   ])
                 else
                   Text('requests.new_passenger'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c500)),
@@ -342,9 +368,30 @@ class _RespondSheet extends ConsumerStatefulWidget {
 }
 
 class _RespondSheetState extends ConsumerState<_RespondSheet> {
-  late final _price = TextEditingController(text: '${widget.request.budget}');
+  late final _price = TextEditingController(text: widget.request.budget > 0 ? '${widget.request.budget}' : '');
   final _message = TextEditingController();
   bool _loading = false;
+  // Offer departure: the passenger's requested time (09:00 when the request has
+  // no date: tomorrow), never sooner than 40 min from now — the API rejects
+  // past times. The driver can change it.
+  late DateTime _departAt = _defaultDepart();
+
+  DateTime _defaultDepart() {
+    final now = DateTime.now();
+    final d = widget.request.departureDate;
+    var at = d ?? DateTime(now.year, now.month, now.day + 1, 9);
+    final earliest = now.add(const Duration(minutes: 40));
+    if (at.isBefore(earliest)) {
+      at = DateTime(earliest.year, earliest.month, earliest.day, earliest.hour, (earliest.minute ~/ 15 + 1) * 15);
+    }
+    return at;
+  }
+
+  Future<void> _pickTime() async {
+    final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_departAt));
+    if (t == null || !mounted) return;
+    setState(() => _departAt = DateTime(_departAt.year, _departAt.month, _departAt.day, t.hour, t.minute));
+  }
 
   @override
   void dispose() {
@@ -360,22 +407,23 @@ class _RespondSheetState extends ConsumerState<_RespondSheet> {
       Toasts.error('requests.err_price_range'.tr());
       return;
     }
+    if (!_departAt.isAfter(DateTime.now())) {
+      Toasts.error('api_errors.departure_too_soon'.tr());
+      return;
+    }
     setState(() => _loading = true);
     try {
       final msg = _message.text.trim();
-      // Backend requires a departureTime — offer for the day the passenger asked
-      // (default 09:00), falling back to tomorrow if the request has no date.
-      final day = widget.request.departureDate ?? DateTime.now().add(const Duration(days: 1));
-      final departAt = DateTime(day.year, day.month, day.day, 9).toUtc().toIso8601String();
       await ref.read(requestsServiceProvider).respond(
             widget.request.id,
             price: price,
-            departureTime: departAt,
+            departureTime: _departAt.toUtc().toIso8601String(),
             message: msg.isEmpty ? null : msg,
           );
-      ref.invalidate(requestDetailProvider(widget.request.id));
-      if (mounted) Navigator.of(context).pop();
       Toasts.success('toasts.offer_sent'.tr());
+      if (!mounted) return;
+      ref.invalidate(requestDetailProvider(widget.request.id));
+      Navigator.of(context).pop();
     } catch (e) {
       Toasts.error(friendlyError(e));
       if (mounted) setState(() => _loading = false);
@@ -389,7 +437,8 @@ class _RespondSheetState extends ConsumerState<_RespondSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: BoxDecoration(color: dark ? InkColors.c900 : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.xl4))),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).padding.bottom),
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,6 +454,31 @@ class _RespondSheetState extends ConsumerState<_RespondSheet> {
             Text('requests.message_label'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),
             const SizedBox(height: 6),
             _field(dark, _message, 'requests.message_placeholder'.tr(), lines: 3),
+            const SizedBox(height: 12),
+            Text('requests.depart_label'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: _pickTime,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: dark ? InkColors.c800 : InkColors.c50,
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                  border: Border.all(color: dark ? InkColors.c700 : InkColors.c200),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.schedule, size: 18, color: GrapeColors.c600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('${departureLabel(_departAt).date} · ${hhmm(_departAt)}',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: dark ? Colors.white : InkColors.c900)),
+                  ),
+                  const Icon(Icons.edit_outlined, size: 16, color: InkColors.c400),
+                ]),
+              ),
+            ),
             const SizedBox(height: 16),
             GestureDetector(
               onTap: _loading ? null : _submit,
@@ -422,6 +496,7 @@ class _RespondSheetState extends ConsumerState<_RespondSheet> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

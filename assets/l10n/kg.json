@@ -137,6 +137,7 @@
     "only_verified": "Верификацияланган гана"
   },
   "requests": {
+    "depart_label": "Жөнөө убактысы",
     "request_label": "Арыз",
     "respond_title": "Арызга жооп берүү",
     "price_label": "Сиздин баа (сом)",
@@ -455,6 +456,7 @@
     "cta_create_similar": "Окшош сапар түзүү"
   },
   "create": {
+    "err_flight": "Рейстин номерин текшериңиз, мисалы SU 1882",
     "title_driver": "Жаңы сапар 🚗",
     "title_passenger": "Сапар издейм 🙌",
     "intro_driver": "Кайда жана качан бара жатканыңызды жазыңыз — жолдоштор көрөт 🚗",

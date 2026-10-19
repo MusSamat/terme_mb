@@ -38,7 +38,7 @@ class Booking {
     final trip = (j['trip'] as Map?)?.cast<String, dynamic>() ?? const {};
     if (selfId != null) incoming = j['passengerId'] != selfId;
     final other = ((incoming ? j['passenger'] : trip['driver']) as Map?)?.cast<String, dynamic>() ?? const {};
-    final dep = trip['departureAt'] != null ? DateTime.tryParse(trip['departureAt'] as String) : null;
+    final dep = trip['departureAt'] != null ? DateTime.tryParse(trip['departureAt'] as String)?.toLocal() : null;
     return Booking(
       id: j['id'] as String,
       tripId: (j['tripId'] ?? trip['id']) as String?,

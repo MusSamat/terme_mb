@@ -28,10 +28,10 @@ import '../trip/trip_detail_screen.dart' show showTripDetailSheet;
 /// One-format date helpers shared by every «Мои» card (DD.MM · HH:MM).
 String _dm(DateTime? d) => d == null
     ? ''
-    : '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
+    : '${d.toLocal().day.toString().padLeft(2, '0')}.${d.toLocal().month.toString().padLeft(2, '0')}';
 String _dmt(DateTime? d) => d == null
     ? ''
-    : '${_dm(d)} · ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    : '${_dm(d)} · ${d.toLocal().hour.toString().padLeft(2, '0')}:${d.toLocal().minute.toString().padLeft(2, '0')}';
 
 /// Terminal booking statuses — these live under the «История» sub-tab, show no
 /// action buttons and never reveal a phone number.
@@ -292,6 +292,10 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
   // Owner actions for the driver's own trip (long-press): edit / complete / cancel.
   Future<void> _ownerActions(TripCardItem trip) async {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    // Before departure: edit / cancel. After it: only «Завершить» (the API
+    // rejects completing a trip that hasn't departed yet).
+    final departed = trip.departureAt.isBefore(DateTime.now());
+    final editable = trip.status == 'active' && !departed;
     final action = await showModalBottomSheet<String>(
       useRootNavigator: true,
       context: context,
@@ -303,12 +307,14 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
             color: dark ? InkColors.c900 : Colors.white,
             borderRadius: BorderRadius.circular(AppRadii.xl2)),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
+          if (editable)
           ListTile(
             leading: const Icon(Icons.edit_outlined, color: BrandColors.c600),
             title: Text('my.trip_edit'.tr(),
                 style: const TextStyle(fontWeight: FontWeight.w800)),
             onTap: () => Navigator.pop(ctx, 'edit'),
           ),
+          if (departed)
           ListTile(
             leading:
                 const Icon(Icons.check_circle_outline, color: BrandColors.c600),
@@ -316,6 +322,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                 style: const TextStyle(fontWeight: FontWeight.w800)),
             onTap: () => Navigator.pop(ctx, 'complete'),
           ),
+          if (editable)
           ListTile(
             leading: const Icon(Icons.cancel_outlined, color: CoralColors.c600),
             title: Text('my.trip_cancel'.tr(),
@@ -343,13 +350,19 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     );
   }
 
+  final _completing = <String>{}; // trip ids with a complete call in flight
+
   Future<void> _completeTrip(TripCardItem trip) async {
+    if (!_completing.add(trip.id)) return;
     try {
       await ref.read(tripsServiceProvider).complete(trip.id);
+      if (!mounted) return;
       ref.invalidate(myTripsProvider);
-      if (mounted) Toasts.success('toasts.saved'.tr());
+      Toasts.success('toasts.saved'.tr());
     } catch (e) {
       if (mounted) Toasts.error(friendlyError(e));
+    } finally {
+      _completing.remove(trip.id);
     }
   }
 
@@ -366,8 +379,9 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     if (!ok) return;
     try {
       await ref.read(tripsServiceProvider).cancel(trip.id);
+      if (!mounted) return;
       ref.invalidate(myTripsProvider);
-      if (mounted) Toasts.success('toasts.saved'.tr());
+      Toasts.success('toasts.saved'.tr());
     } catch (e) {
       if (mounted) Toasts.error(friendlyError(e));
     }
@@ -474,11 +488,9 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       data: (list) {
         // 'direct' = a live trip created from an accepted passenger-request
         // response — it belongs with the active tab, not history.
-        // Active = live status AND departure still ahead; past-time trips move
-        // to История even if the auto-complete cron hasn't closed them yet.
-        final now = DateTime.now();
-        bool isActive(TripCardItem t) =>
-            (t.status == 'active' || t.status == 'direct') && t.departureAt.isAfter(now);
+        // Active = live status. A departed trip stays here (with «Завершить»)
+        // until the driver or the auto-complete cron closes it.
+        bool isActive(TripCardItem t) => t.status == 'active' || t.status == 'direct';
         final shown = list.where((t) => _history ? !isActive(t) : isActive(t)).toList();
         if (_history) shown.sort((a, b) => b.departureAt.compareTo(a.departureAt));
         final showIncoming = !_history && incoming.isNotEmpty;
@@ -504,9 +516,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                     from: t.originName(isKg(context)),
                     to: t.destinationName(isKg(context)),
                     date: _dmt(t.departureAt),
-                    // A still-'active' trip that's in history only because its
-                    // time passed reads as finished, not «Активна».
-                    status: (t.status == 'active' || t.status == 'direct') ? 'completed' : t.status,
+                    status: t.status,
                     role: 'profile.history_as_driver'.tr()),
             ],
             _refreshTrips,
@@ -587,23 +597,26 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
           _sub('${t.seatsAvailable}/${t.seatsTotal}', icon: Icons.event_seat),
       trailing: _priceTag(t.pricePerSeat),
       onTap: () => showTripDetailSheet(context, t.id),
-      onLongPress: () => _ownerActions(t),
-      actions: t.status == 'active'
+      onLongPress: t.status == 'active' || t.departureAt.isBefore(DateTime.now()) ? () => _ownerActions(t) : null,
+      actions: t.departureAt.isBefore(DateTime.now())
           ? [
-              ListCardButton(
-                  label: 'my.act_edit'.tr(),
-                  icon: Icons.edit_outlined,
-                  onTap: () => _editTrip(t)),
               ListCardButton(
                   label: 'my.act_complete'.tr(),
                   icon: Icons.check_circle_outline,
                   onTap: () => _completeTrip(t)),
-              ListCardButton(
-                  label: 'my.act_cancel'.tr(),
-                  kind: ListBtnKind.danger,
-                  onTap: () => _cancelTrip(t)),
             ]
-          : null,
+          : t.status == 'active'
+              ? [
+                  ListCardButton(
+                      label: 'my.act_edit'.tr(),
+                      icon: Icons.edit_outlined,
+                      onTap: () => _editTrip(t)),
+                  ListCardButton(
+                      label: 'my.act_cancel'.tr(),
+                      kind: ListBtnKind.danger,
+                      onTap: () => _cancelTrip(t)),
+                ]
+              : null,
     );
   }
 
@@ -796,6 +809,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     ];
     if (items.isEmpty) {
       if (trips.isLoading || requests.isLoading) return _loading();
+      if (trips.hasError && requests.hasError) return QueryError(error: trips.error!, onRetry: _refreshLiked);
       return _refreshableEmpty(
         RoleEmptyState(
             icon: Icons.favorite_border,
@@ -834,6 +848,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
     setState(() => _busy = true);
     try {
       await call();
+      if (!mounted) return;
       ref.invalidate(incomingBookingsProvider);
       ref.invalidate(myTripsProvider);
     } catch (e) {
@@ -959,6 +974,20 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
   late int _seatsAvail = widget.trip.seatsAvailable;
   bool _seatsBusy = false;
   bool _loading = false;
+  // GET /trips/my carries no comment — fill it from the detail, and only send
+  // `comment` when the user changed it (a blind null would erase it).
+  String _commentOrig = '';
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(tripDetailProvider(widget.trip.id).future).then((t) {
+      final c = t.comment ?? '';
+      if (!mounted || _comment.text.trim() != _commentOrig) return;
+      _commentOrig = c;
+      _comment.text = c;
+    }).catchError((_) {/* field stays editable */});
+  }
 
   // Remaining seats — immediate ±1 (phone deals happen off-app), like the web
   // owner panel. Separate from the price/comment/luggage save below.
@@ -968,9 +997,10 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
     setState(() => _seatsBusy = true);
     try {
       await ref.read(tripsServiceProvider).adjustSeats(widget.trip.id, delta);
+      if (!mounted) return;
       ref.invalidate(myTripsProvider);
       ref.invalidate(tripDetailProvider(widget.trip.id));
-      if (mounted) setState(() { _seatsAvail = next; _seatsBusy = false; });
+      setState(() { _seatsAvail = next; _seatsBusy = false; });
     } catch (e) {
       if (mounted) {
         setState(() => _seatsBusy = false);
@@ -1029,15 +1059,17 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
     if (!ok) return;
     setState(() => _loading = true);
     try {
+      final comment = _comment.text.trim();
       await ref.read(tripsServiceProvider).edit(widget.trip.id, {
         'pricePerSeat': price,
-        'comment': _comment.text.trim().isEmpty ? null : _comment.text.trim(),
+        if (comment != _commentOrig) 'comment': comment.isEmpty ? null : comment,
         'luggage': _luggage,
       });
+      Toasts.success('toasts.saved'.tr());
+      if (!mounted) return;
       ref.invalidate(myTripsProvider);
       ref.invalidate(tripDetailProvider(widget.trip.id));
-      if (mounted) Navigator.of(context).pop();
-      Toasts.success('toasts.saved'.tr());
+      Navigator.of(context).pop();
     } catch (e) {
       Toasts.error(friendlyError(e));
       if (mounted) setState(() => _loading = false);
@@ -1072,8 +1104,10 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
             color: dark ? InkColors.c900 : Colors.white,
             borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(AppRadii.xl4))),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).padding.bottom),
+        // Scrolls when the keyboard leaves less room than the form needs (360dp).
+        child: SingleChildScrollView(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1130,8 +1164,8 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
                       fontWeight: FontWeight.w800,
                       color: InkColors.c400)),
               const SizedBox(height: 6),
-              Row(children: [
-                for (final l in _luggageOpts) ...[
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final l in _luggageOpts)
                   GestureDetector(
                     onTap: () => setState(() => _luggage = l),
                     behavior: HitTestBehavior.opaque,
@@ -1157,8 +1191,6 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
                                   : (dark ? InkColors.c200 : InkColors.c700))),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                ],
               ]),
               const SizedBox(height: 12),
               Text('my.trip_seats_left'.tr(),
@@ -1203,6 +1235,7 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
                   loading: _loading,
                   onPressed: _save),
             ]),
+        ),
       ),
     );
   }
@@ -1222,7 +1255,7 @@ class _BookingCard extends ConsumerWidget {
     // Pre-booking chat (pending/viewed) is allowed — the passenger can write
     // template questions before acceptance (backend caps it at 10 messages).
     final canChat = !isHistory;
-    final canCancel = b.status == 'pending' || b.status == 'accepted';
+    final canCancel = const {'pending', 'viewed', 'accepted'}.contains(b.status);
 
     Future<void> cancel() async {
       final ok = await showConfirmModal(
@@ -1236,8 +1269,8 @@ class _BookingCard extends ConsumerWidget {
       if (!ok) return;
       try {
         await ref.read(bookingsServiceProvider).cancel(b.id);
-        ref.invalidate(myBookingsProvider);
-        if (context.mounted) Toasts.success('toasts.booking_cancelled'.tr());
+        Toasts.success('toasts.booking_cancelled'.tr());
+        if (context.mounted) ref.invalidate(myBookingsProvider);
       } catch (e) {
         if (context.mounted) Toasts.error(friendlyError(e));
       }
@@ -1344,7 +1377,7 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
     try {
       await ref.read(requestsServiceProvider).cancel(widget.request.id);
       Toasts.success('toasts.request_cancelled'.tr());
-      ref.invalidate(myRequestsProvider);
+      if (mounted) ref.invalidate(myRequestsProvider);
     } catch (e) {
       if (mounted) Toasts.error(friendlyError(e));
     }
@@ -1519,10 +1552,11 @@ class _OfferCardState extends ConsumerState<_OfferCard> {
           .read(requestsServiceProvider)
           .acceptResponse(widget.requestId, widget.response.id);
       Toasts.success('toasts.offer_accepted'.tr());
+      if (!mounted) return;
       ref.invalidate(myRequestsProvider);
       ref.invalidate(requestResponsesProvider(widget.requestId));
       ref.invalidate(myBookingsProvider);
-      if (mounted && bookingId != null) context.push('/my/bookings/$bookingId/chat');
+      if (bookingId != null) context.push('/my/bookings/$bookingId/chat');
     } catch (e) {
       if (mounted) Toasts.error(friendlyError(e));
     } finally {
@@ -1538,7 +1572,7 @@ class _OfferCardState extends ConsumerState<_OfferCard> {
           .read(requestsServiceProvider)
           .declineResponse(widget.requestId, widget.response.id);
       Toasts.success('toasts.offer_declined'.tr());
-      ref.invalidate(requestResponsesProvider(widget.requestId));
+      if (mounted) ref.invalidate(requestResponsesProvider(widget.requestId));
     } catch (e) {
       if (mounted) Toasts.error(friendlyError(e));
     } finally {
