@@ -1,3 +1,5 @@
+import 'place.dart';
+
 class Booking {
   const Booking({
     required this.id,
@@ -14,13 +16,17 @@ class Booking {
     this.avatarUrl,
     this.tripId,
     this.departureAt,
+    this.originPlace,
+    this.destinationPlace,
   });
   final String id;
   final String? tripId; // parent trip id — used to match a pending rating
   final DateTime? departureAt; // for timeline sorting in «Мои»
   final String otherName;
-  final String origin;
+  final String origin; // RU snapshot (trip.originCity)
   final String destination;
+  final Place? originPlace; // trip.origin — RU/KG names
+  final Place? destinationPlace;
   final String dateLabel;
   final int seats;
   final String status; // key under status.*
@@ -29,6 +35,10 @@ class Booking {
   final String? phone;
   final String? comment;
   final String? avatarUrl;
+
+  /// Localized route names (kg → nameKg); fall back to the RU snapshot.
+  String originName(bool kg) => originPlace?.name(kg) ?? origin;
+  String destinationName(bool kg) => destinationPlace?.name(kg) ?? destination;
 
   /// [incoming] — the driver's view (/bookings/incoming): the counterpart is the
   /// passenger. Otherwise (/bookings/my) it's the trip's driver — the DTO
@@ -46,6 +56,8 @@ class Booking {
       otherName: (other['name'] ?? '') as String,
       origin: (trip['originCity'] ?? '') as String,
       destination: (trip['destinationCity'] ?? '') as String,
+      originPlace: Place.maybe(trip['origin']),
+      destinationPlace: Place.maybe(trip['destination']),
       dateLabel: dep != null ? '${dep.day.toString().padLeft(2, '0')}.${dep.month.toString().padLeft(2, '0')}' : '',
       seats: (j['seatsCount'] ?? 1) as int,
       status: (j['status'] ?? 'pending') as String,

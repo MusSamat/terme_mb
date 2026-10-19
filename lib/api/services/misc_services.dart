@@ -127,6 +127,8 @@ class CitiesService {
           return PopularRoute(
             from: (m['from'] ?? '') as String,
             to: (m['to'] ?? '') as String,
+            fromKg: m['fromKg'] as String?,
+            toKg: m['toKg'] as String?,
             fromId: (m['fromId'] as num?)?.toInt() ?? 0,
             toId: (m['toId'] as num?)?.toInt() ?? 0,
             tripCount: (m['tripCount'] as num?)?.toInt() ?? 0,
@@ -142,26 +144,34 @@ class CitiesService {
       .toList();
 }
 
-/// A popular route chip (names are RU snapshots; ids drive the search).
+/// A popular route chip (RU + KG names; ids drive the search).
 class PopularRoute {
   const PopularRoute({
     required this.from,
     required this.to,
+    String? fromKg,
+    String? toKg,
     required this.fromId,
     required this.toId,
     required this.tripCount,
     this.minPrice,
-  });
+  })  : fromKg = fromKg ?? from,
+        toKg = toKg ?? to;
   final String from;
   final String to;
+  final String fromKg;
+  final String toKg;
   final int fromId;
   final int toId;
   final int tripCount;
   final int? minPrice;
 
+  String fromName(bool kg) => kg ? fromKg : from;
+  String toName(bool kg) => kg ? toKg : to;
+
   // Minimal places for the search filters (names are completed by the detail).
-  Place get fromPlace => Place(id: fromId, type: 'city', nameRu: from, nameKg: from);
-  Place get toPlace => Place(id: toId, type: 'city', nameRu: to, nameKg: to);
+  Place get fromPlace => Place(id: fromId, type: 'city', nameRu: from, nameKg: fromKg);
+  Place get toPlace => Place(id: toId, type: 'city', nameRu: to, nameKg: toKg);
 }
 
 /// GET /map — listings inside a viewport, grid-clustered server-side.

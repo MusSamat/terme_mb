@@ -17,6 +17,7 @@ import '../../widgets/contact_actions.dart' show callPhone, openWhatsapp;
 import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
 import '../../widgets/query_error.dart';
+import '../../utils/locale.dart';
 
 /// Chat thread — 1:1 port of chat-panel / message-bubble / message-composer.
 /// Bubbles (mine = brand right, other = white left with avatar), status ticks,
@@ -229,7 +230,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           ? ChatSummary(
               bookingId: widget.bookingId,
               otherName: booking.otherName,
-              route: '${booking.origin} → ${booking.destination}',
+              route: '${booking.originName(isKg(context))} → ${booking.destinationName(isKg(context))}',
               lastMessage: '',
               timeLabel: '',
               unread: 0,

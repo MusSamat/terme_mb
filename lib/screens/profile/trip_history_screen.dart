@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../widgets/query_error.dart';
+import '../../utils/locale.dart';
 
 // Bookings that represent an ACTUAL arranged ride — the only ones kept in trip
 // history (inDrive-style). Never-confirmed states (pending / viewed / rejected /
@@ -144,8 +145,8 @@ class _TripHistoryScreenState extends ConsumerState<TripHistoryScreen> {
             return _list([
               for (final b in past)
                 _row(
-                  from: b.origin,
-                  to: b.destination,
+                  from: b.originName(isKg(context)),
+                  to: b.destinationName(isKg(context)),
                   date: b.dateLabel,
                   status: _rideBooking.contains(b.status) ? b.status : 'completed',
                   role: 'profile.history_as_passenger'.tr(),

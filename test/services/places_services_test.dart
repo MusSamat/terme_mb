@@ -45,6 +45,20 @@ void main() {
     });
   });
 
+  group('CitiesService.popularRoutes — KG names', () {
+    test('fromKg/toKg used in kg, places carry them; missing → RU', () async {
+      stubGet({'data': [
+        {'from': 'Бишкек', 'to': 'Нарын', 'fromKg': 'Бишкек', 'toKg': 'Нарын шаары', 'fromId': 1, 'toId': 7, 'tripCount': 3},
+        {'from': 'Ош', 'to': 'Баткен', 'fromId': 2, 'toId': 9, 'tripCount': 1},
+      ]});
+      final r = await CitiesService(dio).popularRoutes();
+      expect(r[0].toName(true), 'Нарын шаары');
+      expect(r[0].toName(false), 'Нарын');
+      expect(r[0].toPlace.nameKg, 'Нарын шаары');
+      expect(r[1].fromName(true), 'Ош');
+    });
+  });
+
   group('MapService', () {
     test('bbox w,s,e,n + clamped zoom + filters', () async {
       stubGet({'items': [], 'clusters': []});

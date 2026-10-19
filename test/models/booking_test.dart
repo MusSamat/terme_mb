@@ -80,4 +80,28 @@ void main() {
       expect(b.sum, 999);
     });
   });
+
+  group('Booking.fromJson — trip place refs (RU/KG names)', () {
+    final b = Booking.fromJson({
+      'id': 'b2',
+      'trip': {
+        'originCity': 'Бишкек',
+        'destinationCity': 'Нарын',
+        'originCityId': 1,
+        'destinationCityId': 7,
+        'origin': {'id': 1, 'type': 'capital', 'nameRu': 'Бишкек', 'nameKg': 'Бишкек'},
+        'destination': {'id': 7, 'type': 'city', 'nameRu': 'Нарын', 'nameKg': 'Нарын шаары'},
+      },
+    });
+    test('kg → nameKg', () => expect(b.destinationName(true), 'Нарын шаары'));
+    test('ru → nameRu', () => expect(b.destinationName(false), 'Нарын'));
+    test('origin place parsed', () => expect(b.originPlace?.id, 1));
+
+    test('legacy DTO without refs falls back to the RU snapshot', () {
+      final old = Booking.fromJson({'id': 'b3', 'trip': {'originCity': 'Ош', 'destinationCity': 'Баткен'}});
+      expect(old.originName(true), 'Ош');
+      expect(old.destinationName(true), 'Баткен');
+    });
+  });
 }
+

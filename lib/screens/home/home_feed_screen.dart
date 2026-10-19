@@ -726,7 +726,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(r.to,
+              Text(r.toName(isKg(context)),
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
@@ -770,7 +770,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(r.from,
+              Text(r.fromName(isKg(context)),
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
@@ -780,7 +780,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                 child:
                     Icon(Icons.arrow_forward, size: 13, color: InkColors.c400),
               ),
-              Text(r.to,
+              Text(r.toName(isKg(context)),
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w900,

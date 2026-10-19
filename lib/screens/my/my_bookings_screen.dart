@@ -661,8 +661,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                 [
                   for (final b in bookings)
                     _historyRow(dark,
-                        from: b.origin,
-                        to: b.destination,
+                        from: b.originName(isKg(context)),
+                        to: b.destinationName(isKg(context)),
                         date: b.dateLabel,
                         status: _terminalBookingStatuses.contains(b.status) ? b.status : 'completed',
                         role: 'profile.history_as_passenger'.tr()),
@@ -880,7 +880,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                       color: dark ? Colors.white : InkColors.c900)),
-              Text('${b.origin} → ${b.destination}',
+              Text('${b.originName(isKg(context))} → ${b.destinationName(isKg(context))}',
                   style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -1258,7 +1258,7 @@ class _BookingCard extends ConsumerWidget {
       final ok = await showConfirmModal(
         context,
         title: 'bookings.cancel_btn'.tr(),
-        body: '${b.origin} → ${b.destination}',
+        body: '${b.originName(isKg(context))} → ${b.destinationName(isKg(context))}',
         confirmLabel: 'bookings.cancel_btn'.tr(),
         cancelLabel: 'book_form.cancel'.tr(),
         danger: true,
@@ -1297,8 +1297,8 @@ class _BookingCard extends ConsumerWidget {
       when: b.departureAt != null ? _dmt(b.departureAt) : b.dateLabel,
       role: 'profile.history_as_passenger'.tr(),
       status: b.status,
-      origin: b.origin,
-      destination: b.destination,
+      origin: b.originName(isKg(context)),
+      destination: b.destinationName(isKg(context)),
       avatar: DriverAvatar(name: b.otherName, verified: b.verified),
       actorName: b.otherName,
       // История is read-only — hide the "phone opens after confirmation" hint.
