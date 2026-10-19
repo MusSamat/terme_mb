@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../theme/dimens.dart';
 
-/// Primary action button. Amber = главное действие (submit/book), brand/grape =
-/// operational, outline = secondary. Port of terme_ft button variants.
-enum AppButtonVariant { amber, brand, grape, outline }
+/// Primary action button. Amber = the one главное действие per screen
+/// (submit/book/publish), neutral = other filled actions (ink), danger =
+/// destructive confirms, outline = secondary.
+enum AppButtonVariant { amber, neutral, danger, outline }
 
 class AppButton extends StatelessWidget {
   const AppButton({
@@ -42,14 +43,14 @@ class AppButton extends StatelessWidget {
         bg = AccentColors.c500;
         fg = AccentColors.ink;
         shadow = AppShadows.cta;
-      case AppButtonVariant.brand:
-        bg = BrandColors.c600;
+      case AppButtonVariant.neutral:
+        bg = dark ? InkColors.c100 : InkColors.c900;
+        fg = dark ? InkColors.c900 : Colors.white;
+        shadow = const [];
+      case AppButtonVariant.danger:
+        bg = DangerColors.c600;
         fg = Colors.white;
-        shadow = AppShadows.brandCta;
-      case AppButtonVariant.grape:
-        bg = GrapeColors.c600;
-        fg = Colors.white;
-        shadow = AppShadows.indigoCta;
+        shadow = const [];
       case AppButtonVariant.outline:
         bg = dark ? InkColors.c900 : Colors.white;
         fg = dark ? InkColors.c100 : InkColors.c800;

@@ -80,7 +80,6 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final acc = widget.accent;
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -125,9 +124,9 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
                   const SizedBox(height: 18),
                   _label(dark, 'search_filters.date_label'.tr()),
                   Wrap(spacing: 6, runSpacing: 6, children: [
-                    AppChip(label: 'search_filters.date_any'.tr(), selected: _f.date == 'any', accent: acc, onTap: () => _set(_f.copyWith(date: 'any'))),
-                    AppChip(label: 'search_filters.date_today'.tr(), selected: _f.date == _todayYmd || _f.date == '', accent: acc, onTap: () => _set(_f.copyWith(date: _todayYmd))),
-                    AppChip(label: 'search_filters.date_tomorrow'.tr(), selected: _f.date == _tomorrowYmd, accent: acc, onTap: () => _set(_f.copyWith(date: _tomorrowYmd))),
+                    AppChip(label: 'search_filters.date_any'.tr(), selected: _f.date == 'any', onTap: () => _set(_f.copyWith(date: 'any'))),
+                    AppChip(label: 'search_filters.date_today'.tr(), selected: _f.date == _todayYmd || _f.date == '', onTap: () => _set(_f.copyWith(date: _todayYmd))),
+                    AppChip(label: 'search_filters.date_tomorrow'.tr(), selected: _f.date == _tomorrowYmd, onTap: () => _set(_f.copyWith(date: _tomorrowYmd))),
                   ]),
                   const SizedBox(height: 8),
                   _calendarField(dark),
@@ -137,21 +136,21 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
                     // «Ближайшие» ranks by distance from you to the boarding point.
                     for (final o in const [('time', 'sort_time'), ('nearest', 'sort_nearest'), ('price_asc', 'sort_price_asc'), ('rating_desc', 'sort_rating_desc')])
                       if (!_requests || o.$1 == 'time' || o.$1 == 'nearest')
-                        AppChip(label: 'search_filters.${o.$2}'.tr(), selected: _f.sort == o.$1, accent: acc, onTap: () => _set(_f.copyWith(sort: o.$1))),
+                        AppChip(label: 'search_filters.${o.$2}'.tr(), selected: _f.sort == o.$1, onTap: () => _set(_f.copyWith(sort: o.$1))),
                   ]),
                   if (!_requests) ...[
                   const SizedBox(height: 18),
                   _label(dark, 'search_filters.rating_label'.tr()),
                   Wrap(spacing: 6, runSpacing: 6, children: [
-                    AppChip(label: 'search_filters.rating_any'.tr(), selected: _f.minRating == 0, accent: acc, onTap: () => _set(_f.copyWith(minRating: 0))),
+                    AppChip(label: 'search_filters.rating_any'.tr(), selected: _f.minRating == 0, onTap: () => _set(_f.copyWith(minRating: 0))),
                     for (final r in const [4.0, 4.5, 4.8])
-                      AppChip(label: '$r+', selected: _f.minRating == r, accent: acc, onTap: () => _set(_f.copyWith(minRating: r))),
+                      AppChip(label: '$r+', selected: _f.minRating == r, onTap: () => _set(_f.copyWith(minRating: r))),
                   ]),
                   const SizedBox(height: 18),
                   _label(dark, 'search_filters.luggage_label'.tr()),
                   Wrap(spacing: 6, runSpacing: 6, children: [
                     for (final o in const [('', 'luggage_any'), ('yes', 'luggage_big'), ('small', 'luggage_small'), ('no', 'luggage_none')])
-                      AppChip(label: 'search_filters.${o.$2}'.tr(), selected: _f.luggage == o.$1, accent: acc, onTap: () => _set(_f.copyWith(luggage: o.$1))),
+                      AppChip(label: 'search_filters.${o.$2}'.tr(), selected: _f.luggage == o.$1, onTap: () => _set(_f.copyWith(luggage: o.$1))),
                   ]),
                   const SizedBox(height: 18),
                   _label(dark, 'search_filters.price_label'.tr()),

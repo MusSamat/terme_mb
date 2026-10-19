@@ -27,7 +27,7 @@ import 'profile_edit_card.dart';
 // (InkColors.c50), white grouped cards, ONE teal accent, red only for the two
 // destructive actions. No tabs, no hero card, no theme toggle.
 const _accent = BrandColors.c600; // teal
-const _danger = CoralColors.c600; // red — logout / delete only
+const _danger = DangerColors.c600; // red — logout / delete only
 const _ink = InkColors.c900;
 const _ink2 = InkColors.c500;
 const _hair = InkColors.c200;

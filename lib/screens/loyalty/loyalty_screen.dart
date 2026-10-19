@@ -10,8 +10,8 @@ import '../../theme/dimens.dart';
 import '../../widgets/query_error.dart';
 
 /// Loyalty — 1:1 port of loyalty page: tier-colored status card, tier roadmap,
-/// how-to-earn, history. Tier palette: novice ink · traveler sky · expert
-/// grape · elite accent.
+/// how-to-earn, history. Tier palette: novice ink · traveler light teal ·
+/// expert deep teal · elite accent.
 class LoyaltyScreen extends StatelessWidget {
   const LoyaltyScreen({super.key});
 
@@ -21,15 +21,15 @@ class LoyaltyScreen extends StatelessWidget {
     switch (tier) {
       case 'traveler':
         return (
-          text: dark ? SkyColors.c300 : SkyColors.c700,
-          bg: dark ? SkyColors.c500.withValues(alpha: 0.1) : SkyColors.c50,
-          progress: SkyColors.c600
+          text: dark ? BrandColors.c300 : BrandColors.c600,
+          bg: dark ? BrandColors.c500.withValues(alpha: 0.1) : BrandColors.c50,
+          progress: BrandColors.c400
         );
       case 'expert':
         return (
-          text: dark ? GrapeColors.c300 : GrapeColors.c700,
-          bg: dark ? GrapeColors.c500.withValues(alpha: 0.1) : GrapeColors.c50,
-          progress: GrapeColors.c600
+          text: dark ? BrandColors.c200 : BrandColors.c800,
+          bg: dark ? BrandColors.c500.withValues(alpha: 0.2) : BrandColors.c100,
+          progress: BrandColors.c700
         );
       case 'elite':
         return (

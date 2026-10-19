@@ -142,7 +142,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     super.dispose();
   }
 
-  Color get _accent => _asDriver ? GrapeColors.c600 : BrandColors.c600;
+  Color get _accent => BrandColors.c600;
 
   Widget _timeRow(bool dark) {
     final label = _time == null
@@ -256,8 +256,6 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
             label: _asDriver
                 ? 'create.submit_driver'.tr()
                 : 'create.submit_passenger'.tr(),
-            variant:
-                _asDriver ? AppButtonVariant.brand : AppButtonVariant.grape,
             loading: _submitting,
             onPressed: _submitting ? null : _submit,
           ),
@@ -476,7 +474,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                   child: Padding(
                       padding: EdgeInsets.all(6),
                       child: CircularProgressIndicator(
-                          strokeWidth: 2.4, color: GrapeColors.c500)))),
+                          strokeWidth: 2.4, color: BrandColors.c500)))),
           error: (e, _) => QueryError(error: e, onRetry: () => ref.invalidate(carsProvider)),
           data: (cars) {
             final selected = _selectedCarId(cars);

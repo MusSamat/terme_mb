@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 
 /// Role / intent switch — a segmented control with one sliding thumb in the
-/// active role colour (teal = passenger, grape = driver). Reads as a single
+/// brand teal (roles differ by icon + label only). Reads as a single
 /// control with a clear current state, not two rival cards. Optional [showHint]
 /// adds a one-line caption spelling out what the mode shows (used on the feed).
 /// Same public API as before: [driver] + [onChanged].
@@ -25,7 +25,7 @@ class IntentToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final accent = driver ? GrapeColors.c600 : BrandColors.c600;
+    const accent = BrandColors.c600;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

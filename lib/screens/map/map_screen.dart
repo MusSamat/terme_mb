@@ -60,7 +60,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     super.dispose();
   }
 
-  Color get _accent => _requests ? GrapeColors.c600 : BrandColors.c600;
+  Color get _accent => BrandColors.c600;
 
   void _schedule() {
     _debounce?.cancel();
@@ -248,7 +248,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       point: LatLng(me.lat, me.lng),
                       width: 18,
                       height: 18,
-                      child: const PinDot(color: Color(0xFF2F80ED), size: 18),
+                      child: const PinDot(color: BrandColors.c600, size: 18),
                     ),
                 ]),
               ],
@@ -275,7 +275,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: _failed ? CoralColors.c600 : InkColors.c500),
+                            color: _failed ? DangerColors.c600 : InkColors.c500),
                       ),
                     ),
                   ),

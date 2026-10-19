@@ -187,7 +187,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 const SizedBox(height: 16),
                 AppButton(
                     label: 'camera.open_camera'.tr(),
-                    variant: AppButtonVariant.grape,
+                    variant: AppButtonVariant.amber,
                     onPressed: _fallback),
               ]),
             ),

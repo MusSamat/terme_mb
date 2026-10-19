@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/data_providers.dart';
+import '../theme/colors.dart';
 
-/// Live "N онлайн" pill — pulsing green dot + real, server-counted number.
+/// Live "N онлайн" pill — pulsing teal dot + real, server-counted number.
 /// Hidden below [_min] real users (small numbers read as dead). Never fabricates.
 class OnlineBadge extends ConsumerWidget {
   const OnlineBadge({super.key});
 
   static const int _min = 10;
-  static const Color _dot = Color(0xFF10B981); // emerald-500
-  static const Color _text = Color(0xFF047857); // emerald-700
+  static const Color _dot = BrandColors.c500;
+  static const Color _text = BrandColors.c700;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,9 +22,9 @@ class OnlineBadge extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0x1A10B981), // emerald-500 @ 10%
+        color: BrandColors.c500.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x3310B981)), // emerald-500 @ 20%
+        border: Border.all(color: BrandColors.c500.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -34,7 +35,7 @@ class OnlineBadge extends ConsumerWidget {
               style: const TextStyle(fontWeight: FontWeight.w800, color: _text, fontSize: 13)),
           const SizedBox(width: 4),
           Text('presence.online'.tr(),
-              style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF059669), fontSize: 13)),
+              style: const TextStyle(fontWeight: FontWeight.w700, color: BrandColors.c600, fontSize: 13)),
         ],
       ),
     );

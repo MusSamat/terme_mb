@@ -12,7 +12,6 @@ class AppChip extends StatelessWidget {
     this.selected = false,
     this.onTap,
     this.icon,
-    this.accent = ChipAccent.brand,
     this.filled = false,
   });
 
@@ -20,18 +19,16 @@ class AppChip extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
   final IconData? icon;
-  final ChipAccent accent;
   final bool filled;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final grape = accent == ChipAccent.grape;
-    final acc600 = grape ? GrapeColors.c600 : BrandColors.c600;
-    final acc500 = grape ? GrapeColors.c500 : BrandColors.c500;
-    final acc50 = grape ? GrapeColors.c50 : BrandColors.c50;
-    final acc300 = grape ? GrapeColors.c300 : BrandColors.c300;
-    final acc700 = grape ? GrapeColors.c700 : BrandColors.c700;
+    const acc600 = BrandColors.c600;
+    const acc500 = BrandColors.c500;
+    const acc50 = BrandColors.c50;
+    const acc300 = BrandColors.c300;
+    const acc700 = BrandColors.c700;
 
     late final Color bg;
     late final Color fg;
@@ -75,4 +72,6 @@ class AppChip extends StatelessWidget {
   }
 }
 
+/// Which list a filter set belongs to: brand = trips, grape = requests.
+/// Legacy name — no longer affects colour (all chips are teal).
 enum ChipAccent { brand, grape }

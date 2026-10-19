@@ -88,7 +88,7 @@ class ChatHubScreen extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 4, vertical: 1),
                           decoration: BoxDecoration(
-                              color: CoralColors.c500,
+                              color: BrandColors.c600,
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
                                   color: dark ? InkColors.c900 : Colors.white,
@@ -277,7 +277,7 @@ class _ChatRow extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
-                            color: CoralColors.c500,
+                            color: BrandColors.c600,
                             borderRadius: BorderRadius.circular(999)),
                         child: Text('${chat.unread}',
                             style: const TextStyle(

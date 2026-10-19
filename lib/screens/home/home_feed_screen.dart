@@ -199,7 +199,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
             ),
           ),
         );
-    final accent = driver ? GrapeColors.c600 : BrandColors.c600;
+    const accent = BrandColors.c600;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(children: [
@@ -233,7 +233,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     final line =
         (isTrip ? 'feed.mine_trips_line' : 'feed.mine_requests_line').plural(count);
     final sub = (isTrip ? 'feed.mine_trips_sub' : 'feed.mine_requests_sub').tr();
-    final accent = isTrip ? BrandColors.c600 : GrapeColors.c600;
+    const accent = BrandColors.c600;
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: GestureDetector(
@@ -309,8 +309,8 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
   // ── Docked search card — inline Откуда/Куда inputs; «Найти» → results ───────
   Widget _dockedCard(BuildContext context, bool dark, bool driver) {
     final ready = _from != null && _to != null;
-    final ctaColor = driver ? GrapeColors.c600 : AccentColors.c500;
-    final ctaText = driver ? Colors.white : AccentColors.ink;
+    const ctaColor = AccentColors.c500;
+    const ctaText = AccentColors.ink;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -386,9 +386,9 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                 decoration: BoxDecoration(
                     color: dark ? InkColors.c800 : InkColors.c100,
                     borderRadius: BorderRadius.circular(AppRadii.xl2)),
-                child: Icon(Icons.tune,
+                child: const Icon(Icons.tune,
                     size: 20,
-                    color: driver ? GrapeColors.c600 : BrandColors.c600),
+                    color: BrandColors.c600),
               ),
             ),
           ),
@@ -408,9 +408,9 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                 borderRadius: BorderRadius.circular(AppRadii.xl2),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.calendar_today,
+                const Icon(Icons.calendar_today,
                     size: 14,
-                    color: driver ? GrapeColors.c500 : BrandColors.c500),
+                    color: BrandColors.c500),
                 const SizedBox(width: 6),
                 Text(_dateLabel(),
                     style: TextStyle(
@@ -432,7 +432,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
                       ready ? ctaColor : (dark ? InkColors.c800 : InkColors.c200),
                   borderRadius: BorderRadius.circular(AppRadii.xl2),
                   boxShadow: ready
-                      ? (driver ? AppShadows.indigoCta : AppShadows.cta)
+                      ? AppShadows.cta
                       : null,
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -498,8 +498,8 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
       ]);
 
   Widget _rideSegment(bool dark, bool driver) {
-    final accent = driver ? GrapeColors.c600 : BrandColors.c600;
-    final accentDark = driver ? GrapeColors.c300 : BrandColors.c300;
+    const accent = BrandColors.c600;
+    const accentDark = BrandColors.c300;
     Widget seg(bool active, IconData icon, String label, VoidCallback onTap) =>
         Expanded(
           child: GestureDetector(
@@ -705,8 +705,8 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
       );
 
   Widget _destChip(PopularRoute r, bool dark, bool driver) {
-    final accent = driver ? GrapeColors.c600 : BrandColors.c600;
-    final accentDark = driver ? GrapeColors.c300 : BrandColors.c300;
+    const accent = BrandColors.c600;
+    const accentDark = BrandColors.c300;
     String? sub;
     if (!driver && r.tripCount > 0) {
       sub = 'feed.trips_count'.plural(r.tripCount);
@@ -743,16 +743,16 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
             ],
           ),
           const SizedBox(width: 10),
-          Icon(Icons.arrow_forward,
-              size: 16, color: driver ? GrapeColors.c500 : BrandColors.c500),
+          const Icon(Icons.arrow_forward,
+              size: 16, color: BrandColors.c500),
         ]),
       ),
     );
   }
 
   Widget _routeCountChip(PopularRoute r, bool dark, bool driver) {
-    final accent = driver ? GrapeColors.c600 : BrandColors.c600;
-    final accentDark = driver ? GrapeColors.c300 : BrandColors.c300;
+    const accent = BrandColors.c600;
+    const accentDark = BrandColors.c300;
     String sub = '';
     if (!driver && r.tripCount > 0) {
       sub = 'feed.trips_count'.plural(r.tripCount);

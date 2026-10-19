@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/colors.dart';
 import '../theme/dimens.dart';
 
 /// Floating pill bottom navigation — port of terme_ft/src/components/layout/
@@ -149,7 +150,7 @@ class _Badge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       constraints: const BoxConstraints(minWidth: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF43F5E), // coral-500
+        color: BrandColors.c600,
         borderRadius: BorderRadius.circular(999),
       ),
       alignment: Alignment.center,
@@ -175,7 +176,7 @@ class _CreateFab extends StatelessWidget {
           width: 56,
           height: 56,
           decoration: const BoxDecoration(
-            gradient: kCreateFabGradient,
+            color: AccentColors.c500,
             shape: BoxShape.circle,
             boxShadow: AppShadows.cta,
           ),

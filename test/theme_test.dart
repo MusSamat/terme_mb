@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:terme_mb/theme/app_theme.dart';
 import 'package:terme_mb/theme/colors.dart';
@@ -9,10 +10,12 @@ void main() {
     expect(AppTheme.dark.extension<AppColors>(), isNotNull);
   });
 
-  test('role themes cover all roles and carry canonical accents', () {
+  test('role themes cover all roles and share one teal recipe', () {
     expect(kRoleThemes.keys.toSet(), UiRole.values.toSet());
-    expect(roleThemeFor(UiRole.passenger).ctaFilled, BrandColors.c600);
-    expect(roleThemeFor(UiRole.driver).ctaFilled, GrapeColors.c600);
-    expect(roleThemeFor(UiRole.guest).ctaFilled, InkColors.c700);
+    for (final r in UiRole.values) {
+      expect(roleThemeFor(r).header, BrandColors.c600);
+      expect(roleThemeFor(r).navText(Brightness.light), BrandColors.c700);
+    }
+    expect(roleThemeFor(UiRole.driver).icon, isNot(roleThemeFor(UiRole.passenger).icon));
   });
 }

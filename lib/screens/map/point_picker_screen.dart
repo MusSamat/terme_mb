@@ -128,7 +128,7 @@ class _PointPickerScreenState extends ConsumerState<PointPickerScreen> {
           if (widget.initial != null)
             TextButton(
               onPressed: () => Navigator.of(context).pop(const MeetingPoint(lat: double.nan, lng: double.nan)),
-              child: Text('point.remove'.tr(), style: const TextStyle(color: CoralColors.c600, fontWeight: FontWeight.w800)),
+              child: Text('point.remove'.tr(), style: const TextStyle(color: DangerColors.c600, fontWeight: FontWeight.w800)),
             ),
         ],
       ),

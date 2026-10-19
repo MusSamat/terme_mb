@@ -9,7 +9,7 @@ import '../utils/locale.dart';
 import 'driver_avatar.dart';
 import 'ticket.dart';
 
-/// Passenger request card — grape ticket variant. Top: date · route · seats
+/// Passenger request card — teal ticket variant. Top: date · route · seats
 /// needed. Perforated divider → passenger stub. One trust signal (rating OR
 /// «Новый»); whole card tappable.
 class RequestCard extends StatelessWidget {
@@ -36,7 +36,7 @@ class RequestCard extends StatelessWidget {
 
     final ink = dark ? Colors.white : InkColors.c900;
     final muted = dark ? InkColors.c400 : InkColors.c500;
-    final grape = dark ? GrapeColors.c300 : GrapeColors.c600;
+    final accent = dark ? BrandColors.c300 : BrandColors.c600;
 
     return Opacity(
       opacity: inactive ? 0.5 : 1,
@@ -51,7 +51,7 @@ class RequestCard extends StatelessWidget {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
-                    Icon(Icons.event, size: 16, color: grape),
+                    Icon(Icons.event, size: 16, color: accent),
                     const SizedBox(width: 6),
                     Flexible(child: Text(r.dateLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 17, height: 1.1, fontWeight: FontWeight.w800, color: ink))),
                     if (r.responded) ...[
@@ -74,7 +74,7 @@ class RequestCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text('${r.seatsNeeded}', style: TextStyle(fontSize: 19, height: 1, fontWeight: FontWeight.w800, color: grape, fontFeatures: _tnum)),
+                Text('${r.seatsNeeded}', style: TextStyle(fontSize: 19, height: 1, fontWeight: FontWeight.w800, color: accent, fontFeatures: _tnum)),
                 const SizedBox(height: 3),
                 Text('card.needs'.tr(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: muted)),
               ]),
@@ -94,11 +94,11 @@ class RequestCard extends StatelessWidget {
             else
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: dark ? GrapeColors.c500.withValues(alpha: 0.22) : GrapeColors.c50, borderRadius: BorderRadius.circular(6)),
-                child: Text('card.new'.tr(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: dark ? GrapeColors.c200 : GrapeColors.c600)),
+                decoration: BoxDecoration(color: dark ? BrandColors.c500.withValues(alpha: 0.22) : BrandColors.c50, borderRadius: BorderRadius.circular(6)),
+                child: Text('card.new'.tr(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: dark ? BrandColors.c200 : BrandColors.c600)),
               ),
             const Spacer(),
-            Icon(Icons.chevron_right, size: 18, color: dark ? GrapeColors.c300 : GrapeColors.c400),
+            Icon(Icons.chevron_right, size: 18, color: dark ? BrandColors.c300 : BrandColors.c400),
           ]),
         ),
       ),

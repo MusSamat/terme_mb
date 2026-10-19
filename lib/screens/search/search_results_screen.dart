@@ -18,7 +18,7 @@ import '../trip/trip_detail_screen.dart' show showTripDetailSheet;
 
 /// Results page (the «next page» after searching from the hub). Shows the
 /// route header (editable) + a control row (filters · date stepper) + the
-/// trips/requests list. Passenger = trips (teal); driver = requests (grape).
+/// trips/requests list. Passenger = trips; driver = requests (both teal).
 class SearchResultsScreen extends ConsumerStatefulWidget {
   const SearchResultsScreen(
       {super.key,
@@ -219,7 +219,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
       return '${int.parse(p[2])} ${_monthsShort[int.parse(p[1]) - 1]}';
     }
 
-    final acc = driver ? GrapeColors.c500 : BrandColors.c500;
+    const acc = BrandColors.c500;
 
     Widget chip(String d) {
       final sel = d == current;
@@ -294,7 +294,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   Widget _filterButton(
       BuildContext context, bool dark, bool driver, ChipAccent accent) {
     final count = _filters.activeCount;
-    final color = driver ? GrapeColors.c600 : BrandColors.c600;
+    const color = BrandColors.c600;
     return GestureDetector(
       onTap: () => showFiltersSheet(
         context,
@@ -316,7 +316,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
           clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
-            Icon(Icons.tune, size: 20, color: color),
+            const Icon(Icons.tune, size: 20, color: color),
             if (count > 0)
               Positioned(
                 right: -8,
@@ -327,7 +327,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                       const BoxConstraints(minWidth: 16, minHeight: 16),
                   alignment: Alignment.center,
                   decoration:
-                      BoxDecoration(color: color, shape: BoxShape.circle),
+                      const BoxDecoration(color: color, shape: BoxShape.circle),
                   child: Text('$count',
                       style: const TextStyle(
                           fontSize: 9,
@@ -382,7 +382,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
         .valueOrNull;
     if (counts == null || counts.isEmpty) return const SizedBox.shrink();
     final nd = _nextAvailableDay(requests);
-    final color = requests ? GrapeColors.c600 : BrandColors.c600;
+    const color = BrandColors.c600;
     if (nd == null) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
@@ -401,12 +401,12 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                 setState(() => _filters = _filters.copyWith(date: v)),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.calendar_month_outlined, size: 16, color: color),
+            const Icon(Icons.calendar_month_outlined, size: 16, color: color),
             const SizedBox(width: 6),
             Flexible(
               child: Text('feed.next_day_none'.tr(),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                       color: color,
@@ -417,9 +417,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
         ),
       );
     }
-    final bg = requests
-        ? (dark ? GrapeColors.c500.withValues(alpha: 0.12) : GrapeColors.c50)
-        : (dark ? BrandColors.c500.withValues(alpha: 0.12) : BrandColors.c50);
+    final bg = dark ? BrandColors.c500.withValues(alpha: 0.12) : BrandColors.c50;
     final count = (requests ? 'feed.requests_plural' : 'feed.trips_plural')
         .plural(nd.count);
     return Padding(
@@ -435,17 +433,17 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
               borderRadius: BorderRadius.circular(AppRadii.xl2),
               border: Border.all(color: color.withValues(alpha: 0.3))),
           child: Row(children: [
-            Icon(Icons.event_available, size: 18, color: color),
+            const Icon(Icons.event_available, size: 18, color: color),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'feed.next_day_show'.tr(
                     namedArgs: {'date': _dayLabel(nd.date), 'count': count}),
-                style: TextStyle(
+                style: const TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w800, color: color),
               ),
             ),
-            Icon(Icons.chevron_right, size: 20, color: color),
+            const Icon(Icons.chevron_right, size: 20, color: color),
           ]),
         ),
       ),

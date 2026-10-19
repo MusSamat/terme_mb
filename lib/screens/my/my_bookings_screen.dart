@@ -324,10 +324,10 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
           ),
           if (editable)
           ListTile(
-            leading: const Icon(Icons.cancel_outlined, color: CoralColors.c600),
+            leading: const Icon(Icons.cancel_outlined, color: DangerColors.c600),
             title: Text('my.trip_cancel'.tr(),
                 style: const TextStyle(
-                    fontWeight: FontWeight.w800, color: CoralColors.c600)),
+                    fontWeight: FontWeight.w800, color: DangerColors.c600)),
             onTap: () => Navigator.pop(ctx, 'cancel'),
           ),
         ]),
@@ -561,7 +561,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
 
   Widget _priceTag(int price) => Text('$price ${'requests.my.som'.tr()}',
       style: const TextStyle(
-          fontSize: 15, fontWeight: FontWeight.w900, color: SkyColors.c600));
+          fontSize: 15, fontWeight: FontWeight.w900, color: BrandColors.c600));
 
   Widget _sub(String text, {IconData? icon}) =>
       Row(mainAxisSize: MainAxisSize.min, children: [
@@ -585,7 +585,6 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     final carLabel =
         car != null ? '${car.make} ${car.model}' : 'my.tab_my_trips'.tr();
     return ListCard(
-      grape: false,
       when: _dmt(t.departureAt),
       role: 'profile.history_as_driver'.tr(),
       status: t.status,
@@ -769,7 +768,6 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       for (final t in trips.valueOrNull ?? const <TripCardItem>[])
         if (t.status == 'active' && t.departureAt.isAfter(now))
           ListCard(
-            grape: false,
             when: _dmt(t.departureAt),
             status: t.status,
             origin: t.originName(isKg(context)),
@@ -788,7 +786,6 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       for (final r in requests.valueOrNull ?? const <PassengerRequestItem>[])
         if (r.status == 'open' && !(r.departureDate?.isBefore(now) ?? false))
           ListCard(
-            grape: true,
             when: r.departureDate != null ? _dm(r.departureDate) : r.dateLabel,
             status: r.status,
             origin: r.originName(isKg(context)),
@@ -917,7 +914,7 @@ class _IncomingCardState extends ConsumerState<_IncomingCard> {
           Expanded(
             child: _actBtn(
                 'booking_card.reject'.tr(),
-                CoralColors.c600,
+                DangerColors.c600,
                 dark ? InkColors.c800 : Colors.white,
                 () => _act(() => svc.reject(b.id))),
           ),
@@ -1017,7 +1014,7 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
           height: 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-              color: enabled ? GrapeColors.c600 : InkColors.c300,
+              color: enabled ? BrandColors.c600 : InkColors.c300,
               borderRadius: BorderRadius.circular(10)),
           child: Text(s,
               style: const TextStyle(
@@ -1226,7 +1223,7 @@ class _TripEditSheetState extends ConsumerState<_TripEditSheet> {
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2.2, color: GrapeColors.c500)),
+                          strokeWidth: 2.2, color: BrandColors.c500)),
                 ],
               ]),
               const SizedBox(height: 16),
@@ -1297,7 +1294,6 @@ class _BookingCard extends ConsumerWidget {
     ];
 
     return ListCard(
-      grape: false,
       when: b.departureAt != null ? _dmt(b.departureAt) : b.dateLabel,
       role: 'profile.history_as_passenger'.tr(),
       status: b.status,
@@ -1396,7 +1392,6 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListCard(
-          grape: true,
           when: r.departureDate != null ? _dm(r.departureDate) : r.dateLabel,
           role: 'requests.request_label'.tr(),
           status: r.status,
@@ -1406,9 +1401,9 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-                color: GrapeColors.c600.withValues(alpha: dark ? 0.22 : 0.12),
+                color: BrandColors.c600.withValues(alpha: dark ? 0.22 : 0.12),
                 borderRadius: BorderRadius.circular(11)),
-            child: const Icon(Icons.person, size: 18, color: GrapeColors.c600),
+            child: const Icon(Icons.person, size: 18, color: BrandColors.c600),
           ),
           actorName: '${r.seatsNeeded} ${'booking_card.seats_word'.tr()}',
           actorSub: (r.comment ?? '').isNotEmpty
@@ -1425,7 +1420,7 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                      color: GrapeColors.c100,
+                      color: BrandColors.c100,
                       borderRadius: BorderRadius.circular(999)),
                   child: Text(
                       'requests.my.offers_count'
@@ -1433,7 +1428,7 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
                       style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
-                          color: GrapeColors.c700)),
+                          color: BrandColors.c700)),
                 )
               : null,
           onTap: () => context.push('/requests/${r.id}'),
@@ -1443,7 +1438,6 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
                   ListCardButton(
                       label: 'my.act_edit'.tr(),
                       icon: Icons.edit_outlined,
-                      grape: true,
                       onTap: _openEdit),
                   ListCardButton(
                       label: 'my.act_cancel'.tr(),
@@ -1462,20 +1456,20 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               child: Row(children: [
                 const Icon(Icons.local_offer_outlined,
-                    size: 16, color: GrapeColors.c600),
+                    size: 16, color: BrandColors.c600),
                 const SizedBox(width: 6),
                 Text('requests.my.offers_title'.tr(),
                     style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: GrapeColors.c700)),
+                        color: BrandColors.c700)),
                 if (pending > 0) ...[
                   const SizedBox(width: 6),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
                     decoration: BoxDecoration(
-                        color: GrapeColors.c100,
+                        color: BrandColors.c100,
                         borderRadius: BorderRadius.circular(999)),
                     child: Text(
                         'requests.my.offers_count'
@@ -1483,7 +1477,7 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
                         style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w900,
-                            color: GrapeColors.c700)),
+                            color: BrandColors.c700)),
                   ),
                 ],
                 const Spacer(),
@@ -1502,7 +1496,7 @@ class _MyRequestCardState extends ConsumerState<_MyRequestCard> {
                   padding: EdgeInsets.all(12),
                   child: Center(
                       child: CircularProgressIndicator(
-                          strokeWidth: 2.4, color: GrapeColors.c500))),
+                          strokeWidth: 2.4, color: BrandColors.c500))),
               error: (e, _) => Padding(
                   padding: const EdgeInsets.all(8),
                   child: QueryError(
@@ -1642,7 +1636,7 @@ class _OfferCardState extends ConsumerState<_OfferCard> {
                     style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
-                        color: SkyColors.c600)),
+                        color: BrandColors.c600)),
                 const SizedBox(width: 8),
                 Flexible(
                     child: Text(_timeLabel(),

@@ -11,7 +11,6 @@ import '../theme/dimens.dart';
 class ListCard extends StatelessWidget {
   const ListCard({
     super.key,
-    required this.grape, // false = trip (teal dot), true = request (indigo dot)
     required this.when,
     this.role,
     this.status,
@@ -28,7 +27,6 @@ class ListCard extends StatelessWidget {
     this.ribbon,
   });
 
-  final bool grape;
   final String when;
   final String? role;
   final String? status;
@@ -47,7 +45,7 @@ class ListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final dot = grape ? GrapeColors.c600 : BrandColors.c600;
+    const dot = BrandColors.c600;
 
     final card = GestureDetector(
       onTap: onTap,
@@ -66,7 +64,7 @@ class ListCard extends StatelessWidget {
           // shrinks/ellipsises and the status label is short, so long statuses
           // like «Отменена пассажиром» never overflow the row on a phone.
           Row(children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+            Container(width: 8, height: 8, decoration: const BoxDecoration(color: dot, shape: BoxShape.circle)),
             const SizedBox(width: 8),
             Flexible(
               child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -157,9 +155,7 @@ class ListCard extends StatelessWidget {
       case 'cancelled_by_driver':
       case 'cancelled_late':
       case 'no_show':
-      case 'expired':
-      case 'closed':
-        return (bg: dark ? CoralColors.c500.withValues(alpha: 0.15) : CoralColors.c50, fg: dark ? CoralColors.c300 : CoralColors.c700);
+        return (bg: dark ? DangerColors.c500.withValues(alpha: 0.15) : DangerColors.c50, fg: dark ? DangerColors.c300 : DangerColors.c700);
       default:
         return (bg: dark ? InkColors.c800 : InkColors.c100, fg: dark ? InkColors.c300 : InkColors.c600);
     }
@@ -189,8 +185,8 @@ class ListCard extends StatelessWidget {
 
 enum ListBtnKind { primary, ghost, danger }
 
-/// Full-width action button used inside [ListCard.actions]. Colour follows the
-/// card accent (teal for trips, indigo for requests) for the primary variant.
+/// Full-width action button used inside [ListCard.actions]. Primary = neutral
+/// ink fill (amber is reserved for the one screen-level CTA).
 class ListCardButton extends StatelessWidget {
   const ListCardButton({
     super.key,
@@ -198,31 +194,28 @@ class ListCardButton extends StatelessWidget {
     required this.onTap,
     this.icon,
     this.kind = ListBtnKind.ghost,
-    this.grape = false,
   });
 
   final String label;
   final VoidCallback? onTap;
   final IconData? icon;
   final ListBtnKind kind;
-  final bool grape;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final accent = grape ? GrapeColors.c600 : BrandColors.c600;
     late final Color bg;
     late final Color fg;
     late final Color? border;
     switch (kind) {
       case ListBtnKind.primary:
-        bg = accent;
-        fg = Colors.white;
+        bg = dark ? InkColors.c100 : InkColors.c900;
+        fg = dark ? InkColors.c900 : Colors.white;
         border = null;
       case ListBtnKind.danger:
         bg = dark ? InkColors.c900 : Colors.white;
-        fg = CoralColors.c600;
-        border = dark ? CoralColors.c700 : CoralColors.c200;
+        fg = DangerColors.c600;
+        border = dark ? DangerColors.c700 : DangerColors.c200;
       case ListBtnKind.ghost:
         bg = dark ? InkColors.c800 : Colors.white;
         fg = dark ? InkColors.c100 : InkColors.c700;

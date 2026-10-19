@@ -27,7 +27,7 @@ import '../profile/cars_card.dart' show showAddCarSheet;
 
 final _viewed = <String>{};
 
-/// Request detail — 1:1 port of request-detail-pane.tsx (grape-themed, symmetric
+/// Request detail — 1:1 port of request-detail-pane.tsx (teal-themed, symmetric
 /// to the trip detail): passenger header, route spine, details grid, comment,
 /// sticky «Откликнуться» + contact reveal.
 class RequestDetailScreen extends ConsumerWidget {
@@ -38,7 +38,7 @@ class RequestDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return ref.watch(requestDetailProvider(id)).when(
-      loading: () => Scaffold(backgroundColor: dark ? InkColors.c950 : InkColors.c50, body: const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: GrapeColors.c500))),
+      loading: () => Scaffold(backgroundColor: dark ? InkColors.c950 : InkColors.c50, body: const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500))),
       error: (e, _) => Scaffold(backgroundColor: dark ? InkColors.c950 : InkColors.c50, body: Center(child: QueryError(error: e, onRetry: () => ref.invalidate(requestDetailProvider(id))))),
       data: (r) {
         // One deduped view per open (owners never count).
@@ -74,7 +74,7 @@ class RequestDetailScreen extends ConsumerWidget {
                   destination: r.destination,
                   originPoint: r.originPoint,
                   destinationPoint: r.destinationPoint,
-                  accent: GrapeColors.c600,
+                  accent: BrandColors.c600,
                 ),
                 const SizedBox(height: 16),
                 _details(dark, r),
@@ -85,7 +85,7 @@ class RequestDetailScreen extends ConsumerWidget {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(color: dark ? GrapeColors.c500.withValues(alpha: 0.1) : GrapeColors.c50, borderRadius: BorderRadius.circular(AppRadii.xl2)),
+                    decoration: BoxDecoration(color: dark ? BrandColors.c500.withValues(alpha: 0.1) : BrandColors.c50, borderRadius: BorderRadius.circular(AppRadii.xl2)),
                     child: Text('«${r.comment!}»', style: TextStyle(fontSize: 14, height: 1.5, fontWeight: FontWeight.w600, color: dark ? InkColors.c200 : InkColors.c700)),
                   ),
                 ],
@@ -107,9 +107,9 @@ class RequestDetailScreen extends ConsumerWidget {
                   // Owner: edit / cancel your OWN request — never respond or call yourself.
                   ? (r.status == 'open'
                       ? Row(children: [
-                          Expanded(child: _barBtn(Icons.edit_outlined, 'my.act_edit'.tr(), GrapeColors.c600, filled: false, onTap: () => showRequestEditSheet(context, r, onSaved: () => ref.invalidate(requestDetailProvider(id))))),
+                          Expanded(child: _barBtn(Icons.edit_outlined, 'my.act_edit'.tr(), BrandColors.c600, filled: false, onTap: () => showRequestEditSheet(context, r, onSaved: () => ref.invalidate(requestDetailProvider(id))))),
                           const SizedBox(width: 10),
-                          Expanded(child: _barBtn(Icons.close, 'my.act_cancel'.tr(), CoralColors.c600, filled: false, onTap: () => _confirmCancel(context, ref, r))),
+                          Expanded(child: _barBtn(Icons.close, 'my.act_cancel'.tr(), DangerColors.c600, filled: false, onTap: () => _confirmCancel(context, ref, r))),
                         ])
                       : Center(child: Text('requests.my.closed'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: InkColors.c400))))
                   // Anyone else: respond (needs a car) + call / WhatsApp. Guests → login.
@@ -121,11 +121,11 @@ class RequestDetailScreen extends ConsumerWidget {
                         Container(
                           height: 50,
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(color: GrapeColors.c600.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadii.lg)),
+                          decoration: BoxDecoration(color: BrandColors.c600.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadii.lg)),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.check_circle, size: 20, color: GrapeColors.c600),
+                            const Icon(Icons.check_circle, size: 20, color: BrandColors.c600),
                             const SizedBox(width: 8),
-                            Text('card.responded'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: GrapeColors.c600)),
+                            Text('card.responded'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: BrandColors.c600)),
                           ]),
                         )
                       else
@@ -146,11 +146,11 @@ class RequestDetailScreen extends ConsumerWidget {
                         child: Container(
                           height: 50,
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(color: GrapeColors.c600, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.indigoCta),
+                          decoration: BoxDecoration(color: AccentColors.c500, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.cta),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.check_circle, size: 20, color: Colors.white),
+                            const Icon(Icons.check_circle, size: 20, color: AccentColors.ink),
                             const SizedBox(width: 8),
-                            Text('requests.respond_title'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+                            Text('requests.respond_title'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AccentColors.ink)),
                           ]),
                         ),
                       ),
@@ -223,9 +223,9 @@ class RequestDetailScreen extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: dark ? GrapeColors.c500.withValues(alpha: 0.1) : GrapeColors.c50,
+          color: dark ? BrandColors.c500.withValues(alpha: 0.1) : BrandColors.c50,
           borderRadius: BorderRadius.circular(AppRadii.xl2),
-          border: Border.all(color: dark ? GrapeColors.c500.withValues(alpha: 0.2) : GrapeColors.c100),
+          border: Border.all(color: dark ? BrandColors.c500.withValues(alpha: 0.2) : BrandColors.c100),
         ),
         child: Row(children: [
           DriverAvatar(name: r.passengerName, size: AvatarSize.lg, square: true, verified: r.passengerVerified),
@@ -254,7 +254,7 @@ class RequestDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const Icon(Icons.shield_outlined, size: 18, color: GrapeColors.c400),
+          const Icon(Icons.shield_outlined, size: 18, color: BrandColors.c400),
         ]),
       ),
     );
@@ -276,9 +276,9 @@ class RequestDetailScreen extends ConsumerWidget {
         children: [
           Column(children: [
             const SizedBox(height: 4),
-            Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: GrapeColors.c500)),
+            Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: BrandColors.c500)),
             Container(width: 2, height: 40, margin: const EdgeInsets.symmetric(vertical: 6), color: dark ? InkColors.c700 : InkColors.c200),
-            Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: GrapeColors.c400)),
+            Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: BrandColors.c400)),
           ]),
           const SizedBox(width: 12),
           Expanded(
@@ -295,10 +295,10 @@ class RequestDetailScreen extends ConsumerWidget {
                 if (r.flightNumber != null) ...[
                   const SizedBox(height: 10),
                   Row(children: [
-                    const Icon(Icons.flight_rounded, size: 16, color: GrapeColors.c600),
+                    const Icon(Icons.flight_rounded, size: 16, color: BrandColors.c600),
                     const SizedBox(width: 6),
                     Text('airport.flight_label'.tr(namedArgs: {'n': r.flightNumber!}),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: GrapeColors.c600)),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BrandColors.c600)),
                   ]),
                 ],
               ],
@@ -337,7 +337,7 @@ class RequestDetailScreen extends ConsumerWidget {
             Text('requests.seats_needed'.tr().toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: InkColors.c400)),
           ]),
           const SizedBox(height: 4),
-          Text('${r.seatsNeeded}', style: const TextStyle(fontSize: 28, height: 1, fontWeight: FontWeight.w800, color: GrapeColors.c600)),
+          Text('${r.seatsNeeded}', style: const TextStyle(fontSize: 28, height: 1, fontWeight: FontWeight.w800, color: BrandColors.c600)),
           const SizedBox(height: 6),
           SeatMeter(free: r.seatsNeeded.clamp(1, 4), total: r.seatsNeeded.clamp(1, 4)),
         ])),
@@ -469,7 +469,7 @@ class _RespondSheetState extends ConsumerState<_RespondSheet> {
                   border: Border.all(color: dark ? InkColors.c700 : InkColors.c200),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.schedule, size: 18, color: GrapeColors.c600),
+                  const Icon(Icons.schedule, size: 18, color: BrandColors.c600),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text('${departureLabel(_departAt).date} · ${hhmm(_departAt)}',
@@ -488,10 +488,10 @@ class _RespondSheetState extends ConsumerState<_RespondSheet> {
                 child: Container(
                   height: 50,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: GrapeColors.c600, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.indigoCta),
+                  decoration: BoxDecoration(color: AccentColors.c500, borderRadius: BorderRadius.circular(AppRadii.lg), boxShadow: AppShadows.cta),
                   child: _loading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
-                      : Text('requests.submit_response'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: AccentColors.ink))
+                      : Text('requests.submit_response'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AccentColors.ink)),
                 ),
               ),
             ),

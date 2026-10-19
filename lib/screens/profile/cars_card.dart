@@ -39,9 +39,9 @@ class CarsCard extends ConsumerWidget {
             onTap: () => _showAdd(context, ref),
             behavior: HitTestBehavior.opaque,
             child: Row(children: [
-              const Icon(Icons.add, size: 16, color: GrapeColors.c600),
+              const Icon(Icons.add, size: 16, color: BrandColors.c600),
               const SizedBox(width: 2),
-              Text('profile.add_car'.tr(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: GrapeColors.c600)),
+              Text('profile.add_car'.tr(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: BrandColors.c600)),
             ]),
           )
         else
@@ -49,8 +49,8 @@ class CarsCard extends ConsumerWidget {
       ]),
       const SizedBox(height: 12),
       carsAsync.when(
-        loading: () => const Padding(padding: EdgeInsets.all(8), child: Center(child: CircularProgressIndicator(strokeWidth: 2.4, color: GrapeColors.c500))),
-        error: (e, _) => Text(friendlyError(e), style: const TextStyle(fontSize: 13, color: CoralColors.c600)),
+        loading: () => const Padding(padding: EdgeInsets.all(8), child: Center(child: CircularProgressIndicator(strokeWidth: 2.4, color: BrandColors.c500))),
+        error: (e, _) => Text(friendlyError(e), style: const TextStyle(fontSize: 13, color: DangerColors.c600)),
         data: (cars) => cars.isEmpty
             ? Text('profile.no_cars'.tr(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: InkColors.c400))
             : Column(children: [for (final c in cars) _row(context, ref, c)]),
@@ -66,8 +66,8 @@ class CarsCard extends ConsumerWidget {
           width: 44,
           height: 44,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: dark ? GrapeColors.c500.withValues(alpha: 0.15) : GrapeColors.c50, borderRadius: BorderRadius.circular(12)),
-          child: const Icon(Icons.directions_car, color: GrapeColors.c600),
+          decoration: BoxDecoration(color: dark ? BrandColors.c500.withValues(alpha: 0.15) : BrandColors.c50, borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.directions_car, color: BrandColors.c600),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -99,7 +99,7 @@ class CarsCard extends ConsumerWidget {
               if (context.mounted) Toasts.error(friendlyError(e));
             }
           },
-          icon: const Icon(Icons.delete_outline, size: 20, color: CoralColors.c500),
+          icon: const Icon(Icons.delete_outline, size: 20, color: DangerColors.c500),
         ),
       ]),
     );
@@ -186,7 +186,7 @@ class _AddCarSheetState extends ConsumerState<_AddCarSheet> {
         behavior: HitTestBehavior.opaque,
         child: Padding(
           padding: const EdgeInsets.only(top: 4, left: 2),
-          child: Text('profile.from_list'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: GrapeColors.c600)),
+          child: Text('profile.from_list'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: BrandColors.c600)),
         ),
       );
 
@@ -341,8 +341,8 @@ class _AddCarSheetState extends ConsumerState<_AddCarSheet> {
                         onTap: () => Navigator.pop(ctx, o),
                       ),
                     ListTile(
-                      leading: const Icon(Icons.edit_outlined, size: 20, color: GrapeColors.c600),
-                      title: Text('profile.manual_entry'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: GrapeColors.c600)),
+                      leading: const Icon(Icons.edit_outlined, size: 20, color: BrandColors.c600),
+                      title: Text('profile.manual_entry'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: BrandColors.c600)),
                       onTap: () => Navigator.pop(ctx, _kManual),
                     ),
                   ],
@@ -420,7 +420,7 @@ class _AddCarSheetState extends ConsumerState<_AddCarSheet> {
             _seatBtn('+', _seats < 7, () => setState(() => _seats++)),
           ]),
           const SizedBox(height: 16),
-          AppButton(label: 'profile.add_car'.tr(), variant: AppButtonVariant.grape, loading: _loading, onPressed: _valid ? _submit : null),
+          AppButton(label: 'profile.add_car'.tr(), variant: AppButtonVariant.amber, loading: _loading, onPressed: _valid ? _submit : null),
         ]),
         ),
       ),
@@ -433,7 +433,7 @@ class _AddCarSheetState extends ConsumerState<_AddCarSheet> {
           width: 36,
           height: 36,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: enabled ? GrapeColors.c600 : InkColors.c300, borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: enabled ? BrandColors.c600 : InkColors.c300, borderRadius: BorderRadius.circular(10)),
           child: Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
         ),
       );

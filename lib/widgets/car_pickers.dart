@@ -107,8 +107,8 @@ Future<String?> showCarColorPicker(BuildContext context, {required bool dark, re
             onTap: () => Navigator.pop(ctx, c.nameRu),
           ),
         ListTile(
-          leading: const Icon(Icons.edit_outlined, size: 20, color: GrapeColors.c600),
-          title: Text('profile.manual_entry'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: GrapeColors.c600)),
+          leading: const Icon(Icons.edit_outlined, size: 20, color: BrandColors.c600),
+          title: Text('profile.manual_entry'.tr(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: BrandColors.c600)),
           onTap: () => Navigator.pop(ctx, kCarManual),
         ),
       ]),

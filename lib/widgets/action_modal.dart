@@ -6,20 +6,16 @@ import 'app_button.dart';
 
 /// Confirmation / result modal — 1:1 port of action-modal.tsx. Centered card,
 /// tinted icon medallion, title, body, stacked action buttons.
-enum ModalTone { brand, grape, accent, danger, sky, ink }
+enum ModalTone { brand, accent, danger, ink }
 
 ({Color bg, Color fg}) _medallion(ModalTone tone, bool dark) {
   switch (tone) {
     case ModalTone.brand:
       return (bg: dark ? BrandColors.c500.withValues(alpha: 0.15) : BrandColors.c100, fg: dark ? BrandColors.c300 : BrandColors.c600);
-    case ModalTone.grape:
-      return (bg: dark ? GrapeColors.c500.withValues(alpha: 0.15) : GrapeColors.c100, fg: dark ? GrapeColors.c300 : GrapeColors.c600);
     case ModalTone.accent:
       return (bg: dark ? AccentColors.c500.withValues(alpha: 0.15) : AccentColors.c100, fg: dark ? AccentColors.c300 : AccentColors.c600);
     case ModalTone.danger:
       return (bg: dark ? DangerColors.c500.withValues(alpha: 0.1) : DangerColors.c100, fg: dark ? DangerColors.c400 : DangerColors.c600);
-    case ModalTone.sky:
-      return (bg: dark ? SkyColors.c500.withValues(alpha: 0.15) : SkyColors.c100, fg: dark ? SkyColors.c300 : SkyColors.c600);
     case ModalTone.ink:
       return (bg: dark ? InkColors.c800 : InkColors.c100, fg: dark ? InkColors.c300 : InkColors.c600);
   }
@@ -95,7 +91,7 @@ Future<void> showSuccessModal(BuildContext context,
     body: body,
     primary: primaryLabel == null
         ? null
-        : AppButton(label: primaryLabel, variant: AppButtonVariant.brand, onPressed: () {
+        : AppButton(label: primaryLabel, variant: AppButtonVariant.neutral, onPressed: () {
             Navigator.of(context).pop();
             onPrimary?.call();
           }),
@@ -128,7 +124,7 @@ Future<bool> showConfirmModal(
     primary: Builder(builder: (ctx) {
       return AppButton(
         label: confirmLabel,
-        variant: danger ? AppButtonVariant.brand : AppButtonVariant.brand,
+        variant: danger ? AppButtonVariant.danger : AppButtonVariant.amber,
         onPressed: () => Navigator.of(ctx).pop(true),
       );
     }),

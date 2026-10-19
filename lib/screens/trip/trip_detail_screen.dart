@@ -164,7 +164,7 @@ Widget tripHeader(BuildContext context, TripCardItem trip, {VoidCallback? onBack
 
   return Container(
     decoration: const BoxDecoration(
-      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [BrandColors.c600, BrandColors.c500]),
+      color: BrandColors.c600,
     ),
     padding: EdgeInsets.fromLTRB(20, (onBack != null ? MediaQuery.of(context).padding.top : 8) + 12, 20, 24),
     child: Column(
@@ -371,11 +371,11 @@ Widget tripCta(BuildContext context, TripCardItem trip, String role, {bool isOwn
   List<BoxShadow> shadow = const [];
 
   if (role == 'driver') {
-    bg = BrandColors.c600;
-    fg = Colors.white;
+    bg = AccentColors.c500;
+    fg = AccentColors.ink;
     icon = Icons.directions_car_filled;
     label = 'detail.cta_create_similar'.tr();
-    shadow = AppShadows.brandCta;
+    shadow = AppShadows.cta;
     onTap = () => context.push('/trips/create?kind=trip',
         extra: CreatePrefill(from: trip.origin, to: trip.destination));
   } else if (role == 'guest') {
@@ -494,7 +494,7 @@ class _LikeCircleState extends ConsumerState<_LikeCircle> {
         height: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-        child: Icon(_liked ? Icons.favorite : Icons.favorite_border, size: 18, color: _liked ? CoralColors.c400 : Colors.white),
+        child: Icon(_liked ? Icons.favorite : Icons.favorite_border, size: 18, color: _liked ? AccentColors.c400 : Colors.white),
       ),
     );
   }

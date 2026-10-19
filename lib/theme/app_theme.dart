@@ -45,8 +45,8 @@ class AppColors extends ThemeExtension<AppColors> {
     brand: BrandColors.c600,
     accent: AccentColors.c500,
     accentInk: AccentColors.ink,
-    danger: CoralColors.c500,
-    success: SemanticColors.success,
+    danger: DangerColors.c600,
+    success: BrandColors.c600,
   );
 
   static const dark = AppColors(
@@ -60,7 +60,7 @@ class AppColors extends ThemeExtension<AppColors> {
     brand: BrandColors.c300,
     accent: AccentColors.c400,
     accentInk: AccentColors.ink,
-    danger: CoralColors.c400,
+    danger: DangerColors.c400,
     success: BrandColors.c300,
   );
 

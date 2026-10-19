@@ -275,7 +275,7 @@ class _NotifCard extends StatelessWidget {
                 width: 10,
                 height: 10,
                 decoration: const BoxDecoration(
-                    color: CoralColors.c500, shape: BoxShape.circle),
+                    color: BrandColors.c600, shape: BoxShape.circle),
               ),
           ],
         ),

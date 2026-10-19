@@ -53,14 +53,14 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: dark ? CoralColors.c600.withValues(alpha: 0.1) : CoralColors.c50,
+              color: dark ? DangerColors.c600.withValues(alpha: 0.1) : DangerColors.c50,
               borderRadius: BorderRadius.circular(AppRadii.xl2),
-              border: Border.all(color: dark ? CoralColors.c600.withValues(alpha: 0.3) : CoralColors.c100),
+              border: Border.all(color: dark ? DangerColors.c600.withValues(alpha: 0.3) : DangerColors.c100),
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.warning_amber_rounded, color: CoralColors.c600),
+              const Icon(Icons.warning_amber_rounded, color: DangerColors.c600),
               const SizedBox(width: 10),
-              Expanded(child: Text('delete_account.warning'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: CoralColors.c700, height: 1.5))),
+              Expanded(child: Text('delete_account.warning'.tr(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DangerColors.c700, height: 1.5))),
             ]),
           ),
           const SizedBox(height: 16),
@@ -71,7 +71,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               SizedBox(
                 width: 24,
                 height: 24,
-                child: Checkbox(value: _confirm, onChanged: (v) => setState(() => _confirm = v ?? false), activeColor: CoralColors.c600),
+                child: Checkbox(value: _confirm, onChanged: (v) => setState(() => _confirm = v ?? false), activeColor: DangerColors.c600),
               ),
               const SizedBox(width: 10),
               Expanded(child: Text('delete_account.confirm_label'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: dark ? InkColors.c200 : InkColors.c700))),
@@ -86,7 +86,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               child: Container(
                 height: 52,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: CoralColors.c600, borderRadius: BorderRadius.circular(AppRadii.lg)),
+                decoration: BoxDecoration(color: DangerColors.c600, borderRadius: BorderRadius.circular(AppRadii.lg)),
                 child: _loading
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
                     : Text('delete_account.delete_btn'.tr(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white)),

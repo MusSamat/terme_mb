@@ -41,7 +41,7 @@ class PublicProfileScreen extends ConsumerWidget {
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              gradient: role.headerGradient,
+              color: role.header,
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadii.xl4)),
             ),
             padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 56, 16, 24),

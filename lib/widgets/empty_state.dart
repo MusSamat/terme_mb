@@ -62,7 +62,7 @@ class EmptyState extends StatelessWidget {
               SizedBox(
                 width: 220,
                 child: AppButton(
-                    label: actionLabel!, variant: AppButtonVariant.brand, height: 46, onPressed: onAction),
+                    label: actionLabel!, variant: AppButtonVariant.neutral, height: 46, onPressed: onAction),
               ),
             ],
           ],

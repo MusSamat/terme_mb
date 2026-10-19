@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 
 /// Calendar month-grid picker — 1:1 port of terme_ft DatePickerModal.
-/// Per-day availability counts, weekend coral, today ring, selected brand.
+/// Per-day availability counts, today ring, selected brand.
 /// Returns the chosen 'YYYY-MM-DD' (or '' when cleared) via [onChange].
 Future<void> showDatePickerModal(
   BuildContext context, {
@@ -124,14 +124,14 @@ class _CalendarDialogState extends State<_CalendarDialog> {
             const SizedBox(height: 6),
             Row(
               children: [
-                for (final (wi, wd) in 'date_picker.weekdays'.tr().split(',').indexed)
+                for (final wd in 'date_picker.weekdays'.tr().split(','))
                   Expanded(
                     child: Center(
                       child: Text(wd,
-                          style: TextStyle(
+                          style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: wi >= 5 ? CoralColors.c400 : InkColors.c400)),
+                              color: InkColors.c400)),
                     ),
                   ),
               ],
@@ -188,8 +188,6 @@ class _CalendarDialogState extends State<_CalendarDialog> {
 
   Widget _dayCell(bool dark, int day, String todayStr) {
     final cellStr = ymd(DateTime(_year, _month + 1, day));
-    final weekday = DateTime(_year, _month + 1, day).weekday; // 6,7 weekend
-    final weekend = weekday >= 6;
     final selected = cellStr == widget.value;
     final isToday = cellStr == todayStr;
     final disabled = widget.min != null && cellStr.compareTo(widget.min!) < 0;
@@ -202,8 +200,6 @@ class _CalendarDialogState extends State<_CalendarDialog> {
       textColor = dark ? InkColors.c700 : InkColors.c300;
     } else if (isToday) {
       textColor = dark ? BrandColors.c300 : BrandColors.c600;
-    } else if (weekend) {
-      textColor = CoralColors.c500;
     } else {
       textColor = dark ? InkColors.c100 : InkColors.c800;
     }

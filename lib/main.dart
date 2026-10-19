@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'app/app.dart';
 import 'providers/core_providers.dart';
+import 'theme/colors.dart';
 import 'utils/config.dart';
 
 Future<void> main() async {
@@ -22,7 +23,7 @@ Future<void> main() async {
             child: Text(
               'Ошибка экрана: ${details.exceptionAsString()}',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Color(0xFFE11D48)),
+              style: const TextStyle(fontSize: 13, color: DangerColors.c600),
             ),
           ),
         ),

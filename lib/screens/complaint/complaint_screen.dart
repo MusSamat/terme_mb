@@ -107,7 +107,7 @@ class _ComplaintScreenState extends ConsumerState<ComplaintScreen> {
                   width: 200,
                   child: AppButton(
                     label: 'detail.back'.tr(),
-                    variant: AppButtonVariant.brand,
+                    variant: AppButtonVariant.neutral,
                     onPressed: () => context.canPop() ? context.pop() : context.go('/'),
                   ),
                 ),
@@ -200,7 +200,7 @@ class _ComplaintScreenState extends ConsumerState<ComplaintScreen> {
           ),
           if (!valid)
             Text('complaint.description_min'.tr(),
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CoralColors.c500)),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: DangerColors.c500)),
           const SizedBox(height: 12),
           Text('complaint.photos_label'.tr(),
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: InkColors.c400)),

@@ -94,7 +94,7 @@ class _RoleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = driver ? GrapeColors.c600 : BrandColors.c600;
+    const accent = BrandColors.c600;
     final asset = driver ? 'assets/icons/role_driver.png' : 'assets/icons/role_passenger.png';
     return GestureDetector(
       onTap: onTap,
@@ -117,7 +117,7 @@ class _RoleCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.lg),
               ),
               child: ColorFiltered(
-                colorFilter: ColorFilter.mode(accent, BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(accent, BlendMode.srcIn),
                 child: Image.asset(asset, width: 40, height: 40, fit: BoxFit.contain),
               ),
             ),
@@ -126,7 +126,7 @@ class _RoleCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(heading, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: accent)),
+                  Text(heading, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: accent)),
                   const SizedBox(height: 2),
                   Text(desc,
                       style: const TextStyle(fontSize: 13.5, height: 1.25, fontWeight: FontWeight.w600, color: InkColors.c400)),

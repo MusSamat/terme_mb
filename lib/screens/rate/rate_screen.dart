@@ -232,7 +232,7 @@ class _RateScreenState extends ConsumerState<RateScreen> {
                 width: 220,
                 child: AppButton(
                   label: 'rate.my_bookings_link'.tr(),
-                  variant: AppButtonVariant.brand,
+                  variant: AppButtonVariant.neutral,
                   onPressed: () => context.canPop() ? context.pop() : context.go('/my/bookings'),
                 ),
               ),

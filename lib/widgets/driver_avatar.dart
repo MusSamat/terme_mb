@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 
 /// Letter avatar — port of terme_ft driver-avatar.tsx.
-/// Grape tint, font-900 initials; optional brand check-dot overlay.
+/// Teal tint, font-900 initials; optional brand check-dot overlay.
 enum AvatarSize { xs, sm, md, lg, xl }
 
 class DriverAvatar extends StatelessWidget {
@@ -54,7 +54,7 @@ class DriverAvatar extends StatelessWidget {
       height: dim,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: dark ? GrapeColors.c500.withValues(alpha: 0.2) : GrapeColors.c100,
+        color: dark ? BrandColors.c500.withValues(alpha: 0.2) : BrandColors.c100,
         borderRadius: BorderRadius.circular(radius),
       ),
       child: Text(
@@ -63,7 +63,7 @@ class DriverAvatar extends StatelessWidget {
           fontFamily: 'Manrope',
           fontWeight: FontWeight.w900,
           fontSize: _fontPx[size],
-          color: dark ? GrapeColors.c300 : GrapeColors.c600,
+          color: dark ? BrandColors.c300 : BrandColors.c600,
         ),
       ),
     );

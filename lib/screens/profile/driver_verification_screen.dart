@@ -310,7 +310,7 @@ class _DriverVerificationScreenState
           padding: const EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(ok ? Icons.verified : (waiting ? Icons.hourglass_top : Icons.block),
-                size: 56, color: ok || waiting ? GrapeColors.c600 : CoralColors.c600),
+                size: 56, color: ok ? BrandColors.c600 : (waiting ? AccentColors.c500 : DangerColors.c600)),
             const SizedBox(height: 16),
             Text('profile.verification_status.$status'.tr(),
                 textAlign: TextAlign.center,
@@ -340,20 +340,20 @@ class _DriverVerificationScreenState
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: dark ? CoralColors.c600.withValues(alpha: 0.1) : CoralColors.c50,
+        color: dark ? DangerColors.c600.withValues(alpha: 0.1) : DangerColors.c50,
         borderRadius: BorderRadius.circular(AppRadii.xl2),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(Icons.info_outline, size: 20, color: CoralColors.c600),
+        const Icon(Icons.info_outline, size: 20, color: DangerColors.c600),
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('profile.verification_status.$status'.tr(),
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: CoralColors.c700)),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: DangerColors.c700)),
             for (final l in lines)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(l, style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: CoralColors.c700)),
+                child: Text(l, style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: DangerColors.c700)),
               ),
           ]),
         ),
@@ -379,7 +379,7 @@ class _DriverVerificationScreenState
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.5,
-                color: GrapeColors.c600)),
+                color: BrandColors.c600)),
         const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
@@ -387,7 +387,7 @@ class _DriverVerificationScreenState
             value: (_step + 1) / _totalSteps,
             minHeight: 6,
             backgroundColor: dark ? InkColors.c800 : InkColors.c200,
-            valueColor: const AlwaysStoppedAnimation(GrapeColors.c600),
+            valueColor: const AlwaysStoppedAnimation(BrandColors.c600),
           ),
         ),
         const SizedBox(height: 16),
@@ -460,12 +460,12 @@ class _DriverVerificationScreenState
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: _plate.text == c.plate
-                        ? GrapeColors.c600
+                        ? BrandColors.c600
                         : (dark ? InkColors.c900 : Colors.white),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
                         color: _plate.text == c.plate
-                            ? GrapeColors.c600
+                            ? BrandColors.c600
                             : (dark ? InkColors.c800 : InkColors.c200)),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -473,7 +473,7 @@ class _DriverVerificationScreenState
                         size: 14,
                         color: _plate.text == c.plate
                             ? Colors.white
-                            : GrapeColors.c600),
+                            : BrandColors.c600),
                     const SizedBox(width: 6),
                     Text('${c.make} ${c.model} · ${c.plate}',
                         style: TextStyle(
@@ -495,16 +495,16 @@ class _DriverVerificationScreenState
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: GrapeColors.c300),
+                    border: Border.all(color: BrandColors.c300),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.add, size: 14, color: GrapeColors.c600),
+                    const Icon(Icons.add, size: 14, color: BrandColors.c600),
                     const SizedBox(width: 4),
                     Text('profile.add_car'.tr(),
                         style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: GrapeColors.c600)),
+                            color: BrandColors.c600)),
                   ]),
                 ),
               ),
@@ -616,12 +616,12 @@ class _DriverVerificationScreenState
                           height: 56,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: GrapeColors.c600
+                            color: BrandColors.c600
                                 .withValues(alpha: dark ? 0.18 : 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.photo_camera_outlined,
-                              size: 28, color: GrapeColors.c600),
+                              size: 28, color: BrandColors.c600),
                         ),
                         const SizedBox(height: 14),
                         Text(_captureTip(doc.cat),
@@ -637,7 +637,7 @@ class _DriverVerificationScreenState
                             style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
-                                color: GrapeColors.c600)),
+                                color: BrandColors.c600)),
                       ],
                     ),
                   ),
@@ -674,7 +674,7 @@ class _DriverVerificationScreenState
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: CoralColors.c600)),
+                  color: DangerColors.c600)),
           const SizedBox(height: 10),
         ],
         if (onDocStep && !_currentDocPicked) ...[
@@ -688,7 +688,7 @@ class _DriverVerificationScreenState
         ],
         AppButton(
           label: label,
-          variant: AppButtonVariant.grape,
+          variant: AppButtonVariant.amber,
           loading: _submitting,
           onPressed: (canAdvance && !_submitting) ? _onPrimary : null,
         ),
@@ -720,7 +720,7 @@ class _DriverVerificationScreenState
               borderRadius: BorderRadius.circular(AppRadii.lg),
               border: Border.all(
                   color: hasError
-                      ? CoralColors.c500
+                      ? DangerColors.c500
                       : (dark ? InkColors.c800 : InkColors.c200),
                   width: hasError ? 2 : 1),
             ),
@@ -755,7 +755,7 @@ class _DriverVerificationScreenState
                 style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: CoralColors.c600)),
+                    color: DangerColors.c600)),
           ],
         ],
       ),
@@ -785,7 +785,7 @@ class _DriverVerificationScreenState
               style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: CoralColors.c600)),
+                  color: DangerColors.c600)),
         ],
       ]),
     );
@@ -836,7 +836,7 @@ class _DriverVerificationScreenState
                     style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: GrapeColors.c600)),
+                        color: BrandColors.c600)),
               ),
             ),
         ] else
@@ -853,7 +853,7 @@ class _DriverVerificationScreenState
               style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: CoralColors.c600)),
+                  color: DangerColors.c600)),
         ],
       ]),
     );
@@ -897,7 +897,7 @@ class _DriverVerificationScreenState
           height: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-              color: enabled ? GrapeColors.c600 : InkColors.c300,
+              color: enabled ? BrandColors.c600 : InkColors.c300,
               borderRadius: BorderRadius.circular(10)),
           child: Text(label,
               style: const TextStyle(

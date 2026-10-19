@@ -148,7 +148,7 @@ class _AirportScreenState extends ConsumerState<AirportScreen> {
                   child: _Shortcut(
                     icon: Icons.directions_car_rounded,
                     label: 'airport.offer_ride'.tr(),
-                    color: GrapeColors.c600,
+                    color: BrandColors.c600,
                     onTap: () => _create(true),
                   ),
                 ),

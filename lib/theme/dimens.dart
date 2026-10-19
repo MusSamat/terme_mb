@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'colors.dart';
 
 /// Radii — 1:1 port of tailwind borderRadius tokens.
 class AppRadii {
@@ -45,11 +44,6 @@ class AppShadows {
   static const brandCta = <BoxShadow>[
     BoxShadow(color: Color(0x800D9488), blurRadius: 24, spreadRadius: -8, offset: Offset(0, 10)),
   ];
-
-  /// Indigo (grape) CTA glow.
-  static const indigoCta = <BoxShadow>[
-    BoxShadow(color: Color(0x734F46E5), blurRadius: 24, spreadRadius: -8, offset: Offset(0, 10)),
-  ];
 }
 
 /// Mobile layout clearances — ported from globals.css.
@@ -61,10 +55,3 @@ class AppLayout {
   static const topNavHeight = 64.0;
   static const minTapTarget = 44.0;
 }
-
-/// Amber create-FAB gradient (accent-400 → accent-600, top-left → bottom-right).
-const kCreateFabGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [AccentColors.c400, AccentColors.c600],
-);
