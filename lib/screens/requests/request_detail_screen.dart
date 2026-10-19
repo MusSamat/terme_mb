@@ -11,6 +11,7 @@ import '../../providers/data_providers.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import '../../utils/date_format.dart';
+import '../../widgets/airport_extras.dart';
 import '../../widgets/action_modal.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/driver_avatar.dart';
@@ -301,6 +302,8 @@ class RequestDetailScreen extends ConsumerWidget {
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BrandColors.c600)),
                   ]),
                 ],
+                const SizedBox(height: 8),
+                AirportExtras(request: r, fontSize: 13),
               ],
             ),
           ),

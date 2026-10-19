@@ -8,6 +8,8 @@ import '../../models/feed_filters.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../create/create_screen.dart' show CreatePrefill;
+import '../../utils/airport.dart';
+import '../../utils/date_format.dart';
 import '../../utils/locale.dart';
 import '../../utils/location.dart';
 import '../../widgets/app_button.dart';
@@ -151,8 +153,10 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                   child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
-                      if (_canSortNear)
+                      if (_canSortNear && _filters.targetTime == null)
                         SliverToBoxAdapter(child: _nearSortChip()),
+                      if (_filters.targetTime != null)
+                        SliverToBoxAdapter(child: _targetBanner(dark)),
                       if (showNearby)
                         SliverToBoxAdapter(child: _nearbyBanner(dark)),
                       SliverPadding(
@@ -217,7 +221,11 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
           ),
           GestureDetector(
             onTap: () => setState(() => _filters = _filters.copyWith(
-                from: _filters.to, to: _filters.from, clearFrom: _filters.to == null, clearTo: _filters.from == null)),
+                from: _filters.to,
+                to: _filters.from,
+                clearFrom: _filters.to == null,
+                clearTo: _filters.from == null,
+                clearTarget: true)),
             child: Container(
               width: 38,
               height: 38,
@@ -533,6 +541,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
             items: items,
             requests: driver,
             origin: from,
+            airport: from?.isAirport == true ? from : (_filters.to?.isAirport == true ? _filters.to : null),
             nearby: nearby,
             truncated: truncated,
             onOpen: open,
@@ -563,8 +572,47 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
       context.push('/auth/login');
       return;
     }
+    final target = _filters.targetTime == null ? null : DateTime.tryParse(_filters.targetTime!)?.toLocal();
     context.push('/trips/create?kind=${driver ? 'trip' : 'request'}',
-        extra: CreatePrefill(from: _filters.from, to: _filters.to));
+        extra: CreatePrefill(from: _filters.from, to: _filters.to, departureAt: target));
+  }
+
+  // Airport search: results ranked around the flight / pickup time.
+  Widget _targetBanner(bool dark) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Row(children: [
+          const Icon(Icons.schedule_rounded, size: 16, color: BrandColors.c600),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+                'airport.target_banner'
+                    .tr(namedArgs: {'time': hhmm(DateTime.parse(_filters.targetTime!))}),
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800, color: dark ? InkColors.c200 : InkColors.c700)),
+          ),
+        ]),
+      );
+
+  /// target_time results: «Подходят по времени», then «Остальные в этот день».
+  List<Widget> _grouped<T>(List<T> items, bool? Function(T) nearOf, Widget Function(T) card) {
+    Widget list(List<T> xs) => SliverList.separated(
+          itemCount: xs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (_, i) => card(xs[i]),
+        );
+    if (_filters.targetTime == null) return [list(items)];
+    final g = groupByTarget(items, nearOf);
+    Widget head(String key, {bool first = false}) => SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: first ? 0 : 18, bottom: 8),
+            child: Text(key.tr(),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: InkColors.c500)),
+          ),
+        );
+    return [
+      if (g.near.isNotEmpty) ...[head('airport.group_near', first: true), list(g.near)],
+      if (g.rest.isNotEmpty) ...[head('airport.group_rest', first: g.near.isEmpty), list(g.rest)],
+    ];
   }
 
   Widget _nearbyBanner(bool dark) => Container(
@@ -605,13 +653,8 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
               return SliverToBoxAdapter(child: _emptyBlock(dark, false));
             }
             return SliverMainAxisGroup(slivers: [
-              SliverList.separated(
-                itemCount: trips.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => TripCard(
-                    trip: trips[i],
-                    onTap: () => showTripDetailSheet(context, trips[i].id)),
-              ),
+              ..._grouped(trips, (t) => t.nearTarget,
+                  (t) => TripCard(trip: t, onTap: () => showTripDetailSheet(context, t.id))),
               SliverToBoxAdapter(child: _nextDayCta(dark, false)),
             ]);
           },
@@ -631,13 +674,8 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
               return SliverToBoxAdapter(child: _emptyBlock(dark, true));
             }
             return SliverMainAxisGroup(slivers: [
-              SliverList.separated(
-                itemCount: reqs.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => RequestCard(
-                    request: reqs[i],
-                    onTap: () => context.push('/requests/${reqs[i].id}')),
-              ),
+              ..._grouped(reqs, (r) => r.nearTarget,
+                  (r) => RequestCard(request: r, onTap: () => context.push('/requests/${r.id}'))),
               SliverToBoxAdapter(child: _nextDayCta(dark, true)),
             ]);
           },

@@ -35,6 +35,9 @@ class _RequestEditSheetState extends ConsumerState<RequestEditSheet> {
   late final _comment = TextEditingController(text: widget.request.comment ?? '');
   late DateTime _date = widget.request.departureDate ?? DateTime.now().add(const Duration(days: 1));
   bool _dateChanged = false;
+  // Airport requests: meet with a sign / luggage pieces (sent only when changed).
+  late bool _sign = widget.request.meetWithSign;
+  late int? _luggage = widget.request.luggageCount;
   bool _loading = false;
   // «Мои» list cards carry no comment — fill it from the detail, and only send
   // fields the user changed (a blind resend erases the comment / re-posts a
@@ -96,6 +99,8 @@ class _RequestEditSheetState extends ConsumerState<RequestEditSheet> {
         'seatsNeeded': _seats,
         if (_dateChanged) 'departureDate': _date.toUtc().toIso8601String(),
         if (comment != _commentOrig) 'comment': comment.isEmpty ? null : comment,
+        if (widget.request.isAirport && _sign != widget.request.meetWithSign) 'meetWithSign': _sign,
+        if (widget.request.isAirport && _luggage != widget.request.luggageCount) 'luggageCount': _luggage,
       });
       Toasts.success('toasts.saved'.tr());
       if (!mounted) return;
@@ -141,6 +146,20 @@ class _RequestEditSheetState extends ConsumerState<RequestEditSheet> {
             SizedBox(width: 48, child: Text('$_seats', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900))),
             _stepBtn('+', _seats < 8, () => setState(() => _seats++)),
           ]),
+          if (widget.request.isAirport) ...[
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: label('airport.meet_sign'.tr())),
+              Switch(value: _sign, activeTrackColor: BrandColors.c600, onChanged: (v) => setState(() => _sign = v)),
+            ]),
+            label('airport.luggage'.tr()),
+            const SizedBox(height: 6),
+            Row(children: [
+              _stepBtn('−', (_luggage ?? 0) > 0, () => setState(() => _luggage = (_luggage ?? 0) - 1)),
+              SizedBox(width: 48, child: Text('${_luggage ?? 0}', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: dark ? Colors.white : InkColors.c900))),
+              _stepBtn('+', (_luggage ?? 0) < 5, () => setState(() => _luggage = (_luggage ?? 0) + 1)),
+            ]),
+          ],
           const SizedBox(height: 12),
           label('requests.my.date_label'.tr()),
           const SizedBox(height: 6),

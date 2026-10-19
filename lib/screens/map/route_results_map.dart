@@ -13,6 +13,7 @@ import '../../theme/dimens.dart';
 import '../../utils/location.dart';
 import '../../widgets/map/map_marker.dart';
 import '../../widgets/map/me_marker.dart';
+import '../../widgets/map/plane_glyph.dart';
 import '../../widgets/osm_map.dart';
 import 'map_nearby.dart';
 import 'map_overlays.dart';
@@ -33,6 +34,7 @@ class RouteResultsMap extends ConsumerStatefulWidget {
     required this.requests,
     required this.origin,
     required this.onOpen,
+    this.airport,
     this.nearby = false,
     this.truncated = false,
   });
@@ -41,6 +43,9 @@ class RouteResultsMap extends ConsumerStatefulWidget {
   final bool requests;
   final Place? origin;
   final void Function(String id) onOpen;
+
+  /// The route's airport end — drawn with the plane pin.
+  final Place? airport;
 
   /// Results come from nearby settlements (GET /map/route `nearby`).
   final bool nearby;
@@ -150,6 +155,8 @@ class _RouteResultsMapState extends ConsumerState<RouteResultsMap> with WidgetsB
 
   CameraFit _fit() {
     final pts = [for (final it in widget.items) LatLng(it.lat, it.lng)];
+    final ap = widget.airport;
+    if (ap != null && ap.hasPoint) pts.add(LatLng(ap.lat!, ap.lng!));
     final o = _originLatLng;
     final me = _me;
     final anchor = pts.isNotEmpty ? pts.first : o;
@@ -212,6 +219,20 @@ class _RouteResultsMapState extends ConsumerState<RouteResultsMap> with WidgetsB
         height: kMeMarkerSize,
         child: const IgnorePointer(child: MeMarker()),
       ));
+    }
+    final a = widget.airport;
+    if (a != null && a.hasPoint) {
+      out.insert(
+        0,
+        Marker(
+          key: const ValueKey('airport-pin'),
+          point: LatLng(a.lat!, a.lng!),
+          width: kMapPinSize.width,
+          height: kMapPinSize.height,
+          alignment: Alignment.topCenter,
+          child: const IgnorePointer(child: AirportMarker()),
+        ),
+      );
     }
     if (sel != null) out.add(pin(sel, true)); // selected on top
     return out;

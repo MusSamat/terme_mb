@@ -22,6 +22,7 @@ import 'package:terme_mb/screens/map/route_results_map.dart';
 import 'package:terme_mb/utils/location.dart';
 import 'package:terme_mb/widgets/map/map_marker.dart';
 import 'package:terme_mb/widgets/map/me_marker.dart';
+import 'package:terme_mb/widgets/map/plane_glyph.dart';
 
 /// Synchronous l10n loader — the rootBundle one does real async I/O that a
 /// fake-async widget test never finishes after the first test in a file.
@@ -260,6 +261,30 @@ void main() {
     expect(find.text('Показаны ближайшие сёла'), findsNothing);
     expect(find.text('Показаны первые 500 по времени отправления'), findsNothing);
     expect(find.text('примерно, центр села'), findsNothing);
+    FlutterError.onError = onError;
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('results map: the airport end gets the plane pin', (tester) async {
+    final onError = FlutterError.onError;
+    FlutterError.onError = (d) {
+      if (d.library != 'image resource service') onError?.call(d);
+    };
+    await pump(
+      tester,
+      FakeLocation(LocPermission.denied),
+      Scaffold(
+        body: RouteResultsMap(
+          items: [pin('a', 1)],
+          requests: false,
+          origin: null,
+          airport: const Place(id: 900, type: 'airport', nameRu: 'Манас', nameKg: 'Манас', lat: 43.06, lng: 74.48),
+          onOpen: (_) {},
+        ),
+      ),
+    );
+    expect(find.byType(AirportMarker), findsOneWidget);
+    expect(find.byType(MapMarker), findsOneWidget);
     FlutterError.onError = onError;
     expect(tester.takeException(), isNull);
   });

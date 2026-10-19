@@ -27,9 +27,13 @@ import '../profile/cars_card.dart' show showAddCarSheet;
 
 /// Optional prefill for the create form (airport screen, «create similar»…).
 class CreatePrefill {
-  const CreatePrefill({this.from, this.to});
+  const CreatePrefill({this.from, this.to, this.departureAt, this.flightNumber});
   final Place? from;
   final Place? to;
+
+  /// Airport flow: the pickup (to the airport) or post-landing time (from it).
+  final DateTime? departureAt;
+  final String? flightNumber;
 }
 
 /// Unified create screen: drivers publish a trip, passengers post a ride
@@ -71,6 +75,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   bool _more = false; // «Дополнительно» accordion — collapsed by default
   final List<Place> _pickup = []; // driver: intermediate pickup places
   final List<Place> _dropoff = []; // driver: intermediate dropoff places
+  bool _meetWithSign = false; // passenger ↔ airport: meet at arrivals with a sign
+  int _luggageCount = 1; // passenger ↔ airport: pieces of luggage (0–5)
   final Set<String> _prefs = {};
 
   /// Selected car id, defaulting to the last car in the garage (web parity).
@@ -118,6 +124,12 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     };
     _from = widget.prefill?.from;
     _to = widget.prefill?.to;
+    final at = widget.prefill?.departureAt;
+    if (at != null) {
+      _customDate = DateTime(at.year, at.month, at.day);
+      _time = TimeOfDay(hour: at.hour, minute: at.minute);
+    }
+    _flight.text = widget.prefill?.flightNumber ?? '';
     if (_from == null) _prefillOrigin();
   }
 
@@ -221,16 +233,20 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
             pickerTitle: (_asDriver ? 'point.title_driver' : 'point.title_passenger').tr(),
             onChanged: (p) => setState(() => _fromPoint = p),
           ),
+          if (_from?.isAirport ?? false) _airportSpots(),
           if (!_asDriver && _airport) ...[
             const SizedBox(height: 10),
             _flightField(dark),
+            const SizedBox(height: 10),
+            _airportExtras(dark),
           ],
           const SizedBox(height: 16),
           _sectionLabel('create.time_label'.tr(), dark),
           const SizedBox(height: 8),
           _dateChips(dark),
-          // Exact time is a driver-only field; passengers just pick a day / «Гибко».
-          if (_asDriver && (_customDate != null || _dateIndex != 3)) ...[
+          // Exact time is a driver field; passengers just pick a day / «Гибко» —
+          // except for airport transfers, which hang on the flight.
+          if ((_asDriver || _airport) && (_customDate != null || _dateIndex != 3)) ...[
             const SizedBox(height: 10),
             _timeRow(dark),
           ],
@@ -336,6 +352,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       _pickup.clear();
       _dropoff.clear();
       _prefs.clear();
+      _meetWithSign = false;
+      _luggageCount = 1;
       _idemKey = uuidV4();
     });
   }
@@ -428,6 +446,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           if (_fromPoint != null) 'originPoint': _fromPoint!.toBody(),
           if (_toPoint != null) 'destinationPoint': _toPoint!.toBody(),
           if (_airport && flight.isNotEmpty) 'flightNumber': flight,
+          if (_airport) ...{'meetWithSign': _meetWithSign, 'luggageCount': _luggageCount},
           'seatsNeeded': _seats,
           'departureDate': dep.iso,
           'flexible': dep.flexible,
@@ -1205,6 +1224,66 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                             : (dark ? InkColors.c200 : InkColors.c700))),
               ),
             ),
+        ]),
+      ]),
+    );
+  }
+
+  // Airport as the origin: one-tap terminal spots (GET /cities/{id}/spots).
+  Widget _airportSpots() {
+    final kg = isKg(context);
+    final spots = ref.watch(placeSpotsProvider(_from!.id)).valueOrNull ?? const [];
+    final spotOnly = spots.where((s) => s.kind == 'spot').toList();
+    if (spotOnly.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final sp in spotOnly)
+          ChoiceChip(
+            label: Text(sp.name(kg)),
+            selected: _fromPoint?.address == sp.nameRu && _fromPoint?.lat == sp.lat,
+            onSelected: (_) => setState(
+                () => _fromPoint = MeetingPoint(lat: sp.lat, lng: sp.lng, address: sp.nameRu)),
+          ),
+      ]),
+    );
+  }
+
+  // Airport request extras: meet with a name sign + luggage pieces (0–5).
+  Widget _airportExtras(bool dark) {
+    final ink = dark ? Colors.white : InkColors.c900;
+    return _card(
+      dark,
+      Column(children: [
+        Row(children: [
+          Icon(Icons.badge_outlined, size: 18, color: _accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('airport.meet_sign'.tr(),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: ink)),
+          ),
+          Switch(
+            value: _meetWithSign,
+            activeTrackColor: _accent,
+            onChanged: (v) => setState(() => _meetWithSign = v),
+          ),
+        ]),
+        Divider(height: 20, color: dark ? InkColors.c800 : InkColors.c100),
+        Row(children: [
+          Icon(Icons.luggage_outlined, size: 18, color: _accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('airport.luggage'.tr(),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: ink)),
+          ),
+          SeatsStepper(
+            key: const ValueKey('luggage-stepper'),
+            value: _luggageCount,
+            min: 0,
+            max: 5,
+            accent: _accent,
+            onChanged: (v) => setState(() => _luggageCount = v),
+          ),
         ]),
       ]),
     );

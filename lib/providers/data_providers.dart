@@ -49,6 +49,17 @@ final loyaltyServiceProvider = Provider<LoyaltyService>((ref) => LoyaltyService(
 final citiesServiceProvider = Provider<CitiesService>((ref) => CitiesService(_dio(ref)));
 final popularRoutesProvider = FutureProvider<List<PopularRoute>>((ref) => ref.read(citiesServiceProvider).popularRoutes());
 final airportsProvider = FutureProvider<List<Airport>>((ref) => ref.read(citiesServiceProvider).airports());
+
+/// Meeting spots of a place (airport terminals, Бишкек / Ош spots + areas).
+final placeSpotsProvider = FutureProvider.autoDispose
+    .family<List<MeetingSpot>, int>((ref, id) => ref.read(citiesServiceProvider).spots(id));
+
+/// «Во сколько выезжать» for a flight (airport flow, «В аэропорт»).
+typedef PickupKey = ({int airportId, int fromId, DateTime flightTime, String flightType});
+
+final pickupSuggestionProvider = FutureProvider.autoDispose.family<PickupSuggestion, PickupKey>((ref, k) =>
+    ref.read(citiesServiceProvider)
+        .pickupSuggestion(k.airportId, fromId: k.fromId, flightTime: k.flightTime, flightType: k.flightType));
 final mapServiceProvider = Provider<MapService>((ref) => MapService(_dio(ref)));
 final presenceServiceProvider = Provider<PresenceService>((ref) => PresenceService(_dio(ref)));
 
@@ -301,7 +312,7 @@ Map<String, dynamic> _sortParams(FeedFilters f, LatLngPoint? me) {
 Map<String, dynamic> tripQuery(FeedFilters f, {LatLngPoint? me}) => {
       if (f.from != null) 'from_id': f.from!.id,
       if (f.to != null) 'to_id': f.to!.id,
-      if (_feedDate(f) != null) 'date': _feedDate(f),
+      if (f.targetTime != null) 'target_time': f.targetTime else if (_feedDate(f) != null) 'date': _feedDate(f),
       if (f.kind != null) 'kind': f.kind,
       if (f.seats != null) 'seats': f.seats.toString(),
       if (f.onlyVerified) 'only_verified': 'true',
@@ -312,16 +323,16 @@ Map<String, dynamic> tripQuery(FeedFilters f, {LatLngPoint? me}) => {
       if (f.womenOnly) 'women_only': 'true',
       if (f.noSmoking) 'no_smoking': 'true',
       if (f.pets) 'pets': 'true',
-      ..._sortParams(f, me),
+      if (f.targetTime == null) ..._sortParams(f, me),
     };
 
 Map<String, dynamic> requestQuery(FeedFilters f, {LatLngPoint? me}) => {
       if (f.from != null) 'from_id': f.from!.id,
       if (f.to != null) 'to_id': f.to!.id,
-      if (_feedDate(f) != null) 'date': _feedDate(f),
+      if (f.targetTime != null) 'target_time': f.targetTime else if (_feedDate(f) != null) 'date': _feedDate(f),
       if (f.kind != null) 'kind': f.kind,
       if (f.seats != null) 'seats': f.seats.toString(),
-      if (f.sort == 'nearest') ..._sortParams(f, me),
+      if (f.sort == 'nearest' && f.targetTime == null) ..._sortParams(f, me),
     };
 
 class TripsFeedNotifier extends AutoDisposeFamilyAsyncNotifier<List<TripCardItem>, FeedFilters> {
@@ -431,6 +442,7 @@ final mapRouteProvider = FutureProvider.autoDispose.family<MapRoute?, MapRouteKe
         toId: f.to!.id,
         date: _feedDate(f),
         ride: f.kind,
+        targetTime: f.targetTime,
       );
 });
 

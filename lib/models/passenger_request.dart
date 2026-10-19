@@ -32,6 +32,9 @@ class PassengerRequestItem {
     this.destinationPoint,
     this.lat,
     this.lng,
+    this.nearTarget,
+    this.meetWithSign = false,
+    this.luggageCount,
     this.distanceKm,
   });
 
@@ -63,6 +66,11 @@ class PassengerRequestItem {
   // Boarding / waiting point from the API: the pin, else the origin settlement.
   final double? lat;
   final double? lng;
+  // target_time searches only: departure within ±2h of the target.
+  final bool? nearTarget;
+  // Airport requests: meet at arrivals with a name sign; luggage pieces (null = not said).
+  final bool meetWithSign;
+  final int? luggageCount;
   final double? distanceKm; // sort=nearest only
 
   bool get isAirport => kind == 'airport';
@@ -103,6 +111,9 @@ class PassengerRequestItem {
       destinationPoint: MeetingPoint.maybe(j['destinationPoint']),
       lat: (j['lat'] as num?)?.toDouble(),
       lng: (j['lng'] as num?)?.toDouble(),
+      nearTarget: j['nearTarget'] as bool?,
+      meetWithSign: (j['meetWithSign'] ?? false) as bool,
+      luggageCount: (j['luggageCount'] as num?)?.toInt(),
       distanceKm: (j['distanceKm'] as num?)?.toDouble(),
     );
   }

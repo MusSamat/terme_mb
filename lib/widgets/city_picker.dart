@@ -15,13 +15,14 @@ import 'app_toast.dart';
 
 /// Place selection sheet — searches the SOATE directory (GET /cities) with a
 /// short debounce. [nearMe] adds «Рядом со мной» (GPS → nearest settlement).
-Future<Place?> showCityPicker(BuildContext context, {bool nearMe = false}) {
+/// [scope] `any` also lists районы / айыл аймактары / city districts.
+Future<Place?> showCityPicker(BuildContext context, {bool nearMe = false, String? scope}) {
   return showModalBottomSheet<Place>(
     useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => _CityPickerSheet(nearMe: nearMe),
+    builder: (ctx) => _CityPickerSheet(nearMe: nearMe, scope: scope),
   );
 }
 
@@ -128,6 +129,9 @@ mixin PlaceSearch<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Timer? _debounce;
   String _q = '';
 
+  /// `/cities?scope=` for this picker (null = settlements only).
+  String? get searchScope => null;
+
   void searchPlaces(String v) {
     _q = v.trim();
     _debounce?.cancel();
@@ -135,7 +139,7 @@ mixin PlaceSearch<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final q = _q;
     _debounce = Timer(Duration(milliseconds: q.isEmpty ? 0 : 280), () async {
       try {
-        final r = await ref.read(citiesServiceProvider).search(q);
+        final r = await ref.read(citiesServiceProvider).search(q, scope: searchScope);
         if (mounted && _q == q) setState(() { results = r; searching = false; searchError = null; });
       } catch (e) {
         if (mounted && _q == q) setState(() { results = const []; searching = false; searchError = e; });
@@ -163,14 +167,18 @@ mixin PlaceSearch<T extends ConsumerStatefulWidget> on ConsumerState<T> {
 }
 
 class _CityPickerSheet extends ConsumerStatefulWidget {
-  const _CityPickerSheet({required this.nearMe});
+  const _CityPickerSheet({required this.nearMe, this.scope});
   final bool nearMe;
+  final String? scope;
 
   @override
   ConsumerState<_CityPickerSheet> createState() => _CityPickerSheetState();
 }
 
 class _CityPickerSheetState extends ConsumerState<_CityPickerSheet> with PlaceSearch {
+  @override
+  String? get searchScope => widget.scope;
+
   @override
   void initState() {
     super.initState();

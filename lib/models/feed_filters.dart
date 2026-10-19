@@ -17,6 +17,7 @@ class FeedFilters {
     this.womenOnly = false,
     this.noSmoking = false,
     this.pets = false,
+    this.targetTime,
   });
 
   final Place? from;
@@ -33,6 +34,10 @@ class FeedFilters {
   final bool womenOnly;
   final bool noSmoking;
   final bool pets;
+
+  /// Airport searches: flight / pickup instant (ISO). The API returns that
+  /// day ranked by closeness to it (overrides `date` and `sort`).
+  final String? targetTime;
 
   bool get hasRoute => from != null && to != null;
 
@@ -51,6 +56,8 @@ class FeedFilters {
     bool? womenOnly,
     bool? noSmoking,
     bool? pets,
+    String? targetTime,
+    bool clearTarget = false,
     bool clearFrom = false,
     bool clearTo = false,
     bool clearSeats = false,
@@ -72,6 +79,8 @@ class FeedFilters {
       womenOnly: womenOnly ?? this.womenOnly,
       noSmoking: noSmoking ?? this.noSmoking,
       pets: pets ?? this.pets,
+      // Another day drops the flight target (it ranks one day only).
+      targetTime: clearTarget || (date != null && date != this.date) ? targetTime : (targetTime ?? this.targetTime),
     );
   }
 
@@ -91,7 +100,7 @@ class FeedFilters {
   // Value equality — FeedFilters is a provider family key.
   List<Object?> get _props => [
         from?.id, to?.id, kind, date, seats, sort, onlyVerified, luggage, minRating,
-        minPrice, maxPrice, womenOnly, noSmoking, pets,
+        minPrice, maxPrice, womenOnly, noSmoking, pets, targetTime,
       ];
 
   @override

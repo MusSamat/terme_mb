@@ -87,9 +87,14 @@ class CitiesService {
 
   /// GET /cities?q= — SOATE directory autocomplete (RU / KG / Latin / wrong
   /// layout all match server-side). Empty query → the most prominent places.
-  Future<List<Place>> search(String query, {int limit = 20}) async {
-    final res = await _dio.get<Map<String, dynamic>>('/cities',
-        queryParameters: {if (query.trim().isNotEmpty) 'q': query.trim(), 'limit': limit});
+  /// [scope] `any` also finds районы / айыл аймактары / city districts (the
+  /// non-airport end of a transfer).
+  Future<List<Place>> search(String query, {int limit = 20, String? scope}) async {
+    final res = await _dio.get<Map<String, dynamic>>('/cities', queryParameters: {
+      if (query.trim().isNotEmpty) 'q': query.trim(),
+      'limit': limit,
+      if (scope != null && query.trim().isNotEmpty) 'scope': scope,
+    });
     return _places(res.data?['data']);
   }
 
@@ -115,6 +120,19 @@ class CitiesService {
     return ((res.data?['data'] as List?) ?? const [])
         .map((e) => Airport.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
+  }
+
+  /// GET /cities/airports/{id}/pickup-suggestion — pickup time for a flight
+  /// departing at [flightTime] from [fromId] ([flightType] defaults per airport).
+  Future<PickupSuggestion> pickupSuggestion(int airportId,
+      {required int fromId, required DateTime flightTime, String? flightType}) async {
+    final res = await _dio.get<Map<String, dynamic>>('/cities/airports/$airportId/pickup-suggestion',
+        queryParameters: {
+          'from_id': fromId,
+          'flight_time': flightTime.toUtc().toIso8601String(),
+          if (flightType != null) 'flight_type': flightType,
+        });
+    return PickupSuggestion.fromJson((res.data?['data'] as Map?)?.cast<String, dynamic>() ?? const {});
   }
 
   /// GET /cities/popular-routes — curated top routes with live trip counts.
@@ -205,6 +223,7 @@ class MapService {
     required int toId,
     String? date,
     String? ride,
+    String? targetTime,
   }) async {
     final res = await _dio.get<Map<String, dynamic>>('/map/route', queryParameters: {
       'kind': kind,
@@ -212,6 +231,7 @@ class MapService {
       'to_id': toId,
       if (date != null) 'date': date,
       if (ride != null) 'ride': ride,
+      if (targetTime != null) 'target_time': targetTime,
     });
     return MapRoute.fromJson(res.data ?? const {});
   }

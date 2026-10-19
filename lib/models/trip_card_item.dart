@@ -24,6 +24,7 @@ class TripCardItem {
     this.destinationPoint,
     this.lat,
     this.lng,
+    this.nearTarget,
     this.stops = const [],
     this.distanceKm,
     this.estimatedDurationMin,
@@ -60,6 +61,8 @@ class TripCardItem {
   // Boarding / waiting point from the API: the pin, else the origin settlement.
   final double? lat;
   final double? lng;
+  // target_time searches only: departure within ±2h of the target.
+  final bool? nearTarget;
   final List<({String kind, Place place})> stops;
   final double? distanceKm; // sort=nearest only
   final int? estimatedDurationMin;
@@ -107,6 +110,7 @@ class TripCardItem {
         destinationPoint: MeetingPoint.maybe(j['destinationPoint']),
         lat: (j['lat'] as num?)?.toDouble(),
         lng: (j['lng'] as num?)?.toDouble(),
+        nearTarget: j['nearTarget'] as bool?,
         stops: [
           for (final s in (j['stops'] as List?) ?? const [])
             if (Place.maybe((s as Map)['place']) != null)

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/passenger_request.dart';
 import '../theme/colors.dart';
+import 'airport_extras.dart';
 import '../utils/api_format.dart';
 import '../utils/locale.dart';
 import 'driver_avatar.dart';
@@ -69,6 +70,11 @@ class RequestCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 3),
                       child: Text(extra, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: muted)),
+                    ),
+                  if (r.isAirport && (r.meetWithSign || r.luggageCount != null))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: AirportExtras(request: r, color: muted),
                     ),
                 ]),
               ),

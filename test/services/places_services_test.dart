@@ -45,6 +45,47 @@ void main() {
     });
   });
 
+  group('CitiesService — airports', () {
+    test('search sends scope only with a query', () async {
+      stubGet({'data': []});
+      await CitiesService(dio).search('аламед', scope: 'any');
+      expect(captureQuery('/cities')['scope'], 'any');
+      await CitiesService(dio).search('', scope: 'any');
+      expect(captureQuery('/cities').containsKey('scope'), false);
+    });
+
+    test('pickupSuggestion → /airports/{id}/pickup-suggestion with UTC flight time', () async {
+      stubGet({
+        'data': {
+          'pickupAt': '2026-10-20T21:30:00.000Z',
+          'travelMin': 30,
+          'bufferMin': 150,
+          'distanceKm': 24.6,
+          'flightType': 'international',
+        }
+      });
+      final s = await CitiesService(dio).pickupSuggestion(900,
+          fromId: 1, flightTime: DateTime.utc(2026, 10, 21, 0, 30), flightType: 'international');
+      expect(captureQuery('/cities/airports/900/pickup-suggestion'),
+          {'from_id': 1, 'flight_time': '2026-10-21T00:30:00.000Z', 'flight_type': 'international'});
+      expect((s.travelMin, s.bufferMin), (30, 150));
+    });
+
+    test('airports parse titles + popular chips', () async {
+      stubGet({
+        'data': [
+          {
+            'id': 900, 'type': 'airport', 'nameRu': 'Манас', 'nameKg': 'Манас',
+            'titleRu': 'Манас · Бишкек', 'titleKg': 'Манас · Бишкек', 'flightType': 'international',
+            'popularDestinations': [{'id': 1, 'type': 'capital', 'nameRu': 'Бишкек', 'nameKg': 'Бишкек'}],
+          }
+        ]
+      });
+      final a = (await CitiesService(dio).airports()).single;
+      expect((a.title(true), a.popular.single.id), ('Манас · Бишкек', 1));
+    });
+  });
+
   group('CitiesService.popularRoutes — KG names', () {
     test('fromKg/toKg used in kg, places carry them; missing → RU', () async {
       stubGet({'data': [
@@ -115,7 +156,9 @@ void main() {
       stubGet({'items': [routeItem('r1', exact: true, passengers: 2)]});
       final r = await MapService(dio).route(kind: 'requests', fromId: 1, toId: 7);
       final q = captureQuery('/map/route');
-      expect(q.containsKey('date') || q.containsKey('ride'), false);
+      expect(q.containsKey('date') || q.containsKey('ride') || q.containsKey('target_time'), false);
+      await MapService(dio).route(kind: 'trips', fromId: 1, toId: 7, targetTime: '2026-10-19T21:30:00.000Z');
+      expect(captureQuery('/map/route')['target_time'], '2026-10-19T21:30:00.000Z');
       expect((r.items.single.seats, r.items.single.price, r.truncated, r.nearby), (2, null, false, false));
       expect(MapRoute.fromJson(const {}).items, isEmpty);
     });

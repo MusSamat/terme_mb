@@ -141,12 +141,73 @@ class MeetingSpot {
       );
 }
 
-/// An airport and the city it serves (Бишкек ↔ «Манас», Ош ↔ Ош).
+/// A transfer airport (GET /cities/airports): the place, the city it serves
+/// (Бишкек ↔ «Манас», Ош ↔ Ош), its display title, default flight type,
+/// check-in buffers and popular other ends (served city first).
 class Airport {
-  const Airport({required this.place, this.serves});
+  const Airport({
+    required this.place,
+    this.serves,
+    String? titleRu,
+    String? titleKg,
+    this.flightType = 'domestic',
+    this.bufferMin = const {'international': 150, 'domestic': 90},
+    this.popular = const [],
+  })  : titleRu = titleRu ?? '',
+        titleKg = titleKg ?? titleRu ?? '';
   final Place place;
   final Place? serves;
+  final String titleRu;
+  final String titleKg;
+  final String flightType; // international | domestic
+  final Map<String, int> bufferMin;
+  final List<Place> popular;
 
-  factory Airport.fromJson(Map<String, dynamic> j) =>
-      Airport(place: Place.fromJson(j), serves: Place.maybe(j['serves']));
+  /// «Манас · Бишкек» / «Ош»; the directory name when no title came.
+  String title(bool kg) {
+    final t = kg ? titleKg : titleRu;
+    return t.isEmpty ? place.name(kg) : t;
+  }
+
+  factory Airport.fromJson(Map<String, dynamic> j) {
+    final buf = (j['departureBufferMin'] as Map?)?.cast<String, dynamic>();
+    return Airport(
+      place: Place.fromJson(j),
+      serves: Place.maybe(j['serves']),
+      titleRu: j['titleRu'] as String?,
+      titleKg: j['titleKg'] as String?,
+      flightType: (j['flightType'] ?? 'domestic') as String,
+      bufferMin: buf == null
+          ? const {'international': 150, 'domestic': 90}
+          : {for (final e in buf.entries) e.key: (e.value as num).toInt()},
+      popular: [
+        for (final p in (j['popularDestinations'] as List?) ?? const [])
+          if (Place.maybe(p) != null) Place.maybe(p)!,
+      ],
+    );
+  }
+}
+
+/// GET /cities/airports/:id/pickup-suggestion — when to leave for a flight.
+class PickupSuggestion {
+  const PickupSuggestion({
+    required this.pickupAt,
+    required this.travelMin,
+    required this.bufferMin,
+    required this.distanceKm,
+    required this.flightType,
+  });
+  final DateTime pickupAt; // local
+  final int travelMin;
+  final int bufferMin;
+  final double distanceKm;
+  final String flightType;
+
+  factory PickupSuggestion.fromJson(Map<String, dynamic> j) => PickupSuggestion(
+        pickupAt: DateTime.parse(j['pickupAt'] as String).toLocal(),
+        travelMin: (j['travelMin'] as num?)?.toInt() ?? 0,
+        bufferMin: (j['bufferMin'] as num?)?.toInt() ?? 0,
+        distanceKm: (j['distanceKm'] as num?)?.toDouble() ?? 0,
+        flightType: (j['flightType'] ?? 'domestic') as String,
+      );
 }
