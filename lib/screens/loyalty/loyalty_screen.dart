@@ -160,10 +160,7 @@ class LoyaltyScreen extends StatelessWidget {
                                                       ? InkColors.c300
                                                       : InkColors.c600))),
                                       Text(
-                                          'loyalty.points_remaining'.tr(
-                                              namedArgs: {
-                                                'n': '${l.pointsToNext}'
-                                              }),
+                                          'loyalty.points_remaining'.plural(l.pointsToNext),
                                           style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w700,

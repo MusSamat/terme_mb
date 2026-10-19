@@ -44,8 +44,7 @@ class ChatHubScreen extends ConsumerWidget {
                   const SizedBox(height: 2),
                   Text(
                       activeCount > 0
-                          ? 'chat.active_count'
-                              .tr(namedArgs: {'n': '$activeCount'})
+                          ? 'chat.active_count'.plural(activeCount)
                           : 'chat.no_active'.tr(),
                       style: const TextStyle(
                           fontSize: 14,
@@ -113,6 +112,8 @@ class ChatHubScreen extends ConsumerWidget {
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                                 color: dark ? Colors.white : InkColors.c900)),
+                        // The badge carries the count; «Нет новых» only when there are none.
+                        if ((ref.watch(unreadNotifProvider).valueOrNull ?? 0) == 0)
                         Text('chat.notifications_none'.tr(),
                             style: const TextStyle(
                                 fontSize: 14,

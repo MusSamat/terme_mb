@@ -324,7 +324,7 @@ Map<String, dynamic> requestQuery(FeedFilters f, {LatLngPoint? me}) => {
       if (f.sort == 'nearest') ..._sortParams(f, me),
     };
 
-class TripsFeedNotifier extends FamilyAsyncNotifier<List<TripCardItem>, FeedFilters> {
+class TripsFeedNotifier extends AutoDisposeFamilyAsyncNotifier<List<TripCardItem>, FeedFilters> {
   String? _cursor;
   bool nearby = false;
   bool loadingMore = false;
@@ -358,8 +358,10 @@ class TripsFeedNotifier extends FamilyAsyncNotifier<List<TripCardItem>, FeedFilt
   }
 }
 
-final tripsFeedProvider =
-    AsyncNotifierProvider.family<TripsFeedNotifier, List<TripCardItem>, FeedFilters>(TripsFeedNotifier.new);
+// autoDispose: every filter tweak is a new family key — don't keep each one's
+// pages alive forever.
+final tripsFeedProvider = AsyncNotifierProvider.autoDispose
+    .family<TripsFeedNotifier, List<TripCardItem>, FeedFilters>(TripsFeedNotifier.new);
 
 /// Single trip detail — mock lookup or `GET /trips/{id}`.
 final tripDetailProvider = FutureProvider.family<TripCardItem, String>((ref, id) async {
@@ -383,7 +385,7 @@ final calendarCountsProvider = FutureProvider.family<Map<String, int>, CalendarK
 
 /// Requests feed (driver browsing) with cursor pagination. Route + date filtered
 /// like web's driver filter subset.
-class RequestsFeedNotifier extends FamilyAsyncNotifier<List<PassengerRequestItem>, FeedFilters> {
+class RequestsFeedNotifier extends AutoDisposeFamilyAsyncNotifier<List<PassengerRequestItem>, FeedFilters> {
   String? _cursor;
   bool loadingMore = false;
   bool get hasMore => _cursor != null;
@@ -413,8 +415,8 @@ class RequestsFeedNotifier extends FamilyAsyncNotifier<List<PassengerRequestItem
   }
 }
 
-final requestsFeedProvider =
-    AsyncNotifierProvider.family<RequestsFeedNotifier, List<PassengerRequestItem>, FeedFilters>(RequestsFeedNotifier.new);
+final requestsFeedProvider = AsyncNotifierProvider.autoDispose
+    .family<RequestsFeedNotifier, List<PassengerRequestItem>, FeedFilters>(RequestsFeedNotifier.new);
 
 final requestDetailProvider = FutureProvider.family<PassengerRequestItem, String>((ref, id) async {
   return ref.watch(requestsServiceProvider).detail(id);

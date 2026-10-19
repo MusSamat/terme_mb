@@ -118,6 +118,7 @@
     "date_pick": "Күн тандоо",
     "sort_label": "Иреттөө",
     "sort_time": "Убакыт боюнча",
+    "sort_nearest": "Эң жакындары",
     "sort_price_asc": "Арзаны",
     "sort_rating_desc": "Рейтинг боюнча",
     "rating_label": "Рейтинг",
@@ -304,7 +305,12 @@
     "submit": "Пикир жиберүү"
   },
   "chat": {
-    "active_count": "{n} активдүү",
+    "active_count": {
+      "one": "{} активдүү",
+      "few": "{} активдүү",
+      "many": "{} активдүү",
+      "other": "{} активдүү"
+    },
     "no_active": "Активдүү чат жок",
     "no_chats": "Чат жок",
     "typing": "терип жатат…",
@@ -321,7 +327,12 @@
     "title": "Берилгендик программасы",
     "points_suffix": "упай",
     "to_next_tier": "«{tier}» деңгеелине чейин",
-    "points_remaining": "{n} упай",
+    "points_remaining": {
+      "one": "{} упай",
+      "few": "{} упай",
+      "many": "{} упай",
+      "other": "{} упай"
+    },
     "tiers_section": "Деңгеелдер",
     "how_to_earn_section": "Упай кантип табуу керек",
     "history_section": "Упайлардын тарыхы",
@@ -419,7 +430,12 @@
     "mine_requests_sub": "Жоопторду көрүңүз",
     "today": "Бүгүн",
     "tomorrow": "Эртең",
-    "trips_count": "{n} сапар",
+    "trips_count": {
+      "one": "{} сапар",
+      "few": "{} сапар",
+      "many": "{} сапар",
+      "other": "{} сапар"
+    },
     "next_day_show": "{date} · {count} көрсөтүү",
     "next_day_none": "Жакынкы күндү календардан караңыз",
     "trips_plural": {
@@ -442,14 +458,24 @@
     "som_short": "с",
     "per_seat": "орун үчүн",
     "tile_departure": "чыгуу",
-    "tile_seats_value": "{n} орун",
+    "tile_seats_value": {
+      "one": "{} орун",
+      "few": "{} орун",
+      "many": "{} орун",
+      "other": "{} орун"
+    },
     "tile_seats_sub": "бош",
     "tile_luggage_title": "Жүк",
     "luggage_big": "Чоң",
     "luggage_small": "Орточо",
     "luggage_none": "Жок",
     "new_driver": "Жаңы айдоочу",
-    "reviews_count": "{n} пикир",
+    "reviews_count": {
+      "one": "{} пикир",
+      "few": "{} пикир",
+      "many": "{} пикир",
+      "other": "{} пикир"
+    },
     "cta_book": "Брондоо",
     "trip_unavailable": "Сапар жеткиликсиз",
     "cta_signin": "Брондоо үчүн кириңиз",

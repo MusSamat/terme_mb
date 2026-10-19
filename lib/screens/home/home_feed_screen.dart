@@ -709,7 +709,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     final accentDark = driver ? GrapeColors.c300 : BrandColors.c300;
     String? sub;
     if (!driver && r.tripCount > 0) {
-      sub = 'feed.trips_count'.tr(namedArgs: {'n': '${r.tripCount}'});
+      sub = 'feed.trips_count'.plural(r.tripCount);
     } else if (driver && r.minPrice != null) {
       sub = 'feed.from_price'.tr(namedArgs: {'n': '${r.minPrice}'});
     }
@@ -755,7 +755,7 @@ class _HomeFeedScreenState extends ConsumerState<HomeFeedScreen> {
     final accentDark = driver ? GrapeColors.c300 : BrandColors.c300;
     String sub = '';
     if (!driver && r.tripCount > 0) {
-      sub = 'feed.trips_count'.tr(namedArgs: {'n': '${r.tripCount}'});
+      sub = 'feed.trips_count'.plural(r.tripCount);
     } else if (r.minPrice != null) {
       sub = 'feed.from_price'.tr(namedArgs: {'n': '${r.minPrice}'});
     }

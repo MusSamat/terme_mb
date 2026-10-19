@@ -97,7 +97,17 @@ class _AirportScreenState extends ConsumerState<AirportScreen> {
       body: airports.when(
         loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2.6, color: BrandColors.c500)),
         error: (e, _) => QueryError(error: e, onRetry: () => ref.invalidate(airportsProvider)),
-        data: (list) => CustomScrollView(slivers: [
+        // Infinite scroll — the feed is paginated (20 per page).
+        data: (list) => NotificationListener<ScrollNotification>(
+          onNotification: (n) {
+            if (f != null && n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
+              _requests
+                  ? ref.read(requestsFeedProvider(f).notifier).loadMore()
+                  : ref.read(tripsFeedProvider(f).notifier).loadMore();
+            }
+            return false;
+          },
+          child: CustomScrollView(slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             sliver: SliverList.list(children: [
@@ -171,6 +181,7 @@ class _AirportScreenState extends ConsumerState<AirportScreen> {
               sliver: _requests ? _requestList(f) : _tripList(f),
             ),
         ]),
+        ),
       ),
     );
   }

@@ -184,8 +184,8 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
             icon: Icon(Icons.map_outlined, size: 22, color: dark ? InkColors.c300 : InkColors.c600),
           ),
           GestureDetector(
-            onTap: () => setState(() => _filters =
-                _filters.copyWith(from: _filters.to, to: _filters.from)),
+            onTap: () => setState(() => _filters = _filters.copyWith(
+                from: _filters.to, to: _filters.from, clearFrom: _filters.to == null, clearTo: _filters.from == null)),
             child: Container(
               width: 38,
               height: 38,
@@ -205,9 +205,8 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   Widget _dateBar(
       BuildContext context, bool dark, bool driver, ChipAccent accent) {
     final today = ymd(DateTime.now());
-    final current = (_filters.date.isEmpty || _filters.date == 'any')
-        ? today
-        : _filters.date;
+    // «Любая дата» (from the filters sheet) highlights no day chip.
+    final current = _filters.date.isEmpty ? today : _filters.date;
     final days = [
       for (var i = 0; i < 3; i++) ymd(DateTime.now().add(Duration(days: i)))
     ];

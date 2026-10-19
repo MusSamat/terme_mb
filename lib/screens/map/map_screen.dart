@@ -56,6 +56,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _map.dispose();
     super.dispose();
   }
 
@@ -224,7 +225,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       width: 46,
                       height: 46,
                       child: GestureDetector(
-                        onTap: () => _map.move(LatLng(c.lat, c.lng), (_map.camera.zoom + 2).clamp(5, 18)),
+                        // move() fires no MoveEnd event — reload the zoomed area explicitly.
+                        onTap: () {
+                          _map.move(LatLng(c.lat, c.lng), (_map.camera.zoom + 2).clamp(5, 18));
+                          _schedule();
+                        },
                         child: _Bubble(count: c.count, color: _accent),
                       ),
                     ),

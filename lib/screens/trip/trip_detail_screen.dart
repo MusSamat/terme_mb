@@ -229,7 +229,7 @@ Widget tripBody(BuildContext context, TripCardItem trip) {
   final showRating = d.rating != null && d.ratingCount >= 3;
   final meta = [
     showRating ? '★${d.rating!.toStringAsFixed(1)}' : 'detail.new_driver'.tr(),
-    if (showRating) 'detail.reviews_count'.tr(namedArgs: {'n': '${d.ratingCount}'}),
+    if (showRating) 'detail.reviews_count'.plural(d.ratingCount),
     if (d.car != null) '${d.car!.make} ${d.car!.model}',
   ].join(' · ');
   final label = departureLabel(trip.departureAt);
@@ -295,7 +295,7 @@ Widget tripBody(BuildContext context, TripCardItem trip) {
                   : '${label.date}, ${label.time}',
               'detail.tile_departure'.tr()),
           const SizedBox(width: 10),
-          tile(Icons.group, 'detail.tile_seats_value'.tr(namedArgs: {'n': '${trip.seatsAvailable}'}), 'detail.tile_seats_sub'.tr()),
+          tile(Icons.group, 'detail.tile_seats_value'.plural(trip.seatsAvailable), 'detail.tile_seats_sub'.tr()),
           const SizedBox(width: 10),
           tile(Icons.work_outline, 'detail.tile_luggage_title'.tr(), luggage),
         ]),

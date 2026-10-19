@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,11 +48,18 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
   late final _priceFrom = TextEditingController(text: _f.minPrice?.toString() ?? '');
   late final _priceTo = TextEditingController(text: _f.maxPrice?.toString() ?? '');
 
-  static final _todayYmd = ymd(DateTime.now());
-  static final _tomorrowYmd = ymd(DateTime.now().add(const Duration(days: 1)));
+  // Getters, not statics: the app can stay open past midnight.
+  String get _todayYmd => ymd(DateTime.now());
+  String get _tomorrowYmd => ymd(DateTime.now().add(const Duration(days: 1)));
+  Timer? _priceDebounce; // one feed request per pause, not per digit
+
+  // Driver (requests) feed: the API filters only by route, date and
+  // time / nearest — the trip-only sections would silently do nothing.
+  bool get _requests => widget.accent == ChipAccent.grape;
 
   @override
   void dispose() {
+    _priceDebounce?.cancel();
     _priceFrom.dispose();
     _priceTo.dispose();
     super.dispose();
@@ -65,7 +74,7 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
     _priceFrom.clear();
     _priceTo.clear();
     // Reset the filters, keep the route the user searched.
-    _set(FeedFilters(from: _f.from, to: _f.to, kind: _f.kind));
+    _set(FeedFilters(from: _f.from, to: _f.to, kind: _f.kind, seats: _f.seats, date: _f.date));
   }
 
   @override
@@ -127,8 +136,10 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
                   Wrap(spacing: 6, runSpacing: 6, children: [
                     // «Ближайшие» ranks by distance from you to the boarding point.
                     for (final o in const [('time', 'sort_time'), ('nearest', 'sort_nearest'), ('price_asc', 'sort_price_asc'), ('rating_desc', 'sort_rating_desc')])
-                      AppChip(label: 'search_filters.${o.$2}'.tr(), selected: _f.sort == o.$1, accent: acc, onTap: () => _set(_f.copyWith(sort: o.$1))),
+                      if (!_requests || o.$1 == 'time' || o.$1 == 'nearest')
+                        AppChip(label: 'search_filters.${o.$2}'.tr(), selected: _f.sort == o.$1, accent: acc, onTap: () => _set(_f.copyWith(sort: o.$1))),
                   ]),
+                  if (!_requests) ...[
                   const SizedBox(height: 18),
                   _label(dark, 'search_filters.rating_label'.tr()),
                   Wrap(spacing: 6, runSpacing: 6, children: [
@@ -155,6 +166,7 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
                   _prefRow(dark, Icons.smoke_free, 'search_filters.pref_no_smoking'.tr(), _f.noSmoking, (v) => _set(_f.copyWith(noSmoking: v))),
                   _prefRow(dark, Icons.pets, 'search_filters.pref_pets'.tr(), _f.pets, (v) => _set(_f.copyWith(pets: v))),
                   _prefRow(dark, Icons.verified_user, 'search_filters.only_verified'.tr(), _f.onlyVerified, (v) => _set(_f.copyWith(onlyVerified: v))),
+                  ],
                 ],
               ),
             ),
@@ -188,6 +200,8 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
               border: Border.all(color: dark ? InkColors.c700 : InkColors.c200),
             ),
             child: Text(place == null ? hint : place.name(kg),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -200,7 +214,8 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
       Row(children: [
         Expanded(child: Container(height: 1, color: dark ? InkColors.c800 : InkColors.c100)),
         GestureDetector(
-          onTap: () => _set(_f.copyWith(from: _f.to, to: _f.from)),
+          // Explicit nulls: copyWith(from: null) would keep the old value.
+          onTap: () => _set(_f.copyWith(from: _f.to, to: _f.from, clearFrom: _f.to == null, clearTo: _f.from == null)),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             width: 24,
@@ -242,11 +257,15 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
         child: Row(children: [
           Icon(Icons.calendar_today, size: 15, color: isCustom ? BrandColors.c600 : InkColors.c400),
           const SizedBox(width: 8),
-          Text(isCustom ? _f.date : 'search_filters.date_pick'.tr(),
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isCustom ? (dark ? Colors.white : InkColors.c900) : InkColors.c400)),
+          Expanded(
+            child: Text(isCustom ? _f.date : 'search_filters.date_pick'.tr(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isCustom ? (dark ? Colors.white : InkColors.c900) : InkColors.c400)),
+          ),
         ]),
       ),
     );
@@ -256,7 +275,12 @@ class _FiltersSheetState extends ConsumerState<_FiltersSheet> {
         controller: c,
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        onChanged: (v) => onChanged(v.isEmpty ? null : int.tryParse(v)),
+        onChanged: (v) {
+          _priceDebounce?.cancel();
+          _priceDebounce = Timer(const Duration(milliseconds: 400), () {
+            if (mounted) onChanged(v.isEmpty ? null : int.tryParse(v));
+          });
+        },
         style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: dark ? Colors.white : InkColors.c900),
         decoration: InputDecoration(
           hintText: hint,

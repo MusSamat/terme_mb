@@ -118,6 +118,7 @@
     "date_pick": "Выбрать дату",
     "sort_label": "Сортировка",
     "sort_time": "По времени",
+    "sort_nearest": "Ближайшие",
     "sort_price_asc": "Дешевле",
     "sort_rating_desc": "По рейтингу",
     "rating_label": "Рейтинг",
@@ -304,7 +305,12 @@
     "submit": "Отправить отзыв"
   },
   "chat": {
-    "active_count": "{n} активных",
+    "active_count": {
+      "one": "{} активный",
+      "few": "{} активных",
+      "many": "{} активных",
+      "other": "{} активных"
+    },
     "no_active": "Нет активных чатов",
     "no_chats": "Нет чатов",
     "typing": "печатает…",
@@ -321,7 +327,12 @@
     "title": "Программа лояльности",
     "points_suffix": "баллов",
     "to_next_tier": "До уровня «{tier}»",
-    "points_remaining": "{n} баллов",
+    "points_remaining": {
+      "one": "{} балл",
+      "few": "{} балла",
+      "many": "{} баллов",
+      "other": "{} балла"
+    },
     "tiers_section": "Уровни",
     "how_to_earn_section": "Как заработать баллы",
     "history_section": "История баллов",
@@ -419,7 +430,12 @@
     "mine_requests_sub": "Нажмите, чтобы посмотреть отклики",
     "today": "Сегодня",
     "tomorrow": "Завтра",
-    "trips_count": "{n} поездок",
+    "trips_count": {
+      "one": "{} поездка",
+      "few": "{} поездки",
+      "many": "{} поездок",
+      "other": "{} поездки"
+    },
     "next_day_show": "Показать {date} · {count}",
     "next_day_none": "Посмотрите ближайшую дату в календаре",
     "trips_plural": {
@@ -442,14 +458,24 @@
     "som_short": "с",
     "per_seat": "за место",
     "tile_departure": "выезд",
-    "tile_seats_value": "{n} мест",
+    "tile_seats_value": {
+      "one": "{} место",
+      "few": "{} места",
+      "many": "{} мест",
+      "other": "{} места"
+    },
     "tile_seats_sub": "свободно",
     "tile_luggage_title": "Багаж",
     "luggage_big": "Большой",
     "luggage_small": "Средний",
     "luggage_none": "Нет",
     "new_driver": "Новый водитель",
-    "reviews_count": "{n} отзывов",
+    "reviews_count": {
+      "one": "{} отзыв",
+      "few": "{} отзыва",
+      "many": "{} отзывов",
+      "other": "{} отзыва"
+    },
     "cta_book": "Забронировать",
     "trip_unavailable": "Поездка недоступна",
     "cta_signin": "Войдите, чтобы забронировать",
