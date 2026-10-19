@@ -112,6 +112,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return SearchResultsScreen(
             driver: q['mode'] == 'requests',
             openFilters: q['filters'] == '1',
+            mapView: switch (q['view']) { 'map' => true, 'list' => false, _ => null },
             initial: s.extra is FeedFilters ? s.extra as FeedFilters : const FeedFilters(),
           );
         },
@@ -119,9 +120,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/map',
-        // ?kind=trips|requests&ride=airport; extra = destination Place.
+        // ?kind=trips|requests&ride=airport (no kind → by active mode); extra = destination Place.
         builder: (c, s) => MapScreen(
-          requests: s.uri.queryParameters['kind'] == 'requests',
+          requests: switch (s.uri.queryParameters['kind']) { null => null, final k => k == 'requests' },
           ride: s.uri.queryParameters['ride'],
           to: s.extra is Place ? s.extra as Place : null,
         ),

@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../api/services/misc_services.dart' show MapItem;
 import '../../models/feed_filters.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../create/create_screen.dart' show CreatePrefill;
 import '../../utils/locale.dart';
+import '../../utils/location.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_chip.dart';
 import '../../widgets/date_picker_modal.dart';
 import '../../widgets/filters_sheet.dart';
@@ -14,7 +19,12 @@ import '../../widgets/request_card.dart';
 import '../../widgets/trip_card.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
+import '../map/map_nearby.dart';
+import '../map/route_results_map.dart';
 import '../trip/trip_detail_screen.dart' show showTripDetailSheet;
+
+/// «Список | Карта» — the last choice, remembered for the app session.
+final resultsMapViewProvider = StateProvider<bool>((ref) => false);
 
 /// Results page (the «next page» after searching from the hub). Shows the
 /// route header (editable) + a control row (filters · date stepper) + the
@@ -24,11 +34,15 @@ class SearchResultsScreen extends ConsumerStatefulWidget {
       {super.key,
       required this.initial,
       required this.driver,
-      this.openFilters = false});
+      this.openFilters = false,
+      this.mapView});
 
   final FeedFilters initial;
   final bool driver;
   final bool openFilters;
+
+  /// `?view=map|list`; null → the session's last choice.
+  final bool? mapView;
 
   @override
   ConsumerState<SearchResultsScreen> createState() =>
@@ -37,11 +51,14 @@ class SearchResultsScreen extends ConsumerStatefulWidget {
 
 class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   late FeedFilters _filters = widget.initial;
+  late bool _mapView = widget.mapView ?? ref.read(resultsMapViewProvider);
+  bool _canSortNear = false; // location on + the user is near «Откуда»
   bool get _driver => widget.driver;
 
   @override
   void initState() {
     super.initState();
+    _checkNear();
     // Arrived from the hub's filter icon → open the full filter sheet (which
     // also lets the user change Откуда/Куда).
     if (widget.openFilters) {
@@ -55,6 +72,22 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
         accent: _driver ? ChipAccent.grape : ChipAccent.brand,
         onChanged: (f) => setState(() => _filters = f),
       );
+
+  Future<void> _checkNear() async {
+    final loc = ref.read(locationServiceProvider);
+    if (await loc.status() != LocPermission.granted) return;
+    final me = loc.last ?? await loc.lastKnown();
+    final from = _filters.from;
+    final near = me != null &&
+        inKyrgyzstan(me) &&
+        (from == null || !from.hasPoint || haversineKm(me, (lat: from.lat!, lng: from.lng!)) <= 50);
+    if (mounted && near != _canSortNear) setState(() => _canSortNear = near);
+  }
+
+  void _setView(bool map) {
+    ref.read(resultsMapViewProvider.notifier).state = map;
+    setState(() => _mapView = map);
+  }
 
   static const _monthsShort = [
     'янв', 'фев', 'мар', 'апр', 'май', 'июн',
@@ -88,9 +121,13 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
         bottom: false,
         child: Column(
           children: [
-            _header(dark, driver),
+            _header(dark),
             _dateBar(context, dark, driver, accent),
-            Expanded(
+            _viewToggle(),
+            if (_mapView)
+              Expanded(child: _mapBody(dark, driver))
+            else
+              Expanded(
               child: NotificationListener<ScrollNotification>(
                 onNotification: (n) {
                   if (n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
@@ -114,6 +151,8 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                   child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
+                      if (_canSortNear)
+                        SliverToBoxAdapter(child: _nearSortChip()),
                       if (showNearby)
                         SliverToBoxAdapter(child: _nearbyBanner(dark)),
                       SliverPadding(
@@ -145,7 +184,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   }
 
   // ── Compact header: back + «Когда хотите поехать?» + route + swap ──────────
-  Widget _header(bool dark, bool driver) {
+  Widget _header(bool dark) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 8, 2),
       child: Row(
@@ -175,13 +214,6 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                         color: InkColors.c400)),
               ],
             ),
-          ),
-          // Same search on the map — see where exactly people board.
-          IconButton(
-            tooltip: 'map.title'.tr(),
-            onPressed: () => context.push('/map?kind=${driver ? 'requests' : 'trips'}',
-                extra: _filters.to),
-            icon: Icon(Icons.map_outlined, size: 22, color: dark ? InkColors.c300 : InkColors.c600),
           ),
           GestureDetector(
             onTap: () => setState(() => _filters = _filters.copyWith(
@@ -450,6 +482,81 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
     );
   }
 
+  // ── «Список | Карта» ───────────────────────────────────────────────────────
+  Widget _viewToggle() => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        child: SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: [
+              ButtonSegment(
+                  value: false,
+                  icon: const Icon(Icons.view_list_rounded, size: 18),
+                  label: Text('map.view_list'.tr())),
+              ButtonSegment(
+                  value: true,
+                  icon: const Icon(Icons.map_outlined, size: 18),
+                  label: Text('map.view_map'.tr())),
+            ],
+            selected: {_mapView},
+            onSelectionChanged: (v) => _setView(v.first),
+          ),
+        ),
+      );
+
+  Widget _nearSortChip() {
+    final on = _filters.sort == 'nearest';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: FilterChip(
+          avatar: const Icon(Icons.near_me_rounded, size: 16),
+          label: Text('map.sort_near'.tr()),
+          selected: on,
+          showCheckmark: false,
+          onSelected: (_) => setState(() => _filters = _filters.copyWith(sort: on ? 'time' : 'nearest')),
+        ),
+      ),
+    );
+  }
+
+  // Map view: this route's results only, pinned at their pickup points.
+  Widget _mapBody(bool dark, bool driver) {
+    void open(String id) => driver ? context.push('/requests/$id') : showTripDetailSheet(context, id);
+    Widget wrap(bool empty, Iterable<MapItem?> pins) => empty
+        ? SingleChildScrollView(child: _emptyBlock(dark, driver))
+        : RouteResultsMap(
+            items: pins.nonNulls.toList(),
+            requests: driver,
+            origin: _filters.from,
+            onOpen: open,
+          );
+    Widget err(Object e, VoidCallback retry) => SingleChildScrollView(child: QueryError(error: e, onRetry: retry));
+    if (driver) {
+      return ref.watch(requestsFeedProvider(_filters)).when(
+            loading: () => const _LoadingBlock(),
+            error: (e, _) => err(e, () => ref.invalidate(requestsFeedProvider(_filters))),
+            data: (all) => wrap(all.isEmpty, all.map((r) => requestPin(r, fallback: _filters.from))),
+          );
+    }
+    return ref.watch(tripsFeedProvider(_filters)).when(
+          loading: () => const _LoadingBlock(),
+          error: (e, _) => err(e, () => ref.invalidate(tripsFeedProvider(_filters))),
+          data: (all) => wrap(all.isEmpty, all.map((t) => tripPin(t, fallback: _filters.from))),
+        );
+  }
+
+  void _create(bool driver) {
+    if (ref.read(authProvider).status != AuthStatus.authenticated) {
+      context.push('/auth/login');
+      return;
+    }
+    context.push('/trips/create?kind=${driver ? 'trip' : 'request'}',
+        extra: CreatePrefill(from: _filters.from, to: _filters.to));
+  }
+
   Widget _nearbyBanner(bool dark) => Container(
         margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -553,6 +660,13 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: InkColors.c400)),
+          const SizedBox(height: 16),
+          AppButton(
+            label: (requests ? 'map.publish_trip' : 'map.create_request').tr(),
+            variant: AppButtonVariant.outline,
+            expand: false,
+            onPressed: () => _create(requests),
+          ),
           _nextDayCta(dark, requests),
         ]),
       );
