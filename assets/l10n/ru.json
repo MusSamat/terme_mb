@@ -35,7 +35,8 @@
     "no_show": "Не явился",
     "completed": "Завершена",
     "expired": "Истекла",
-    "closed": "Закрыта"
+    "closed": "Закрыта",
+    "direct": "Личная поездка"
   },
   "status_short": {
     "active": "Активна",

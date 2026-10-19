@@ -35,7 +35,8 @@
     "no_show": "Келген жок",
     "completed": "Аякталды",
     "expired": "Мөөнөтү өттү",
-    "closed": "Жабык"
+    "closed": "Жабык",
+    "direct": "Жеке сапар"
   },
   "status_short": {
     "active": "Активдүү",
